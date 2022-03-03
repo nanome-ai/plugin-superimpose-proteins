@@ -129,6 +129,7 @@ class RMSDMenu:
 
     @async_callback
     async def submit(self, btn):
+        Logs.message("Submit button Pressed.")
         dd_fixed_comp = self.ln_struct1_complex.get_content()
         dd_fixed_chain = self.ln_struct1_chain.get_content()
         dd_moving_comp = self.ln_struct2_complex.get_content()
@@ -182,26 +183,34 @@ class RMSDV2(nanome.AsyncPluginInstance):
         moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
         mapping = self.align_sequences(fixed_chain, moving_chain)
 
-        fixed_atoms = []
-        moving_atoms = []
-        for fixed_atom in fixed_struct.get_atoms():
-            if fixed_atom.serial_number in mapping:
-                fixed_atoms.append(fixed_atom)
-                moving_atom_serial = mapping[fixed_atom.serial_number] 
-                moving_atom = next(
-                    atom for atom in moving_struct.get_atoms()
-                    if atom.serial_number == moving_atom_serial)
-                moving_atoms.append(moving_atom)
+        fixed_residues = []
+        moving_residues = []
+        for fixed_residue in fixed_struct.get_residues():
+            fixed_id = fixed_residue.id[1]
+            if fixed_id in mapping:
+                fixed_residues.append(fixed_residue)
+                moving_residue_serial = mapping[fixed_id] 
+                moving_residue = next(
+                    rez for rez in moving_struct.get_residues()
+                    if rez.id[1] == moving_residue_serial)
+                moving_residues.append(moving_residue)
 
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
+        fixed_atoms = []
+        for rez in fixed_residues:
+            fixed_atoms.extend(rez.get_atoms())
+        moving_atoms = []
+        for rez in moving_residues:
+            moving_atoms.extend(rez.get_atoms())
+
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        superimposer.apply([*fixed_atoms, *moving_atoms])
+        superimposer.apply(moving_atoms)
         Logs.message(f'RMSD: {superimposer.rms}')
         Logs.message("Updating Workspace")
         # Apply changes to Workspace
         for comp_atom in moving_comp.atoms:
-            struc_atom = next((a for a in moving_atoms if comp_atom.serial == a.serial_number), None)
+            struc_atom = next((a for a in moving_residues if comp_atom.serial == a.serial_number), None)
             if not struc_atom:
                 continue
             comp_atom.position = Vector3(*struc_atom.coord)
