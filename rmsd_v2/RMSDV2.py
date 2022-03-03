@@ -6,7 +6,7 @@ from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
 from Bio.Align import substitution_matrices
-
+from functools import partial
 import nanome
 from nanome.api import ui
 from nanome.api.structure import Complex, Chain
@@ -44,38 +44,29 @@ class RMSDMenu:
         complexes = complexes or []
         self.complexes = complexes
 
-        # for comp in self.complexes:
-        #     comp.register_complex_updated_callback(self.on_complex_updated)
-
-        # Find the first complex with selected atoms, and make that the default.
-        # I guess that works for now.
-        default_complex = None
-        if complexes:
-            default_complex = complexes[0]
-
-        self.display_structures(complexes, self.ln_struct1_complex, default_structure=default_complex)
-        if default_complex:
-            await self.display_chains(default_complex, self.ln_struct1_chain)
-
-        self.display_structures(complexes, self.ln_struct2_complex, default_structure=default_complex)
-        if default_complex:
-            await self.display_chains(default_complex, self.ln_struct2_chain)
-
-        # self.display_structures(complexes, self.ln_ligands)
-        # Determine whether we should currently be showing the ligand dropdown.
-        # enable_ligands_node = self.btn_show_all_interactions.selected
-        # self.toggle_ln_ligands_visibility(enable_ligands_node)
-        # self.dd_complexes = self.ln_complexes.get_content()
-        # self.dd_ligands = self.ln_ligands.get_content()
-        # self.dd_ligands.register_item_clicked_callback(self.update_dropdown)
-        # self.dd_complexes.register_item_clicked_callback(self.toggle_complex)
+        self.display_structures(complexes, self.ln_struct1_complex)
+        dd_struct1_complex = self.ln_struct1_complex.get_content()
+        dd_struct1_complex.register_item_clicked_callback(
+            partial(self.update_chain_dropdown, self.ln_struct1_chain))
+        
+        self.display_structures(complexes, self.ln_struct2_complex)
+        dd_struct2_complex = self.ln_struct2_complex.get_content()
+        dd_struct2_complex.register_item_clicked_callback(
+            partial(self.update_chain_dropdown, self.ln_struct2_chain))
         self.plugin.update_menu(self._menu)
+
+    @async_callback
+    async def update_chain_dropdown(self, ln_chain_dropdown, complex_dropdown, complex_dd_item):
+        """Update chain dropdown to reflect changes in complex."""
+        comp = complex_dd_item.complex
+        Logs.message("Updating Chain dropdown")
+        await self.display_chains(comp, ln_chain_dropdown)
 
     def display_structures(self, complexes, layoutnode, default_structure=False):
         """Create dropdown of complexes, and add to provided layoutnode."""
         dropdown_items = self.create_structure_dropdown_items(complexes)
         dropdown = ui.Dropdown()
-        dropdown.max_displayed_items = 12
+        dropdown.max_displayed_items = len(dropdown_items)
         dropdown.items = dropdown_items
 
         # set default item selected.
@@ -103,6 +94,7 @@ class RMSDMenu:
         for chain_name in chain_names:
             ddi = ui.DropdownItem(chain_name)
             dropdown_items.append(ddi)
+        dropdown.max_displayed_items = len(dropdown_items)
         dropdown.items = dropdown_items
         layoutnode.set_content(dropdown)
         self.plugin.update_node(layoutnode)
