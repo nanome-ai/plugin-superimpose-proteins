@@ -1,2 +1,2 @@
-nanome==0.34.7
+nanome==0.35.2
 biopython==1.79
