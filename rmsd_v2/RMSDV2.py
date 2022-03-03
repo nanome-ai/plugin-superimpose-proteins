@@ -39,6 +39,10 @@ class RMSDMenu:
     def ln_struct2_chain(self):
         return self._menu.root.find_node('ln_struct2_chain')
 
+    @property
+    def btn_submit(self):
+        return self._menu.root.find_node('ln_submit').get_content()
+
     @async_callback
     async def render(self, complexes=None, default_values=False):
         complexes = complexes or []
@@ -53,6 +57,7 @@ class RMSDMenu:
         dd_struct2_complex = self.ln_struct2_complex.get_content()
         dd_struct2_complex.register_item_clicked_callback(
             partial(self.update_chain_dropdown, self.ln_struct2_chain))
+        self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
     @async_callback
@@ -122,6 +127,29 @@ class RMSDMenu:
 
         return complex_ddis
 
+    @async_callback
+    async def submit(self, btn):
+        dd_fixed_comp = self.ln_struct1_complex.get_content()
+        dd_fixed_chain = self.ln_struct1_chain.get_content()
+        dd_moving_comp = self.ln_struct2_complex.get_content()
+        dd_moving_chain = self.ln_struct2_chain.get_content()
+
+        fixed_comp = next(
+            item.complex for item in dd_fixed_comp.items if item.selected
+        )
+        fixed_chain = next(
+            item.name for item in dd_fixed_chain.items
+            if item.selected
+        )
+        moving_comp = next(
+            item.complex for item in dd_moving_comp.items if item.selected
+        )
+        moving_chain = next(
+            item.name for item in dd_moving_chain.items
+            if item.selected
+        )
+        await self.plugin.superimpose(fixed_comp, fixed_chain, moving_comp, moving_chain)
+
 
 class RMSDV2(nanome.AsyncPluginInstance):
 
@@ -135,14 +163,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message('RMSDV2 Run.')
         self.menu.render(complexes=complexes)
         return
-        Logs.message("Retrieving complexes")
-        complexes = await self.request_complex_list()
-        complexes = await self.request_complexes([comp.index for comp in complexes])
 
+    async def superimpose(self, fixed_comp, fixed_chain_name, moving_comp, moving_chain_name):
+        fixed_comp, moving_comp = await self.request_complexes([fixed_comp.index, moving_comp.index])
         Logs.message("Parsing Complexes to BioPython Structures.")
         parser = PDBParser(QUIET=True)
-        fixed_comp = complexes[0]
-        moving_comp = complexes[1]
         ComplexUtils.align_to(moving_comp, fixed_comp)
 
         fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -151,14 +176,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
         moving_comp.io.to_pdb(moving_pdb.name)
         fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
         moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-        # Logs.message("Selecting Chains")
-        # fixed_chain = next(fixed_struct.get_chains())
-        # moving_chain = next(moving_struct.get_chains())
-        # fixed_chain_name = 'A'
-        # moving_chain_name = 'A'
 
         Logs.message("Aligning Structures.")
-        mapping = self.align_sequences(fixed_struct, moving_struct)
+        fixed_chain = next(ch for ch in fixed_struct.get_chains() if ch.id == fixed_chain_name)
+        moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
+        mapping = self.align_sequences(fixed_chain, moving_chain)
 
         fixed_atoms = []
         moving_atoms = []
