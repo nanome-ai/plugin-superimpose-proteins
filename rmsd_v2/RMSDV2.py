@@ -1,6 +1,6 @@
+import Bio
 import tempfile
 from os import path
-from tkinter import Menu
 from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
@@ -150,6 +150,7 @@ class RMSDMenu:
             if item.selected
         )
         await self.plugin.superimpose(fixed_comp, fixed_chain, moving_comp, moving_chain)
+        Logs.message("Superposition completed.")
 
 
 class RMSDV2(nanome.AsyncPluginInstance):
@@ -183,43 +184,36 @@ class RMSDV2(nanome.AsyncPluginInstance):
         moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
         mapping = self.align_sequences(fixed_chain, moving_chain)
 
-        fixed_residues = []
-        moving_residues = []
+        # Collect aligned residues
+        # Align Residues based on Alpha Carbon
+        fixed_atoms = []
+        moving_atoms = []
+        alpha_carbon = 'CA'
         for fixed_residue in fixed_struct.get_residues():
             fixed_id = fixed_residue.id[1]
             if fixed_id in mapping:
-                fixed_residues.append(fixed_residue)
+                fixed_atoms.append(fixed_residue[alpha_carbon])
                 moving_residue_serial = mapping[fixed_id] 
                 moving_residue = next(
                     rez for rez in moving_struct.get_residues()
                     if rez.id[1] == moving_residue_serial)
-                moving_residues.append(moving_residue)
-
+                moving_atoms.append(moving_residue[alpha_carbon])
+        assert len(moving_atoms) == len(fixed_atoms)
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
-        fixed_atoms = []
-        for rez in fixed_residues:
-            fixed_atoms.extend(rez.get_atoms())
-        moving_atoms = []
-        for rez in moving_residues:
-            moving_atoms.extend(rez.get_atoms())
-
         superimposer.set_atoms(fixed_atoms, moving_atoms)
         superimposer.apply(moving_atoms)
         Logs.message(f'RMSD: {superimposer.rms}')
         Logs.message("Updating Workspace")
+        
         # Apply changes to Workspace
         for comp_atom in moving_comp.atoms:
-            struc_atom = next((a for a in moving_residues if comp_atom.serial == a.serial_number), None)
-            if not struc_atom:
-                continue
-            comp_atom.position = Vector3(*struc_atom.coord)
-
-        for comp_atom in fixed_comp.atoms:
             struc_atom = next((a for a in moving_atoms if comp_atom.serial == a.serial_number), None)
             if not struc_atom:
                 continue
             comp_atom.position = Vector3(*struc_atom.coord)
+
+        moving_struct.position = fixed_comp.position
         await self.update_structures_deep([moving_struct])
 
     def align_sequences(self, structA, structB):
