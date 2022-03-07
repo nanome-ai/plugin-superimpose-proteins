@@ -189,21 +189,13 @@ class RMSDV2(nanome.AsyncPluginInstance):
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon = 'CA'
-        for fixed_residue in fixed_struct.get_residues():
+        for fixed_residue in fixed_chain.get_residues():
             fixed_id = fixed_residue.id[1]
             if fixed_id in mapping:
-                try:
-                    fixed_a_carbon = fixed_residue[alpha_carbon]
-                except KeyError:
-                    Logs.warning("No alpha carbon found")
-                    continue
-                if not fixed_a_carbon:
-                    Logs.warning("No alpha carbon found")
-                    continue
                 fixed_atoms.append(fixed_residue[alpha_carbon])
                 moving_residue_serial = mapping[fixed_id] 
                 moving_residue = next(
-                    rez for rez in moving_struct.get_residues()
+                    rez for rez in moving_chain.get_residues()
                     if rez.id[1] == moving_residue_serial)
                 moving_atoms.append(moving_residue[alpha_carbon])
         assert len(moving_atoms) == len(fixed_atoms)
