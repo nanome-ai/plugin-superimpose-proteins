@@ -218,29 +218,16 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m[3][3] = 1
         m.transpose()
         
-        # apply transformation to moving_comp
-        for comp_atom in moving_comp.atoms:
-            new_atom_position = m * comp_atom.position
-            comp_atom.position = new_atom_position
 
         # superimposer.apply(moving_struct.get_atoms())
         Logs.message(f"Matrix m = {str(m)}")
         Logs.message(f'RMSD: {superimposer.rms}')
-        Logs.message("Updating Workspace")
-        
-        # Apply changes to Workspace
-        # global_to_fixed_mat = fixed_comp.get_workspace_to_complex_matrix()
-        # for comp_atom in moving_comp.atoms:
-        #     struc_atom = next((a for a in moving_struct.get_atoms() if comp_atom.serial == a.serial_number), None)
-        #     if not struc_atom:
-        #         Logs.warning("No atom found for serial number {}".format(comp_atom.serial))
-        #         continue
-        #     # c1_to_global_mat = moving_comp.get_complex_to_workspace_matrix()
-        #     global_pos = Vector3(*struc_atom.coord)
-        #     comp_atom.position = global_pos
 
-        # moving_comp.position = fixed_comp.position
+        # apply transformation to moving_comp
         moving_comp.set_surface_needs_redraw()
+        for comp_atom in moving_comp.atoms:
+            new_atom_position = m * comp_atom.position
+            comp_atom.position = new_atom_position
         await self.update_structures_deep([moving_comp])
 
     def align_sequences(self, structA, structB):
