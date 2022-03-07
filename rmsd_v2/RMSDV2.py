@@ -201,34 +201,31 @@ class RMSDV2(nanome.AsyncPluginInstance):
         assert len(moving_atoms) == len(fixed_atoms)
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
-        superimposer.set_atoms(fixed_atoms, moving_atoms)
-
-        # get rotation and translation matrix from superimposer
+        superimposer.set_atoms(fixed_atoms, moving_atoms)        
+        # superimposer.apply(moving_struct.get_atoms())
+        rms = superimposer.rms
+        Logs.message(f'RMSD: {rms}')
+        # convert numpy rot + tran matrices to 4x4 nanome matrix
         rot, tran = superimposer.rotran
         rot = rot.tolist()
         tran = tran.tolist()
-
-        # convert numpy rot + tran matrices to 4x4 nanome matrix
-        # transpose necessary because numpy and nanome matrices are opposite row/col
         m = Matrix(4, 4)
         m[0][0:3] = rot[0]
         m[1][0:3] = rot[1]
         m[2][0:3] = rot[2]
         m[3][0:3] = tran
         m[3][3] = 1
+        Logs.debug(f"Matrix m = {str(m)}")
+        # transpose necessary because numpy and nanome matrices are opposite row/col
         m.transpose()
-        
-
-        # superimposer.apply(moving_struct.get_atoms())
-        Logs.message(f"Matrix m = {str(m)}")
-        Logs.message(f'RMSD: {superimposer.rms}')
-
         # apply transformation to moving_comp
         moving_comp.set_surface_needs_redraw()
         for comp_atom in moving_comp.atoms:
-            new_atom_position = m * comp_atom.position
-            comp_atom.position = new_atom_position
+            comp_atom.position = m * comp_atom.position
         await self.update_structures_deep([moving_comp])
+        return {
+            moving_comp.full_name: rms
+        }
 
     def align_sequences(self, structA, structB):
         """
