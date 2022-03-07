@@ -202,19 +202,23 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        superimposer.apply(moving_atoms)
+        superimposer.apply(moving_struct.get_atoms())
         Logs.message(f'RMSD: {superimposer.rms}')
         Logs.message("Updating Workspace")
         
         # Apply changes to Workspace
+        global_to_fixed_mat = fixed_comp.get_workspace_to_complex_matrix()
         for comp_atom in moving_comp.atoms:
             struc_atom = next((a for a in moving_atoms if comp_atom.serial == a.serial_number), None)
             if not struc_atom:
                 continue
-            comp_atom.position = Vector3(*struc_atom.coord)
+            c1_to_global_mat = moving_comp.get_complex_to_workspace_matrix()
+            global_pos = c1_to_global_mat * Vector3(*struc_atom.coord)
+            comp_atom.position = global_to_fixed_mat * global_pos
 
-        moving_struct.position = fixed_comp.position
-        await self.update_structures_deep([moving_struct])
+        moving_comp.position = fixed_comp.position
+        moving_comp.set_surface_needs_redraw()
+        await self.update_structures_deep([moving_comp])
 
     def align_sequences(self, structA, structB):
         """
