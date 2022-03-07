@@ -1,4 +1,3 @@
-import Bio
 import tempfile
 from os import path
 from Bio.PDB import Superimposer, PDBParser
@@ -9,8 +8,9 @@ from Bio.Align import substitution_matrices
 from functools import partial
 import nanome
 from nanome.api import ui
-from nanome.api.structure import Complex, Chain
-from nanome.util import Logs, async_callback, Matrix, Vector3, ComplexUtils
+from nanome.api.structure import Complex
+from nanome.util import Logs, async_callback, Matrix, ComplexUtils
+from nanome.util.enums import NotificationTypes
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu.json')
@@ -42,6 +42,10 @@ class RMSDMenu:
     @property
     def btn_submit(self):
         return self._menu.root.find_node('ln_submit').get_content()
+
+    @property
+    def lbl_rmsd_value(self):
+        return self._menu.root.find_node('ln_rmsd_value').get_content()
 
     @async_callback
     async def render(self, complexes=None, default_values=False):
@@ -130,26 +134,37 @@ class RMSDMenu:
     @async_callback
     async def submit(self, btn):
         Logs.message("Submit button Pressed.")
+        self.btn_submit.unusable = True
+        self.plugin.update_content(self.btn_submit)
         dd_fixed_comp = self.ln_struct1_complex.get_content()
         dd_fixed_chain = self.ln_struct1_chain.get_content()
         dd_moving_comp = self.ln_struct2_complex.get_content()
         dd_moving_chain = self.ln_struct2_chain.get_content()
 
         fixed_comp = next(
-            item.complex for item in dd_fixed_comp.items if item.selected
+            (item.complex for item in dd_fixed_comp.items if item.selected), None
         )
         fixed_chain = next(
-            item.name for item in dd_fixed_chain.items
-            if item.selected
+            (item.name for item in dd_fixed_chain.items if item.selected), None
         )
         moving_comp = next(
-            item.complex for item in dd_moving_comp.items if item.selected
+            (item.complex for item in dd_moving_comp.items if item.selected), None
         )
         moving_chain = next(
-            item.name for item in dd_moving_chain.items
-            if item.selected
+            (item.name for item in dd_moving_chain.items if item.selected), None
         )
-        await self.plugin.superimpose(fixed_comp, fixed_chain, moving_comp, moving_chain)
+        if not any([fixed_comp, fixed_chain, moving_comp, moving_chain]):
+            message = "Please select a structure and chain."
+            Logs.error(message)
+            self.plugin.send_notification(NotificationTypes.error, message)
+            self.btn_submit.unusable = False
+            self.plugin.update_content(self.btn_submit)
+            return
+        rmsd_result = await self.plugin.superimpose(fixed_comp, fixed_chain, moving_comp, moving_chain)
+
+        self.btn_submit.unusable = False
+        self.lbl_rmsd_value.text_value = rmsd_result
+        self.plugin.update_content(self.lbl_rmsd_value, self.btn_submit)
         Logs.message("Superposition completed.")
 
 
@@ -205,6 +220,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         # superimposer.apply(moving_struct.get_atoms())
         rms = superimposer.rms
         Logs.message(f'RMSD: {rms}')
+        
         # convert numpy rot + tran matrices to 4x4 nanome matrix
         rot, tran = superimposer.rotran
         rot = rot.tolist()
@@ -223,9 +239,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
         for comp_atom in moving_comp.atoms:
             comp_atom.position = m * comp_atom.position
         await self.update_structures_deep([moving_comp])
-        return {
-            moving_comp.full_name: rms
-        }
+        self.send_notification(NotificationTypes.message, f'RMSD: {rms}')
+        return rms
 
     def align_sequences(self, structA, structB):
         """
