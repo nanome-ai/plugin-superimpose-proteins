@@ -179,7 +179,20 @@ class RMSDV2(nanome.AsyncPluginInstance):
         complexes = await self.request_complex_list()
         Logs.message('RMSDV2 Run.')
         self.menu.render(complexes=complexes)
-        return
+    
+    @async_callback
+    async def on_complex_list_updated(self, complexes):
+        self.menu.render(complexes=complexes)
+
+    @async_callback
+    async def on_complex_added(self):
+        complexes = await self.request_complex_list()
+        await self.menu.render(complexes=complexes, default_values=True)
+
+    @async_callback
+    async def on_complex_removed(self):
+        complexes = await self.request_complex_list()
+        await self.menu.render(complexes=complexes)
 
     async def superimpose(self, fixed_comp, fixed_chain_name, moving_comp, moving_chain_name):
         fixed_comp, moving_comp = await self.request_complexes([fixed_comp.index, moving_comp.index])
