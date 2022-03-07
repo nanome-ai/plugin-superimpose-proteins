@@ -10,7 +10,7 @@ from functools import partial
 import nanome
 from nanome.api import ui
 from nanome.api.structure import Complex, Chain
-from nanome.util import Logs, async_callback, Vector3, ComplexUtils
+from nanome.util import Logs, async_callback, Matrix, Vector3, ComplexUtils
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu.json')
@@ -192,6 +192,14 @@ class RMSDV2(nanome.AsyncPluginInstance):
         for fixed_residue in fixed_struct.get_residues():
             fixed_id = fixed_residue.id[1]
             if fixed_id in mapping:
+                try:
+                    fixed_a_carbon = fixed_residue[alpha_carbon]
+                except KeyError:
+                    Logs.warning("No alpha carbon found")
+                    continue
+                if not fixed_a_carbon:
+                    Logs.warning("No alpha carbon found")
+                    continue
                 fixed_atoms.append(fixed_residue[alpha_carbon])
                 moving_residue_serial = mapping[fixed_id] 
                 moving_residue = next(
@@ -202,21 +210,44 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        superimposer.apply(moving_struct.get_atoms())
+
+        # get rotation and translation matrix from superimposer
+        rot, tran = superimposer.rotran
+        rot = rot.tolist()
+        tran = tran.tolist()
+
+        # convert numpy rot + tran matrices to 4x4 nanome matrix
+        # transpose necessary because numpy and nanome matrices are opposite row/col
+        m = Matrix(4, 4)
+        m[0][0:3] = rot[0]
+        m[1][0:3] = rot[1]
+        m[2][0:3] = rot[2]
+        m[3][0:3] = tran
+        m[3][3] = 1
+        m.transpose()
+        
+        # apply transformation to moving_comp
+        for comp_atom in moving_comp.atoms:
+            new_atom_position = m * comp_atom.position
+            comp_atom.position = new_atom_position
+
+        # superimposer.apply(moving_struct.get_atoms())
+        Logs.message(f"Matrix m = {str(m)}")
         Logs.message(f'RMSD: {superimposer.rms}')
         Logs.message("Updating Workspace")
         
         # Apply changes to Workspace
-        global_to_fixed_mat = fixed_comp.get_workspace_to_complex_matrix()
-        for comp_atom in moving_comp.atoms:
-            struc_atom = next((a for a in moving_atoms if comp_atom.serial == a.serial_number), None)
-            if not struc_atom:
-                continue
-            c1_to_global_mat = moving_comp.get_complex_to_workspace_matrix()
-            global_pos = c1_to_global_mat * Vector3(*struc_atom.coord)
-            comp_atom.position = global_to_fixed_mat * global_pos
+        # global_to_fixed_mat = fixed_comp.get_workspace_to_complex_matrix()
+        # for comp_atom in moving_comp.atoms:
+        #     struc_atom = next((a for a in moving_struct.get_atoms() if comp_atom.serial == a.serial_number), None)
+        #     if not struc_atom:
+        #         Logs.warning("No atom found for serial number {}".format(comp_atom.serial))
+        #         continue
+        #     # c1_to_global_mat = moving_comp.get_complex_to_workspace_matrix()
+        #     global_pos = Vector3(*struc_atom.coord)
+        #     comp_atom.position = global_pos
 
-        moving_comp.position = fixed_comp.position
+        # moving_comp.position = fixed_comp.position
         moving_comp.set_surface_needs_redraw()
         await self.update_structures_deep([moving_comp])
 
