@@ -13,7 +13,7 @@ from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.util.enums import NotificationTypes
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu.json')
+MENU_PATH = path.join(BASE_PATH, 'menu2.json')
 
 
 class RMSDMenu:
@@ -40,6 +40,14 @@ class RMSDMenu:
         return self._menu.root.find_node('ln_struct2_chain')
 
     @property
+    def ln_main_list(self):
+        return self._menu.root.find_node('ln_main_list')
+
+    @property
+    def ln_comparator_list(self):
+        return self._menu.root.find_node('ln_comparator_list')
+
+    @property
     def btn_submit(self):
         return self._menu.root.find_node('ln_submit').get_content()
 
@@ -52,15 +60,15 @@ class RMSDMenu:
         complexes = complexes or []
         self.complexes = complexes
 
-        self.display_structures(complexes, self.ln_struct1_complex)
-        dd_struct1_complex = self.ln_struct1_complex.get_content()
-        dd_struct1_complex.register_item_clicked_callback(
-            partial(self.update_chain_dropdown, self.ln_struct1_chain))
+        self.display_structures(complexes, self.ln_main_list)
+        # dd_struct1_complex = self.ln_main_list.get_content()
+        # dd_struct1_complex.register_item_clicked_callback(
+        #     partial(self.update_chain_dropdown, self.ln_struct1_chain))
         
-        self.display_structures(complexes, self.ln_struct2_complex)
-        dd_struct2_complex = self.ln_struct2_complex.get_content()
-        dd_struct2_complex.register_item_clicked_callback(
-            partial(self.update_chain_dropdown, self.ln_struct2_chain))
+        self.display_structures(complexes, self.ln_comparator_list)
+        # dd_struct2_complex = self.ln_comparator_list.get_content()
+        # dd_struct2_complex.register_item_clicked_callback(
+        #     partial(self.update_chain_dropdown, self.ln_struct2_chain))
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -73,23 +81,24 @@ class RMSDMenu:
 
     def display_structures(self, complexes, layoutnode, default_structure=False):
         """Create dropdown of complexes, and add to provided layoutnode."""
-        dropdown_items = self.create_structure_dropdown_items(complexes)
-        dropdown = ui.Dropdown()
-        dropdown.max_displayed_items = len(dropdown_items)
-        dropdown.items = dropdown_items
+        self.populate_complex_list(complexes, layoutnode)
+        # dropdown_items = self.create_structure_dropdown_items(complexes)
+        # ui_list = ui.UIList()
+        # dropdown.max_displayed_items = len(dropdown_items)
+        # dropdown.items = dropdown_items
 
         # set default item selected.
-        if default_structure:
-            for ddi in dropdown.items:
-                select_ddi = False
-                if isinstance(default_structure, Complex):
-                    select_ddi = ddi.complex.index == default_structure.index
+        # if default_structure:
+        #     for ddi in dropdown.items:
+        #         select_ddi = False
+        #         if isinstance(default_structure, Complex):
+        #             select_ddi = ddi.complex.index == default_structure.index
 
-                if select_ddi:
-                    ddi.selected = True
-                    break
+        #         if select_ddi:
+        #             ddi.selected = True
+        #             break
 
-        layoutnode.set_content(dropdown)
+        # layoutnode.set_content(ui_list)
         self.plugin.update_node(layoutnode)
     
     async def display_chains(self, complex, layoutnode):
@@ -167,6 +176,23 @@ class RMSDMenu:
         self.plugin.update_content(self.lbl_rmsd_value, self.btn_submit)
         Logs.message("Superposition completed.")
 
+    def populate_complex_list(self, complex_list, layoutnode):
+        ui_list = ui.UIList()
+        ui_list.display_rows = min(len(complex_list), 5)
+        complex_ln_list = []
+        for complex in complex_list:
+            # Create button representing each complex in the workspace.
+            item = ui.LayoutNode()
+            btn_ln = item.create_child_node()
+            btn = btn_ln.add_new_button()
+            btn.text.active = True
+            btn.text.value.set_all(complex.full_name)
+            btn.complex = complex
+            complex_ln_list.append(item)
+            # btn.register_pressed_callback(self.select_complex)
+        ui_list.items = complex_ln_list
+        layoutnode.set_content(ui_list)
+        self.plugin.update_node(layoutnode)
 
 class RMSDV2(nanome.AsyncPluginInstance):
 
