@@ -60,12 +60,11 @@ class RMSDMenu:
         complexes = complexes or []
         self.complexes = complexes
 
-        self.display_structures(complexes, self.ln_main_list)
+        self.populate_complex_list(complexes, self.ln_main_list, single_selection=True)
         # dd_struct1_complex = self.ln_main_list.get_content()
         # dd_struct1_complex.register_item_clicked_callback(
         #     partial(self.update_chain_dropdown, self.ln_struct1_chain))
-        
-        self.display_structures(complexes, self.ln_comparator_list)
+        self.populate_complex_list(complexes, self.ln_comparator_list)
         # dd_struct2_complex = self.ln_comparator_list.get_content()
         # dd_struct2_complex.register_item_clicked_callback(
         #     partial(self.update_chain_dropdown, self.ln_struct2_chain))
@@ -79,28 +78,6 @@ class RMSDMenu:
         Logs.message("Updating Chain dropdown")
         await self.display_chains(comp, ln_chain_dropdown)
 
-    def display_structures(self, complexes, layoutnode, default_structure=False):
-        """Create dropdown of complexes, and add to provided layoutnode."""
-        self.populate_complex_list(complexes, layoutnode)
-        # dropdown_items = self.create_structure_dropdown_items(complexes)
-        # ui_list = ui.UIList()
-        # dropdown.max_displayed_items = len(dropdown_items)
-        # dropdown.items = dropdown_items
-
-        # set default item selected.
-        # if default_structure:
-        #     for ddi in dropdown.items:
-        #         select_ddi = False
-        #         if isinstance(default_structure, Complex):
-        #             select_ddi = ddi.complex.index == default_structure.index
-
-        #         if select_ddi:
-        #             ddi.selected = True
-        #             break
-
-        # layoutnode.set_content(ui_list)
-        self.plugin.update_node(layoutnode)
-    
     async def display_chains(self, complex, layoutnode):
         """Create dropdown of chains, and add to provided layoutnode."""
         dropdown = ui.Dropdown()
@@ -145,54 +122,92 @@ class RMSDMenu:
         Logs.message("Submit button Pressed.")
         self.btn_submit.unusable = True
         self.plugin.update_content(self.btn_submit)
-        dd_fixed_comp = self.ln_struct1_complex.get_content()
-        dd_fixed_chain = self.ln_struct1_chain.get_content()
-        dd_moving_comp = self.ln_struct2_complex.get_content()
-        dd_moving_chain = self.ln_struct2_chain.get_content()
 
-        fixed_comp = next(
-            (item.complex for item in dd_fixed_comp.items if item.selected), None
-        )
-        fixed_chain = next(
-            (item.name for item in dd_fixed_chain.items if item.selected), None
-        )
-        moving_comp = next(
-            (item.complex for item in dd_moving_comp.items if item.selected), None
-        )
-        moving_chain = next(
-            (item.name for item in dd_moving_chain.items if item.selected), None
-        )
-        if not any([fixed_comp, fixed_chain, moving_comp, moving_chain]):
-            message = "Please select a structure and chain."
-            Logs.error(message)
-            self.plugin.send_notification(NotificationTypes.error, message)
-            self.btn_submit.unusable = False
-            self.plugin.update_content(self.btn_submit)
-            return
-        rmsd_result = await self.plugin.superimpose(fixed_comp, fixed_chain, moving_comp, moving_chain)
+        reference_list = self.ln_main_list.get_content()
+        comparator_list = self.ln_comparator_list.get_content()
+
+        reference_item = next(item for item in reference_list.items if item.get_content().selected)
+        comparator_items = [item for item in comparator_list.items if item.get_content().selected]
+
+        reference_comp = reference_item.get_content().complex
+        comparator_comps = [item.get_content().complex for item in comparator_items]
+
+        # dd_fixed_comp = self.ln_struct1_complex.get_content()
+        # dd_fixed_chain = self.ln_struct1_chain.get_content()
+        # dd_moving_comp = self.ln_struct2_complex.get_content()
+        # dd_moving_chain = self.ln_struct2_chain.get_content()
+
+        # fixed_comp = next(
+        #     (item.complex for item in dd_fixed_comp.items if item.selected), None
+        # )
+        # fixed_chain = next(
+        #     (item.name for item in dd_fixed_chain.items if item.selected), None
+        # )
+        # moving_comp = next(
+        #     (item.complex for item in dd_moving_comp.items if item.selected), None
+        # )
+        # moving_chain = next(
+        #     (item.name for item in dd_moving_chain.items if item.selected), None
+        # )
+        # if not any([fixed_comp, fixed_chain, moving_comp, moving_chain]):
+        #     message = "Please select a structure and chain."
+        #     Logs.error(message)
+        #     self.plugin.send_notification(NotificationTypes.error, message)
+        #     self.btn_submit.unusable = False
+        #     self.plugin.update_content(self.btn_submit)
+        #     return
+        rmsd_result = await self.plugin.msa_superimpose(reference_comp, comparator_comps)
 
         self.btn_submit.unusable = False
         self.lbl_rmsd_value.text_value = rmsd_result
         self.plugin.update_content(self.lbl_rmsd_value, self.btn_submit)
         Logs.message("Superposition completed.")
 
-    def populate_complex_list(self, complex_list, layoutnode):
+    @property
+    def prefab_complex_dropdown_btn(self):
+        if not hasattr(self, '_prefab_complex_dropdown_btn'):
+            ln = ui.LayoutNode()
+            btn = ln.add_new_button()
+            btn.selected = False
+            btn.toggle_on_press = True
+            # self._prefab_complex_dropdown_btn = btn
+            self._prefab_complex_dropdown_btn = ln
+        return self._prefab_complex_dropdown_btn
+
+    def populate_complex_list(self, complex_list, layoutnode, single_selection=False):
         ui_list = ui.UIList()
         ui_list.display_rows = min(len(complex_list), 5)
         complex_ln_list = []
         for complex in complex_list:
             # Create button representing each complex in the workspace.
-            item = ui.LayoutNode()
-            btn_ln = item.create_child_node()
-            btn = btn_ln.add_new_button()
+            item = self.prefab_complex_dropdown_btn.clone()
+            btn = item.get_content()
             btn.text.active = True
             btn.text.value.set_all(complex.full_name)
             btn.complex = complex
+            btn.register_pressed_callback(
+                partial(
+                    self.complex_btn_selected,
+                    single_selection=single_selection,
+                    ui_list=ui_list
+            ))
             complex_ln_list.append(item)
             # btn.register_pressed_callback(self.select_complex)
         ui_list.items = complex_ln_list
         layoutnode.set_content(ui_list)
         self.plugin.update_node(layoutnode)
+
+    def complex_btn_selected(self, btn, single_selection=False, ui_list=None):
+        btn.selected = not btn.selected
+        btns_to_update = [btn]
+        if btn.selected and single_selection and ui_list:
+            for item in ui_list.items:
+                item_btn = item.get_content()
+                if item_btn != btn and item_btn.selected:
+                    item_btn.selected = False
+                    btns_to_update.append(item_btn)
+        self.plugin.update_content(*btns_to_update)
+
 
 class RMSDV2(nanome.AsyncPluginInstance):
 
@@ -203,7 +218,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
     async def on_run(self):
         self.menu.enabled = True
         complexes = await self.request_complex_list()
-        Logs.message('RMSDV2 Run.')
         self.menu.render(complexes=complexes)
     
     @async_callback
@@ -220,7 +234,78 @@ class RMSDV2(nanome.AsyncPluginInstance):
         complexes = await self.request_complex_list()
         await self.menu.render(complexes=complexes)
 
-    async def superimpose(self, fixed_comp, fixed_chain_name, moving_comp, moving_chain_name):
+    async def msa_superimpose(self, reference_comp, comparator_comps):
+        moving_comp_indices = [comp.index for comp in comparator_comps]
+        updated_comps = await self.request_complexes([reference_comp.index, *moving_comp_indices])
+        fixed_comp = updated_comps[0]
+        moving_comps = updated_comps[1:]
+
+        fixed_comp.locked = True
+        comps_to_update = [fixed_comp]
+        for moving_comp in moving_comps:
+            updated_moving_comp = await self.superimpose(fixed_comp, moving_comp)
+            updated_moving_comp.locked = True
+            comps_to_update.append(updated_moving_comp)
+        await self.update_structures_deep(comps_to_update)
+
+    @staticmethod
+    def create_transform_matrix(superimposer):
+        """Convert rotation and transform matrix from superimposer into Nanome Matrix."""
+        rot, tran = superimposer.rotran
+        rot = rot.tolist()
+        tran = tran.tolist()
+        m = Matrix(4, 4)
+        m[0][0:3] = rot[0]
+        m[1][0:3] = rot[1]
+        m[2][0:3] = rot[2]
+        m[3][0:3] = tran
+        m[3][3] = 1
+        # transpose necessary because numpy and nanome matrices are opposite row/col
+        m.transpose()
+        return m
+            
+    async def superimpose(self, fixed_comp, moving_comp):
+        Logs.message(f"Superimposing {moving_comp.full_name} onto {fixed_comp.full_name}.")
+        ComplexUtils.align_to(moving_comp, fixed_comp)
+        parser = PDBParser(QUIET=True)
+        fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
+        moving_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
+        fixed_comp.io.to_pdb(fixed_pdb.name)
+        moving_comp.io.to_pdb(moving_pdb.name)
+        fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
+        moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
+
+        Logs.message("Aligning Structures.")
+        mapping = self.align_sequences(fixed_struct, moving_struct)
+
+        # Collect aligned residues
+        # Align Residues based on Alpha Carbon
+        fixed_atoms = []
+        moving_atoms = []
+        alpha_carbon = 'CA'
+        for fixed_residue in fixed_struct.get_residues():
+            fixed_id = fixed_residue.id[1]
+            if fixed_id in mapping:
+                fixed_atoms.append(fixed_residue[alpha_carbon])
+                moving_residue_serial = mapping[fixed_id] 
+                moving_residue = next(
+                    rez for rez in moving_struct.get_residues()
+                    if rez.id[1] == moving_residue_serial)
+                moving_atoms.append(moving_residue[alpha_carbon])
+        assert len(moving_atoms) == len(fixed_atoms)
+        Logs.message("Superimposing Structures.")
+        superimposer = Superimposer()
+        superimposer.set_atoms(fixed_atoms, moving_atoms)        
+        rms = superimposer.rms
+        Logs.message(f"RMSD: {rms}")
+        transform_matrix = self.create_transform_matrix(superimposer)
+        # apply transformation to moving_comp
+        moving_comp.set_surface_needs_redraw()
+        for comp_atom in moving_comp.atoms:
+            comp_atom.position = transform_matrix * comp_atom.position
+        return moving_comp
+
+    async def superimpose_by_chain(self, fixed_comp, fixed_chain_name, moving_comp, moving_chain_name):
         fixed_comp, moving_comp = await self.request_complexes([fixed_comp.index, moving_comp.index])
         Logs.message("Parsing Complexes to BioPython Structures.")
         parser = PDBParser(QUIET=True)
