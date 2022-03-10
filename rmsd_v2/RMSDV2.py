@@ -44,6 +44,14 @@ class RMSDMenu:
         return self._menu.root.find_node('ln_main_list')
 
     @property
+    def btn_global(self):
+        return self._menu.root.find_node('ln_btn_global').get_content()
+    
+    @property
+    def btn_local(self):
+        return self._menu.root.find_node('ln_btn_local').get_content()
+
+    @property
     def ln_comparator_list(self):
         return self._menu.root.find_node('ln_comparator_list')
 
@@ -60,16 +68,28 @@ class RMSDMenu:
         complexes = complexes or []
         self.complexes = complexes
 
+        self.btn_global.register_pressed_callback(self.select_alignment_type)
+        self.btn_local.register_pressed_callback(self.select_alignment_type)
+
         self.populate_complex_list(complexes, self.ln_main_list, single_selection=True)
-        # dd_struct1_complex = self.ln_main_list.get_content()
-        # dd_struct1_complex.register_item_clicked_callback(
-        #     partial(self.update_chain_dropdown, self.ln_struct1_chain))
         self.populate_complex_list(complexes, self.ln_comparator_list)
-        # dd_struct2_complex = self.ln_comparator_list.get_content()
-        # dd_struct2_complex.register_item_clicked_callback(
-        #     partial(self.update_chain_dropdown, self.ln_struct2_chain))
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
+
+    def select_alignment_type(self, btn):
+        btn_group = [self.btn_global, self.btn_local]
+        btns_to_update = []
+        if not btn.selected:
+            btn.selected = True
+            btns_to_update.append(btn)
+            # Turn off other btn if it was selected
+            for grp_btn in btn_group:
+                if grp_btn != btn and grp_btn.selected:
+                    grp_btn.selected = False
+                    btns_to_update.append(grp_btn)
+        if btns_to_update:
+            self.plugin.update_content(*btns_to_update)
+
 
     @async_callback
     async def update_chain_dropdown(self, ln_chain_dropdown, complex_dropdown, complex_dd_item):
@@ -129,34 +149,10 @@ class RMSDMenu:
         reference_item = next(item for item in reference_list.items if item.get_content().selected)
         comparator_items = [item for item in comparator_list.items if item.get_content().selected]
 
+        alignment_type = 'global' if self.btn_global.selected else 'local'
         reference_comp = reference_item.get_content().complex
         comparator_comps = [item.get_content().complex for item in comparator_items]
-
-        # dd_fixed_comp = self.ln_struct1_complex.get_content()
-        # dd_fixed_chain = self.ln_struct1_chain.get_content()
-        # dd_moving_comp = self.ln_struct2_complex.get_content()
-        # dd_moving_chain = self.ln_struct2_chain.get_content()
-
-        # fixed_comp = next(
-        #     (item.complex for item in dd_fixed_comp.items if item.selected), None
-        # )
-        # fixed_chain = next(
-        #     (item.name for item in dd_fixed_chain.items if item.selected), None
-        # )
-        # moving_comp = next(
-        #     (item.complex for item in dd_moving_comp.items if item.selected), None
-        # )
-        # moving_chain = next(
-        #     (item.name for item in dd_moving_chain.items if item.selected), None
-        # )
-        # if not any([fixed_comp, fixed_chain, moving_comp, moving_chain]):
-        #     message = "Please select a structure and chain."
-        #     Logs.error(message)
-        #     self.plugin.send_notification(NotificationTypes.error, message)
-        #     self.btn_submit.unusable = False
-        #     self.plugin.update_content(self.btn_submit)
-        #     return
-        rmsd_result = await self.plugin.msa_superimpose(reference_comp, comparator_comps)
+        rmsd_result = await self.plugin.msa_superimpose(reference_comp, comparator_comps, alignment_type)
 
         self.btn_submit.unusable = False
         self.lbl_rmsd_value.text_value = rmsd_result
@@ -234,16 +230,18 @@ class RMSDV2(nanome.AsyncPluginInstance):
         complexes = await self.request_complex_list()
         await self.menu.render(complexes=complexes)
 
-    async def msa_superimpose(self, reference_comp, comparator_comps):
+    async def msa_superimpose(self, reference_comp, comparator_comps, alignment_type='global'):
         moving_comp_indices = [comp.index for comp in comparator_comps]
+        if alignment_type not in ['global', 'local']:
+            raise ValueError(f'Alignment type must be either "global" or "local"')
+
         updated_comps = await self.request_complexes([reference_comp.index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
-
         fixed_comp.locked = True
         comps_to_update = [fixed_comp]
         for moving_comp in moving_comps:
-            updated_moving_comp = await self.superimpose(fixed_comp, moving_comp)
+            updated_moving_comp = await self.superimpose(fixed_comp, moving_comp, alignment_type)
             updated_moving_comp.locked = True
             comps_to_update.append(updated_moving_comp)
         await self.update_structures_deep(comps_to_update)
@@ -264,7 +262,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m.transpose()
         return m
             
-    async def superimpose(self, fixed_comp, moving_comp):
+    async def superimpose(self, fixed_comp, moving_comp, alignment_type='global'):
         Logs.message(f"Superimposing {moving_comp.full_name} onto {fixed_comp.full_name}.")
         ComplexUtils.align_to(moving_comp, fixed_comp)
         parser = PDBParser(QUIET=True)
@@ -276,7 +274,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
         Logs.message("Aligning Structures.")
-        mapping = self.align_sequences(fixed_struct, moving_struct)
+        mapping = self.align_sequences(fixed_struct, moving_struct, alignment_type)
 
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
@@ -345,19 +343,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         rms = superimposer.rms
         Logs.message(f'RMSD: {rms}')
         
-        # convert numpy rot + tran matrices to 4x4 nanome matrix
-        rot, tran = superimposer.rotran
-        rot = rot.tolist()
-        tran = tran.tolist()
-        m = Matrix(4, 4)
-        m[0][0:3] = rot[0]
-        m[1][0:3] = rot[1]
-        m[2][0:3] = rot[2]
-        m[3][0:3] = tran
-        m[3][3] = 1
-        Logs.debug(f"Matrix m = {str(m)}")
-        # transpose necessary because numpy and nanome matrices are opposite row/col
-        m.transpose()
+        m = self.create_transform_matrix(superimposer)
         # apply transformation to moving_comp
         moving_comp.set_surface_needs_redraw()
         for comp_atom in moving_comp.atoms:
@@ -366,7 +352,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         self.send_notification(NotificationTypes.message, f'RMSD: {rms}')
         return rms
 
-    def align_sequences(self, structA, structB):
+    def align_sequences(self, structA, structB, alignment_type='global'):
         """
         Performs a global pairwise alignment between two sequences
         using the BLOSUM62 matrix and the Needleman-Wunsch algorithm
@@ -390,16 +376,27 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
         sequence_A = "".join([i[1] for i in resseq_A])
         sequence_B = "".join([i[1] for i in resseq_B])
-        alns = pairwise2.align.globalds(
-            sequence_A,
-            sequence_B,
-            substitution_matrices.load("BLOSUM62"),
-            one_alignment_only=True,
-            open=-10.0,
-            extend=-0.5,
-            penalize_end_gaps=(False, False),
-        )
 
+        if alignment_type == 'global':
+            Logs.message("Using Global Alignment")
+            alignment_fn = pairwise2.align.globalds
+            alignment_fn_args = (
+                sequence_A,
+                sequence_B,
+                substitution_matrices.load("BLOSUM62")
+            )
+            alignment_fn_kwargs = dict(
+                one_alignment_only=True,
+                open=-10.0,
+                extend=-0.5,
+                penalize_end_gaps=(False, False)
+            )
+        elif alignment_type == 'local':
+            Logs.message("Using Local Alignment")
+            alignment_fn = pairwise2.align.localxx
+            alignment_fn_args = (sequence_A, sequence_B)
+            alignment_fn_kwargs = dict()
+        alns = alignment_fn(*alignment_fn_args, **alignment_fn_kwargs)
         best_aln = alns[0]
         aligned_A, aligned_B, score, begin, end = best_aln
 
