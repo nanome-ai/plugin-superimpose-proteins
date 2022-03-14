@@ -1,6 +1,7 @@
 from itertools import chain
 import tempfile
 from os import path
+from turtle import update
 from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
@@ -70,15 +71,14 @@ class RMSDMenu:
         self.btn_global.register_pressed_callback(self.select_alignment_type)
         self.btn_local.register_pressed_callback(self.select_alignment_type)
 
-        self.set_complex_dropown(complexes, self.ln_fixed_struct)
+        self.set_complex_dropdown(complexes, self.ln_fixed_struct)
         dd_fixed = self.ln_fixed_struct.get_content()
         dd_fixed.register_item_clicked_callback(self.handle_fixed_structure_selected)
 
-
-        self.set_complex_dropown(complexes, self.ln_moving_structs, multi_select=True)
-        
+        self.set_complex_dropdown(complexes, self.ln_moving_structs, multi_select=True)
         dd_moving = self.ln_moving_structs.get_content()
         dd_moving.register_item_clicked_callback(self.handle_moving_structures_selected)
+        
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -125,8 +125,6 @@ class RMSDMenu:
         selected_complexes = [ddi.complex for ddi in dropdown._selected_items]
         self.create_list_of_chain_dropdowns(selected_complexes, ln_selection)
 
-
-
     @async_callback
     async def create_list_of_chain_dropdowns(self, comp_list, layoutnode):
         ui_list = ui.UIList()
@@ -145,8 +143,8 @@ class RMSDMenu:
             ln_label.set_content(lbl)
             
             ln_dd = ln_listitem.create_child_node()
+            ln_dd.name = f'{comp.full_name} chain'
             ln_dd.forward_dist = 0.004
-            # ln_dd.padding = (0.03, 0.03, 0.03, 0.03)
 
             chain_dd = await self.create_chain_dropdown(comp)
             ln_dd.set_content(chain_dd)
@@ -155,16 +153,10 @@ class RMSDMenu:
         layoutnode.set_content(ui_list)
         self.plugin.update_node(layoutnode)
 
-    @async_callback
-    async def update_chain_dropdown(self, ln_chain_dropdown, complex_dropdown, complex_dd_item):
-        """Update chain dropdown to reflect changes in complex."""
-        comp = complex_dd_item.complex
-        Logs.message("Updating Chain dropdown")
-        await self.display_chains(comp, ln_chain_dropdown)
-
     async def create_chain_dropdown(self, complex):
         """Create dropdown of chains, and add to provided layoutnode."""
         dropdown = ui.Dropdown()
+        dropdown.complex = complex
         dropdown_items = []
         if sum(1 for ch in complex.chains) == 0:
             # get deep complex
@@ -212,34 +204,42 @@ class RMSDMenu:
         self.btn_submit.unusable = True
         self.plugin.update_content(self.btn_submit)
 
-        reference_list = self.ln_main_list.get_content()
-        comparator_list = self.ln_comparator_list.get_content()
+        fixed_comp = next(ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected)
+        moving_comps = [ddi.complex for ddi in self.ln_moving_structs.get_content().items if ddi.selected]
 
-        reference_item = next(item for item in reference_list.items if item.get_content().selected)
-        comparator_items = [item for item in comparator_list.items if item.get_content().selected]
+        # Get chain selections from list
+        # fixed_chain_item = self.ln_fixed_selection.get_content().items[0]
+        # fixed_dd = next(
+        #     ch.get_content() for ch in fixed_chain_item.get_children()
+        #     if isinstance(ch.get_content(), ui.Dropdown)
+        # )
+        # selected_fixed_chain_name = next(item.name for item in fixed_dd.items if item.selected)
+        # fixed_comp_tuple = (fixed_comp, selected_fixed_chain_name)
 
-        alignment_type = 'global' if self.btn_global.selected else 'local'
-        reference_comp = reference_item.get_content().complex
-        comparator_comps = [item.get_content().complex for item in comparator_items]
-        rmsd_result = await self.plugin.msa_superimpose(reference_comp, comparator_comps, alignment_type)
+        # moving_chain_items = self.ln_moving_selections.get_content().items
+        # moving_comp_chain_tuples = []
+        # for moving_item in moving_chain_items:
+        #     moving_dd = next(
+        #         ch.get_content() for ch in moving_item.get_children()
+        #         if isinstance(ch.get_content(), ui.Dropdown)
+        #     )
+        #     moving_comp = moving_dd.complex
+        #     selected_chain_ddi = next(item for item in moving_dd.items if item.selected)
+        #     selected_chain_name = selected_chain_ddi.name
+        #     moving_comp_chain_tuples.append((moving_comp, selected_chain_name))
+        
+        
+        # alignment_type = 'global' if self.btn_global.selected else 'local'
+        # fixed_comp = reference_item.get_content().complex
+        # comparator_comps = [item.get_content().complex for item in comparator_items]
+        rmsd_result = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
 
         self.btn_submit.unusable = False
         self.lbl_rmsd_value.text_value = rmsd_result
         self.plugin.update_content(self.lbl_rmsd_value, self.btn_submit)
         Logs.message("Superposition completed.")
 
-    @property
-    def prefab_complex_dropdown_btn(self):
-        if not hasattr(self, '_prefab_complex_dropdown_btn'):
-            ln = ui.LayoutNode()
-            btn = ln.add_new_button()
-            btn.selected = False
-            btn.toggle_on_press = True
-            # self._prefab_complex_dropdown_btn = btn
-            self._prefab_complex_dropdown_btn = ln
-        return self._prefab_complex_dropdown_btn
-
-    def set_complex_dropown(self, complexes, layoutnode, multi_select=False):
+    def set_complex_dropdown(self, complexes, layoutnode, multi_select=False):
         """Create dropdown of complexes, and add to provided layoutnode."""
         dropdown_items = self.create_structure_dropdown_items(complexes, multi_select=multi_select)
         dropdown = ui.Dropdown()
@@ -248,32 +248,6 @@ class RMSDMenu:
 
         layoutnode.set_content(dropdown)
         self.plugin.update_node(layoutnode)
-    
-    async def display_chains(self, complex, layoutnode):
-        """Create dropdown of chains, and add to provided layoutnode."""
-        dropdown = ui.Dropdown()
-        dropdown_items = []
-        if sum(1 for ch in complex.chains) == 0:
-            # get deep complex
-            complex = (await self.plugin.request_complexes([complex.index]))[0]
-        chain_names = [ch.name for ch in complex.chains]
-        for chain_name in chain_names:
-            ddi = ui.DropdownItem(chain_name)
-            dropdown_items.append(ddi)
-        dropdown.max_displayed_items = len(dropdown_items)
-        dropdown.items = dropdown_items
-        layoutnode.set_content(dropdown)
-        self.plugin.update_node(layoutnode)
-    def complex_btn_selected(self, btn, single_selection=False, ui_list=None):
-        btn.selected = not btn.selected
-        btns_to_update = [btn]
-        if btn.selected and single_selection and ui_list:
-            for item in ui_list.items:
-                item_btn = item.get_content()
-                if item_btn != btn and item_btn.selected:
-                    item_btn.selected = False
-                    btns_to_update.append(item_btn)
-        self.plugin.update_content(*btns_to_update)
 
 
 class RMSDV2(nanome.AsyncPluginInstance):
@@ -301,12 +275,9 @@ class RMSDV2(nanome.AsyncPluginInstance):
         complexes = await self.request_complex_list()
         await self.menu.render(complexes=complexes)
 
-    async def msa_superimpose(self, reference_comp, comparator_comps, alignment_type='global'):
-        moving_comp_indices = [comp.index for comp in comparator_comps]
-        if alignment_type not in ['global', 'local']:
-            raise ValueError(f'Alignment type must be either "global" or "local"')
-
-        updated_comps = await self.request_complexes([reference_comp.index, *moving_comp_indices])
+    async def msa_superimpose(self, fixed_comp, moving_comps, alignment_type='global'):
+        moving_comp_indices = [comp.index for comp in moving_comps]
+        updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
         fixed_comp.locked = True
