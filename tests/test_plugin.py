@@ -60,7 +60,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         )
         expected_result = 1.954563078937366
         self.assertEqual(result, expected_result)
-        
+
     @patch('nanome._internal._network._ProcessNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
@@ -80,4 +80,3 @@ class PluginFunctionTestCase(unittest.TestCase):
         )
         expected_result = {self.complex_1mbo.full_name: 27.69646398871505}
         self.assertEqual(result, expected_result)
-        

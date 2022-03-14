@@ -45,7 +45,7 @@ class RMSDMenu:
     @property
     def btn_global(self):
         return self._menu.root.find_node('ln_btn_global').get_content()
-    
+
     @property
     def btn_local(self):
         return self._menu.root.find_node('ln_btn_local').get_content()
@@ -76,7 +76,7 @@ class RMSDMenu:
         self.set_complex_dropdown(complexes, self.ln_moving_structs, multi_select=True)
         dd_moving = self.ln_moving_structs.get_content()
         dd_moving.register_item_clicked_callback(self.handle_moving_structures_selected)
-        
+
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -132,14 +132,14 @@ class RMSDMenu:
         for comp in comp_list:
             ln_listitem = ui.LayoutNode()
             ln_listitem.layout_orientation = 1
-            
+
             ln_label = ln_listitem.create_child_node()
             ln_label.set_size_ratio(0.25)
             lbl = ui.Label(comp.full_name)
             lbl.text_auto_size = False
             lbl.text_size = 0.3
             ln_label.set_content(lbl)
-            
+
             ln_dd = ln_listitem.create_child_node()
             ln_dd.name = f'{comp.full_name} chain'
             ln_dd.forward_dist = 0.004
@@ -251,7 +251,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         self.menu.enabled = True
         complexes = await self.request_complex_list()
         self.menu.render(complexes=complexes)
-    
+
     @async_callback
     async def on_complex_list_updated(self, complexes):
         self.menu.render(complexes=complexes)
@@ -297,7 +297,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         # transpose necessary because numpy and nanome matrices are opposite row/col
         m.transpose()
         return m
-            
+
     async def superimpose(self, fixed_comp, moving_comp, alignment_type='global'):
         Logs.message(f"Superimposing {moving_comp.full_name} onto {fixed_comp.full_name}.")
         ComplexUtils.align_to(moving_comp, fixed_comp)
@@ -321,7 +321,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             fixed_id = fixed_residue.id[1]
             if fixed_id in mapping:
                 fixed_atoms.append(fixed_residue[alpha_carbon])
-                moving_residue_serial = mapping[fixed_id] 
+                moving_residue_serial = mapping[fixed_id]
                 moving_residue = next(
                     rez for rez in moving_struct.get_residues()
                     if rez.id[1] == moving_residue_serial)
@@ -329,7 +329,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         assert len(moving_atoms) == len(fixed_atoms)
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
-        superimposer.set_atoms(fixed_atoms, moving_atoms)        
+        superimposer.set_atoms(fixed_atoms, moving_atoms)
         rms = superimposer.rms
         Logs.message(f"RMSD: {rms}")
         transform_matrix = self.create_transform_matrix(superimposer)
@@ -366,7 +366,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             fixed_id = fixed_residue.id[1]
             if fixed_id in mapping:
                 fixed_atoms.append(fixed_residue[alpha_carbon])
-                moving_residue_serial = mapping[fixed_id] 
+                moving_residue_serial = mapping[fixed_id]
                 moving_residue = next(
                     rez for rez in moving_chain.get_residues()
                     if rez.id[1] == moving_residue_serial)
@@ -374,11 +374,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
         assert len(moving_atoms) == len(fixed_atoms)
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
-        superimposer.set_atoms(fixed_atoms, moving_atoms)        
+        superimposer.set_atoms(fixed_atoms, moving_atoms)
         # superimposer.apply(moving_struct.get_atoms())
         rms = superimposer.rms
         Logs.message(f'RMSD: {rms}')
-        
+
         m = self.create_transform_matrix(superimposer)
         # apply transformation to moving_comp
         moving_comp.set_surface_needs_redraw()
@@ -403,7 +403,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             Retrieves the AA sequence from a PDB structure.
             """
 
-            _aainfo = lambda r: (r.id[1], aa3to1.get(r.resname, "X"))
+            def _aainfo(r): return (r.id[1], aa3to1.get(r.resname, "X"))
             seq = [_aainfo(r) for r in structure.get_residues() if is_aa(r)]
             return seq
 
@@ -455,6 +455,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
                 aa_i_B += 1
 
         return mapping
+
 
 def main():
     plugin = nanome.Plugin('RMSD V2', 'Superimpose two structures', 'alignment', False)
