@@ -1,6 +1,5 @@
 import tempfile
 from os import path
-from turtle import update
 from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
