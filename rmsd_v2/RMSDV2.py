@@ -1,3 +1,4 @@
+from itertools import chain
 import tempfile
 from os import path
 from Bio.PDB import Superimposer, PDBParser
@@ -5,10 +6,8 @@ from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
 from Bio.Align import substitution_matrices
-from functools import partial
 import nanome
 from nanome.api import ui
-from nanome.api.structure import Complex
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.util.enums import NotificationTypes
 
@@ -24,20 +23,20 @@ class RMSDMenu:
         self.plugin = plugin_instance
 
     @property
-    def ln_struct1_complex(self):
-        return self._menu.root.find_node('ln_struct1_complex')
-    
-    @property
-    def ln_struct1_chain(self):
-        return self._menu.root.find_node('ln_struct1_chain')
+    def ln_fixed_struct(self):
+        return self._menu.root.find_node('ln_fixed_struct')
 
     @property
-    def ln_struct2_complex(self):
-        return self._menu.root.find_node('ln_struct2_complex')
-    
+    def ln_moving_structs(self):
+        return self._menu.root.find_node('ln_moving_structs')
+
     @property
-    def ln_struct2_chain(self):
-        return self._menu.root.find_node('ln_struct2_chain')
+    def ln_fixed_selection(self):
+        return self._menu.root.find_node('ln_fixed_selection')
+
+    @property
+    def ln_moving_selections(self):
+        return self._menu.root.find_node('ln_moving_selection')
 
     @property
     def ln_main_list(self):
@@ -71,8 +70,15 @@ class RMSDMenu:
         self.btn_global.register_pressed_callback(self.select_alignment_type)
         self.btn_local.register_pressed_callback(self.select_alignment_type)
 
-        self.populate_complex_list(complexes, self.ln_main_list, single_selection=True)
-        self.populate_complex_list(complexes, self.ln_comparator_list)
+        self.set_complex_dropown(complexes, self.ln_fixed_struct)
+        dd_fixed = self.ln_fixed_struct.get_content()
+        dd_fixed.register_item_clicked_callback(self.handle_fixed_structure_selected)
+
+
+        self.set_complex_dropown(complexes, self.ln_moving_structs, multi_select=True)
+        
+        dd_moving = self.ln_moving_structs.get_content()
+        dd_moving.register_item_clicked_callback(self.handle_moving_structures_selected)
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -90,6 +96,64 @@ class RMSDMenu:
         if btns_to_update:
             self.plugin.update_content(*btns_to_update)
 
+    @async_callback
+    async def handle_fixed_structure_selected(self, dropdown, ddi):
+        """Callback for when a complex is selected in a dropdown."""
+        ln_selection = self.ln_fixed_selection
+        comp = ddi.complex
+        self.create_list_of_chain_dropdowns([comp], ln_selection)
+
+    @async_callback
+    async def handle_moving_structures_selected(self, dropdown, ddi):
+        """Callback for when a complex is selected in a dropdown."""
+        ln_selection = self.ln_moving_selections
+
+        if not hasattr(dropdown, '_selected_items'):
+            dropdown._selected_items = []
+
+        if ddi in dropdown._selected_items:
+            # Deselect item
+            ddi.selected = False
+            dropdown._selected_items.remove(ddi)
+
+        if ddi.selected and ddi not in dropdown._selected_items:
+            dropdown._selected_items.append(ddi)
+        # Reselect selected items
+        for ddi in dropdown._selected_items:
+            ddi.selected = True
+        self.plugin.update_content(dropdown)
+        selected_complexes = [ddi.complex for ddi in dropdown._selected_items]
+        self.create_list_of_chain_dropdowns(selected_complexes, ln_selection)
+
+
+
+    @async_callback
+    async def create_list_of_chain_dropdowns(self, comp_list, layoutnode):
+        ui_list = ui.UIList()
+        ui_list.max_displayed_items = 5
+        ui_list.display_rows = 2
+        list_items = []
+        for comp in comp_list:
+            ln_listitem = ui.LayoutNode()
+            ln_listitem.layout_orientation = 1
+            
+            ln_label = ln_listitem.create_child_node()
+            ln_label.set_size_ratio(0.25)
+            lbl = ui.Label(comp.full_name)
+            lbl.text_auto_size = False
+            lbl.text_size = 0.3
+            ln_label.set_content(lbl)
+            
+            ln_dd = ln_listitem.create_child_node()
+            ln_dd.forward_dist = 0.004
+            # ln_dd.padding = (0.03, 0.03, 0.03, 0.03)
+
+            chain_dd = await self.create_chain_dropdown(comp)
+            ln_dd.set_content(chain_dd)
+            list_items.append(ln_listitem)
+        ui_list.items = list_items
+        layoutnode.set_content(ui_list)
+        self.plugin.update_node(layoutnode)
 
     @async_callback
     async def update_chain_dropdown(self, ln_chain_dropdown, complex_dropdown, complex_dd_item):
@@ -98,23 +162,27 @@ class RMSDMenu:
         Logs.message("Updating Chain dropdown")
         await self.display_chains(comp, ln_chain_dropdown)
 
-    async def display_chains(self, complex, layoutnode):
+    async def create_chain_dropdown(self, complex):
         """Create dropdown of chains, and add to provided layoutnode."""
         dropdown = ui.Dropdown()
         dropdown_items = []
         if sum(1 for ch in complex.chains) == 0:
             # get deep complex
             complex = (await self.plugin.request_complexes([complex.index]))[0]
-        chain_names = [ch.name for ch in complex.chains]
+
+        # Filter out hetatm chains which have an H appended to beginning of name
+        chain_names = [
+            ch.name for ch in complex.chains
+            if not ch.name.startswith('H')
+            or len(ch.name) == 1]
         for chain_name in chain_names:
             ddi = ui.DropdownItem(chain_name)
             dropdown_items.append(ddi)
         dropdown.max_displayed_items = len(dropdown_items)
         dropdown.items = dropdown_items
-        layoutnode.set_content(dropdown)
-        self.plugin.update_node(layoutnode)
+        return dropdown
 
-    def create_structure_dropdown_items(self, complexes):
+    def create_structure_dropdown_items(self, complexes, multi_select=False):
         """Generate list of buttons corresponding to provided complexes."""
         complex_ddis = []
         ddi_labels = set()
@@ -132,6 +200,7 @@ class RMSDMenu:
 
             ddi_labels.add(ddi_label)
             ddi = ui.DropdownItem(ddi_label)
+            ddi.close_on_selected = not multi_select
             ddi.complex = struct
             complex_ddis.append(ddi)
 
@@ -170,29 +239,31 @@ class RMSDMenu:
             self._prefab_complex_dropdown_btn = ln
         return self._prefab_complex_dropdown_btn
 
-    def populate_complex_list(self, complex_list, layoutnode, single_selection=False):
-        ui_list = ui.UIList()
-        ui_list.display_rows = min(len(complex_list), 5)
-        complex_ln_list = []
-        for complex in complex_list:
-            # Create button representing each complex in the workspace.
-            item = self.prefab_complex_dropdown_btn.clone()
-            btn = item.get_content()
-            btn.text.active = True
-            btn.text.value.set_all(complex.full_name)
-            btn.complex = complex
-            btn.register_pressed_callback(
-                partial(
-                    self.complex_btn_selected,
-                    single_selection=single_selection,
-                    ui_list=ui_list
-            ))
-            complex_ln_list.append(item)
-            # btn.register_pressed_callback(self.select_complex)
-        ui_list.items = complex_ln_list
-        layoutnode.set_content(ui_list)
-        self.plugin.update_node(layoutnode)
+    def set_complex_dropown(self, complexes, layoutnode, multi_select=False):
+        """Create dropdown of complexes, and add to provided layoutnode."""
+        dropdown_items = self.create_structure_dropdown_items(complexes, multi_select=multi_select)
+        dropdown = ui.Dropdown()
+        dropdown.max_displayed_items = len(dropdown_items)
+        dropdown.items = dropdown_items
 
+        layoutnode.set_content(dropdown)
+        self.plugin.update_node(layoutnode)
+    
+    async def display_chains(self, complex, layoutnode):
+        """Create dropdown of chains, and add to provided layoutnode."""
+        dropdown = ui.Dropdown()
+        dropdown_items = []
+        if sum(1 for ch in complex.chains) == 0:
+            # get deep complex
+            complex = (await self.plugin.request_complexes([complex.index]))[0]
+        chain_names = [ch.name for ch in complex.chains]
+        for chain_name in chain_names:
+            ddi = ui.DropdownItem(chain_name)
+            dropdown_items.append(ddi)
+        dropdown.max_displayed_items = len(dropdown_items)
+        dropdown.items = dropdown_items
+        layoutnode.set_content(dropdown)
+        self.plugin.update_node(layoutnode)
     def complex_btn_selected(self, btn, single_selection=False, ui_list=None):
         btn.selected = not btn.selected
         btns_to_update = [btn]
