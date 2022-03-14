@@ -1,4 +1,3 @@
-from itertools import chain
 import tempfile
 from os import path
 from turtle import update
@@ -60,14 +59,13 @@ class RMSDMenu:
         return self._menu.root.find_node('ln_submit').get_content()
 
     @property
-    def lbl_rmsd_value(self):
-        return self._menu.root.find_node('ln_rmsd_value').get_content()
+    def ln_rmsd_value(self):
+        return self._menu.root.find_node('ln_rmsd_value')
 
     @async_callback
     async def render(self, complexes=None, default_values=False):
         complexes = complexes or []
         self.complexes = complexes
-
         self.btn_global.register_pressed_callback(self.select_alignment_type)
         self.btn_local.register_pressed_callback(self.select_alignment_type)
 
@@ -207,37 +205,30 @@ class RMSDMenu:
         fixed_comp = next(ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected)
         moving_comps = [ddi.complex for ddi in self.ln_moving_structs.get_content().items if ddi.selected]
 
-        # Get chain selections from list
-        # fixed_chain_item = self.ln_fixed_selection.get_content().items[0]
-        # fixed_dd = next(
-        #     ch.get_content() for ch in fixed_chain_item.get_children()
-        #     if isinstance(ch.get_content(), ui.Dropdown)
-        # )
-        # selected_fixed_chain_name = next(item.name for item in fixed_dd.items if item.selected)
-        # fixed_comp_tuple = (fixed_comp, selected_fixed_chain_name)
-
-        # moving_chain_items = self.ln_moving_selections.get_content().items
-        # moving_comp_chain_tuples = []
-        # for moving_item in moving_chain_items:
-        #     moving_dd = next(
-        #         ch.get_content() for ch in moving_item.get_children()
-        #         if isinstance(ch.get_content(), ui.Dropdown)
-        #     )
-        #     moving_comp = moving_dd.complex
-        #     selected_chain_ddi = next(item for item in moving_dd.items if item.selected)
-        #     selected_chain_name = selected_chain_ddi.name
-        #     moving_comp_chain_tuples.append((moving_comp, selected_chain_name))
-        
-        
-        # alignment_type = 'global' if self.btn_global.selected else 'local'
-        # fixed_comp = reference_item.get_content().complex
-        # comparator_comps = [item.get_content().complex for item in comparator_items]
-        rmsd_result = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
-
+        rmsd_results = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
         self.btn_submit.unusable = False
-        self.lbl_rmsd_value.text_value = rmsd_result
-        self.plugin.update_content(self.lbl_rmsd_value, self.btn_submit)
+
+        results_list = self.render_rmsd_results(rmsd_results)
+        self.ln_rmsd_value.set_content(results_list)
+        self.plugin.update_node(self.ln_rmsd_value)
+        self.plugin.update_content(self.btn_submit)
         Logs.message("Superposition completed.")
+
+    def render_rmsd_results(self, rmsd_results):
+        """Render rmsd results in a list of labels."""
+        results_list = ui.UIList()
+        results_list.max_displayed_items = 10
+        results_list.display_rows = 10
+        results_list.items = []
+
+        for comp_name, rms in rmsd_results.items():
+            ln_rmsd_result = ui.LayoutNode()
+            ln_rmsd_result.layout_orientation = 1
+            ln_rmsd_result.set_size_ratio(0.25)
+            ln_rmsd_result.set_content(ui.Label(f'{comp_name}: {rms:.2f}'))
+            results_list.items.append(ln_rmsd_result)
+
+        return results_list
 
     def set_complex_dropdown(self, complexes, layoutnode, multi_select=False):
         """Create dropdown of complexes, and add to provided layoutnode."""
@@ -282,11 +273,14 @@ class RMSDV2(nanome.AsyncPluginInstance):
         moving_comps = updated_comps[1:]
         fixed_comp.locked = True
         comps_to_update = [fixed_comp]
+        rmsd_results = {}
         for moving_comp in moving_comps:
-            updated_moving_comp = await self.superimpose(fixed_comp, moving_comp, alignment_type)
+            updated_moving_comp, rms = await self.superimpose(fixed_comp, moving_comp, alignment_type)
+            rmsd_results[moving_comp.full_name] = rms
             updated_moving_comp.locked = True
             comps_to_update.append(updated_moving_comp)
         await self.update_structures_deep(comps_to_update)
+        return rmsd_results
 
     @staticmethod
     def create_transform_matrix(superimposer):
@@ -343,7 +337,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         moving_comp.set_surface_needs_redraw()
         for comp_atom in moving_comp.atoms:
             comp_atom.position = transform_matrix * comp_atom.position
-        return moving_comp
+        return moving_comp, rms
 
     async def superimpose_by_chain(self, fixed_comp, fixed_chain_name, moving_comp, moving_chain_name):
         fixed_comp, moving_comp = await self.request_complexes([fixed_comp.index, moving_comp.index])
