@@ -156,7 +156,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             comp_atom.position = m * comp_atom.position
         await self.update_structures_deep([moving_comp])
         self.send_notification(NotificationTypes.message, f'RMSD: {rms}')
-        return rms
+        return {moving_comp.full_name: rms}
 
     def align_sequences(self, structA, structB, alignment_type='global'):
         """

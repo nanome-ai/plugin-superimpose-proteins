@@ -40,7 +40,7 @@ class PluginFunctionTestCase(unittest.TestCase):
     @patch('nanome._internal._network._ProcessNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
-    def test_superimpose(self, request_complexes_mock, update_structures_mock, *mocks):
+    def test_superimpose_by_chain(self, request_complexes_mock, update_structures_mock, *mocks):
         # Make sure clean_complex function returns valid pdb can be parsed into a Complex structure.
         chain_name_4hhb = 'A'
         chain_name_1mbo = 'A'
@@ -59,7 +59,8 @@ class PluginFunctionTestCase(unittest.TestCase):
             self.complex_1mbo, chain_name_1mbo
         )
         expected_result = 1.954563078937366
-        self.assertEqual(result, expected_result)
+        expected_output = {self.complex_1mbo.full_name: expected_result}
+        self.assertEqual(result, expected_output)
 
     @patch('nanome._internal._network._ProcessNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
