@@ -36,7 +36,7 @@ class SelectionModeController:
     @property
     def global_align_panel(self):
         return self._menu.root.find_node('Global Panel')
-    
+
     @property
     def chain_align_panel(self):
         return self._menu.root.find_node('Chain Panel')
@@ -106,7 +106,7 @@ class GlobalAlignController:
 
         layoutnode.set_content(dropdown)
         self.plugin.update_node(layoutnode)
-    
+
     def create_structure_dropdown_items(self, complexes, multi_select=False):
         """Generate list of buttons corresponding to provided complexes."""
         complex_ddis = []
@@ -137,7 +137,7 @@ class ChainAlignController:
     def __init__(self, plugin, menu):
         self.plugin = plugin
         self._menu = menu
-    
+
     @property
     def root(self):
         return self._menu.root.find_node('Chain Panel')
@@ -163,7 +163,7 @@ class ChainAlignController:
         complexes = complexes or []
         fixed_dropdown = self.ln_fixed_struct.get_content()
         moving_dropdown = self.ln_moving_struct.get_content()
-        
+
         dropdown_items = self.create_structure_dropdown_items(complexes)
         fixed_dropdown.items = dropdown_items
         fixed_dropdown.max_displayed_items = len(dropdown_items)
@@ -186,7 +186,7 @@ class ChainAlignController:
 
     def get_moving_complex(self):
         return next(ddi.complex for ddi in self.ln_moving_struct.get_content().items if ddi.selected)
-    
+
     def get_fixed_chain(self):
         return next(ddi.name for ddi in self.ln_fixed_chain.get_content().items if ddi.selected)
 
