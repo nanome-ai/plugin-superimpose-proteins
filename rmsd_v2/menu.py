@@ -69,12 +69,7 @@ class GlobalAlignController:
     def render(self, complexes=None):
         complexes = complexes or []
         self.set_complex_dropdown(complexes, self.ln_fixed_struct)
-        dd_fixed = self.ln_fixed_struct.get_content()
-        dd_fixed.register_item_clicked_callback(self.handle_fixed_structure_selected)
-
         self.set_complex_dropdown(complexes, self.ln_moving_structs, multi_select=True)
-        dd_moving = self.ln_moving_structs.get_content()
-        dd_moving.register_item_clicked_callback(self.handle_moving_structures_selected)
 
     @property
     def root(self):
@@ -101,33 +96,6 @@ class GlobalAlignController:
 
     def get_moving_complexes(self):
         return [ddi.complex for ddi in self.ln_moving_structs.get_content().items if ddi.selected]
-
-    @async_callback
-    async def handle_moving_structures_selected(self, dropdown, ddi):
-        """Callback for when a complex is selected in a dropdown."""
-        ln_selection = self.ln_moving_selections
-
-        if not hasattr(dropdown, '_selected_items'):
-            dropdown._selected_items = []
-
-        if ddi in dropdown._selected_items:
-            # Deselect item
-            ddi.selected = False
-            dropdown._selected_items.remove(ddi)
-
-        if ddi.selected and ddi not in dropdown._selected_items:
-            dropdown._selected_items.append(ddi)
-        # Reselect selected items
-        for ddi in dropdown._selected_items:
-            ddi.selected = True
-        self.plugin.update_content(dropdown)
-        selected_complexes = [ddi.complex for ddi in dropdown._selected_items]
-
-    @async_callback
-    async def handle_fixed_structure_selected(self, dropdown, ddi):
-        """Callback for when a complex is selected in a dropdown."""
-        ln_selection = self.ln_fixed_selection
-        comp = ddi.complex
 
     def set_complex_dropdown(self, complexes, layoutnode, multi_select=False):
         """Create dropdown of complexes, and add to provided layoutnode."""
@@ -195,11 +163,14 @@ class ChainAlignController:
         complexes = complexes or []
         fixed_dropdown = self.ln_fixed_struct.get_content()
         moving_dropdown = self.ln_moving_struct.get_content()
-        complex_items = self.create_structure_dropdown_items(complexes)
-        fixed_dropdown.items = complex_items
         
-        complex_items = self.create_structure_dropdown_items(complexes)
-        moving_dropdown.items = complex_items
+        dropdown_items = self.create_structure_dropdown_items(complexes)
+        fixed_dropdown.items = dropdown_items
+        fixed_dropdown.max_displayed_items = len(dropdown_items)
+
+        dropdown_items = self.create_structure_dropdown_items(complexes)
+        moving_dropdown.items = dropdown_items
+        moving_dropdown.max_displayed_items = len(dropdown_items)
 
         fixed_dropdown.register_item_clicked_callback(
             partial(self.update_chain_dropdown, self.ln_fixed_chain))
@@ -232,7 +203,11 @@ class ChainAlignController:
         if sum(1 for ch in comp.chains) == 0:
             # get deep complex
             comp = (await self.plugin.request_complexes([comp.index]))[0]
-        chain_names = [ch.name for ch in comp.chains]
+        # Filter out hetatom chains (HA, HB, etc)
+        chain_names = [
+            ch.name for ch in comp.chains
+            if not ch.name.startswith('H') or len(ch.name) < 2
+        ]
         for chain_name in chain_names:
             ddi = ui.DropdownItem(chain_name)
             dropdown_items.append(ddi)
@@ -246,7 +221,6 @@ class ChainAlignController:
         ddi_labels = set()
         for struct in complexes:
             struct_name = struct.full_name
-
             # Make sure we have a unique name for every structure
             ddi_label = struct_name
             if ddi_label in ddi_labels:
@@ -254,7 +228,6 @@ class ChainAlignController:
                 while ddi_label in ddi_labels:
                     ddi_label = f'{struct_name} {{{num}}}'
                     num += 1
-
             ddi_labels.add(ddi_label)
             ddi = ui.DropdownItem(ddi_label)
             ddi.complex = struct
