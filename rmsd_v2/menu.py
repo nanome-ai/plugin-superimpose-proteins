@@ -41,7 +41,7 @@ class SelectionModeController:
     def chain_align_panel(self):
         return self._menu.root.find_node('Chain Panel')
 
-    def on_mode_selected(self, btn):
+    def on_mode_selected(self, btn, update=True):
         btn.selected = True
         btns_to_update = [btn]
         for group_item in self.mode_selection_btn_group:
@@ -56,7 +56,8 @@ class SelectionModeController:
             self.current_mode = 'chain'
             self.chain_align_panel.enabled = True
             self.global_align_panel.enabled = False
-        self.plugin.update_menu(self._menu)
+        if update:
+            self.plugin.update_menu(self._menu)
 
 
 class GlobalAlignController:
@@ -76,20 +77,24 @@ class GlobalAlignController:
         dd_moving.register_item_clicked_callback(self.handle_moving_structures_selected)
 
     @property
+    def root(self):
+        return self._menu.root.find_node('Global Panel')
+
+    @property
     def ln_fixed_struct(self):
-        return self._menu.root.find_node('ln_fixed_struct')
+        return self.root.find_node('ln_fixed_struct')
 
     @property
     def ln_moving_structs(self):
-        return self._menu.root.find_node('ln_moving_structs')
+        return self.root.find_node('ln_moving_structs')
 
     @property
     def ln_fixed_selection(self):
-        return self._menu.root.find_node('ln_fixed_selection')
+        return self.root.find_node('ln_fixed_selection')
 
     @property
     def ln_moving_selections(self):
-        return self._menu.root.find_node('ln_moving_selection')
+        return self.root.find_node('ln_moving_selection')
 
     def get_fixed_complex(self):
         return next(ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected)
@@ -267,6 +272,9 @@ class RMSDMenu:
         self.selection_mode_controller = SelectionModeController(plugin_instance, self._menu)
         self.global_align_controller = GlobalAlignController(plugin_instance, self._menu)
         self.chain_align_controller = ChainAlignController(plugin_instance, self._menu)
+        # Make sure Global Align Panel is always open
+        default_mode = self.selection_mode_controller.btn_global_align
+        self.selection_mode_controller.on_mode_selected(default_mode, update=False)
 
     @property
     def btn_submit(self):
