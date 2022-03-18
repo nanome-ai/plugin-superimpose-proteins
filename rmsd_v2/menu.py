@@ -5,7 +5,7 @@ from nanome.util import Logs, async_callback
 
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu2.json')
+MENU_PATH = path.join(BASE_PATH, 'menu.json')
 
 
 class SelectionModeController:
