@@ -1,4 +1,4 @@
-FROM nanome/plugin-env
+FROM python:3
 
 ENV ARGS=''
 WORKDIR /app
