@@ -93,7 +93,7 @@ class GlobalAlignController:
         return self.root.find_node('ln_moving_selection')
 
     def get_fixed_complex(self):
-        return next(ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected)
+        return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
 
     def get_moving_complexes(self):
         return [ddi.complex for ddi in self.ln_moving_structs.get_content().items if ddi.selected]
@@ -178,10 +178,6 @@ class ChainAlignController:
         moving_dropdown.register_item_clicked_callback(
             partial(self.update_chain_dropdown, self.ln_moving_chain))
 
-        # self.ln_fixed_struct.set_content(fixed_dropdown)
-        # self.ln_moving_struct.set_content(moving_dropdown)
-        # self.plugin.update_node(self.ln_fixed_struct, self.ln_moving_struct)
-
     def get_fixed_complex(self):
         return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
 
@@ -258,6 +254,10 @@ class RMSDMenu:
     def ln_rmsd_value(self):
         return self._menu.root.find_node('ln_rmsd_value')
 
+    @property
+    def lst_rmsd_results(self):
+        return self._menu.root.find_node('ln_rmsd_results').get_content()
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
@@ -294,10 +294,16 @@ class RMSDMenu:
         self.btn_submit.unusable = True
         self.plugin.update_content(self.btn_submit)
         current_mode = self.selection_mode_controller.current_mode
+        rmsd_results = None
         if current_mode == 'global':
             fixed_comp = self.global_align_controller.get_fixed_complex()
             moving_comps = self.global_align_controller.get_moving_complexes()
-            rmsd_results = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
+            if not all([fixed_comp, moving_comps]):
+                msg = "Please select all complexes."
+                Logs.warning(msg)
+                self.plugin.send_notification(NotificationTypes.error, msg)
+            else:
+                rmsd_results = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
         if current_mode == 'chain':
             fixed_comp = self.chain_align_controller.get_fixed_complex()
             fixed_chain = self.chain_align_controller.get_fixed_chain()
@@ -309,24 +315,29 @@ class RMSDMenu:
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp, moving_chain)
-                results_list = self.render_rmsd_results(rmsd_results)
-                self.ln_rmsd_value.set_content(results_list)
-                self.plugin.update_node(self.ln_rmsd_value)
-                Logs.message("Superposition completed.")
+        if rmsd_results:
+            self.render_rmsd_results(rmsd_results)
+            Logs.message("Superposition completed.")
         self.btn_submit.unusable = False
         self.plugin.update_content(self.btn_submit)
 
     def render_rmsd_results(self, rmsd_results):
         """Render rmsd results in a list of labels."""
-        results_list = ui.UIList()
-        results_list.max_displayed_items = 10
-        results_list.display_rows = 10
+        results_list = self.lst_rmsd_results
+        results_list.display_rows = 5
         results_list.items = []
+
+        rmsd_header = ui.LayoutNode()
+        rmsd_header.layout_orientation = 0
+        rmsd_header.set_size_ratio(0.25)
+        rmsd_header.set_content(ui.Label(f'RMSD Scores'))
+        results_list.items.append(rmsd_header)
 
         for comp_name, rms in rmsd_results.items():
             ln_rmsd_result = ui.LayoutNode()
-            ln_rmsd_result.layout_orientation = 1
+            ln_rmsd_result.layout_orientation = 0
             ln_rmsd_result.set_size_ratio(0.25)
             ln_rmsd_result.set_content(ui.Label(f'{comp_name}: {rms:.2f}'))
             results_list.items.append(ln_rmsd_result)
+        self.plugin.update_content(results_list)
         return results_list
