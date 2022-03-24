@@ -104,9 +104,10 @@ class GlobalAlignController:
         dropdown = ui.Dropdown()
         dropdown.max_displayed_items = len(dropdown_items)
         dropdown.items = dropdown_items
-
         layoutnode.set_content(dropdown)
         self.plugin.update_node(layoutnode)
+        if multi_select:
+            dropdown.register_item_clicked_callback(self.multi_select_item_selected)
 
     def create_structure_dropdown_items(self, complexes, multi_select=False):
         """Generate list of buttons corresponding to provided complexes."""
@@ -131,6 +132,26 @@ class GlobalAlignController:
             complex_ddis.append(ddi)
 
         return complex_ddis
+
+    @async_callback
+    async def multi_select_item_selected(self, dropdown, ddi):
+        """Callback for when a complex is selected in a dropdown."""
+        ln_selection = self.ln_moving_selections
+
+        if not hasattr(dropdown, '_selected_items'):
+            dropdown._selected_items = []
+
+        if ddi in dropdown._selected_items:
+            # Deselect item
+            ddi.selected = False
+            dropdown._selected_items.remove(ddi)
+
+        if ddi.selected and ddi not in dropdown._selected_items:
+            dropdown._selected_items.append(ddi)
+        # Reselect selected items
+        for ddi in dropdown._selected_items:
+            ddi.selected = True
+        self.plugin.update_content(dropdown)
 
 
 class ChainAlignController:
