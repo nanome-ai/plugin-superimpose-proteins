@@ -338,7 +338,6 @@ class RMSDMenu:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp, moving_chain)
         if rmsd_results:
             self.render_rmsd_results(rmsd_results)
-            Logs.message("Superposition completed.")
         self.btn_submit.unusable = False
         self.plugin.update_content(self.btn_submit)
 

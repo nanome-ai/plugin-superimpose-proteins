@@ -1,5 +1,6 @@
 import nanome
 import tempfile
+import time
 from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
@@ -38,6 +39,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
         await self.menu.render(complexes=complexes)
 
     async def msa_superimpose(self, fixed_comp, moving_comps, alignment_type='global'):
+        start_time = time.time()
+        Logs.message(f"Superimposing {len(moving_comps)} structures")
         moving_comp_indices = [comp.index for comp in moving_comps]
         updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
@@ -51,6 +54,9 @@ class RMSDV2(nanome.AsyncPluginInstance):
             updated_moving_comp.locked = True
             comps_to_update.append(updated_moving_comp)
         await self.update_structures_deep(comps_to_update)
+        end_time = time.time()
+        Logs.message(
+            f"Superposition completed in {round(end_time - start_time, 2)} seconds.")
         return rmsd_results
 
     @staticmethod
@@ -70,7 +76,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
         return m
 
     async def superimpose(self, fixed_comp, moving_comp, alignment_type='global'):
-        Logs.message(f"Superimposing {moving_comp.full_name} onto {fixed_comp.full_name}.")
         ComplexUtils.align_to(moving_comp, fixed_comp)
         parser = PDBParser(QUIET=True)
         fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -109,8 +114,9 @@ class RMSDV2(nanome.AsyncPluginInstance):
         return moving_comp, rms
 
     async def superimpose_by_chain(self, fixed_comp, fixed_chain_name, moving_comp, moving_chain_name):
+        start_time = time.time()
+        Logs.message("Superimposing by Chain.")
         fixed_comp, moving_comp = await self.request_complexes([fixed_comp.index, moving_comp.index])
-        Logs.message("Parsing Complexes to BioPython Structures.")
         parser = PDBParser(QUIET=True)
         ComplexUtils.align_to(moving_comp, fixed_comp)
 
@@ -121,7 +127,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
         fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
         moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
-        Logs.message("Aligning Structures.")
         fixed_chain = next(ch for ch in fixed_struct.get_chains() if ch.id == fixed_chain_name)
         moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
         mapping = self.align_sequences(fixed_chain, moving_chain)
@@ -154,6 +159,10 @@ class RMSDV2(nanome.AsyncPluginInstance):
         for comp_atom in moving_comp.atoms:
             comp_atom.position = m * comp_atom.position
         await self.update_structures_deep([moving_comp])
+        end_time = time.time()
+        Logs.message(
+            f"Superposition completed in {round(end_time - start_time, 2)} seconds.")
+
         self.send_notification(NotificationTypes.message, f'RMSD: {rms}')
         return {moving_comp.full_name: rms}
 
@@ -175,7 +184,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             seq = [_aainfo(r) for r in structure.get_residues() if is_aa(r)]
             return seq
 
-        Logs.message(f"Running {alignment_type} alignment on structures.")
+        Logs.message(f"Running {alignment_type} alignment.")
         resseq_A = _get_pdb_sequence(structA)
         resseq_B = _get_pdb_sequence(structB)
 
