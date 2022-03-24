@@ -55,8 +55,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
             comps_to_update.append(updated_moving_comp)
         await self.update_structures_deep(comps_to_update)
         end_time = time.time()
+        process_time = end_time - start_time
+        extra = {"process_time": process_time}
         Logs.message(
-            f"Superposition completed in {round(end_time - start_time, 2)} seconds.")
+            f"Superposition completed in {round(end_time - start_time, 2)} seconds.",
+            extra=extra)
         return rmsd_results
 
     @staticmethod
@@ -160,8 +163,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
             comp_atom.position = m * comp_atom.position
         await self.update_structures_deep([moving_comp])
         end_time = time.time()
+        process_time = end_time - start_time
+        extra = {"process_time": process_time}
         Logs.message(
-            f"Superposition completed in {round(end_time - start_time, 2)} seconds.")
+            f"Superposition completed in {round(end_time - start_time, 2)} seconds.",
+            extra=extra)
 
         self.send_notification(NotificationTypes.message, f'RMSD: {rms}')
         return {moving_comp.full_name: rms}
