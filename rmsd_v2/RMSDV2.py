@@ -79,8 +79,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
         moving_comp.io.to_pdb(moving_pdb.name)
         fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
         moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-
-        Logs.message("Aligning Structures.")
         mapping = self.align_sequences(fixed_struct, moving_struct, alignment_type)
 
         # Collect aligned residues
@@ -177,6 +175,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             seq = [_aainfo(r) for r in structure.get_residues() if is_aa(r)]
             return seq
 
+        Logs.message(f"Running {alignment_type} alignment on structures.")
         resseq_A = _get_pdb_sequence(structA)
         resseq_B = _get_pdb_sequence(structB)
 
@@ -184,7 +183,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
         sequence_B = "".join([i[1] for i in resseq_B])
 
         if alignment_type == 'global':
-            Logs.message("Using Global Alignment")
             alignment_fn = pairwise2.align.globalds
             alignment_fn_args = (
                 sequence_A,
@@ -198,7 +196,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
                 penalize_end_gaps=(False, False)
             )
         elif alignment_type == 'local':
-            Logs.message("Using Local Alignment")
             alignment_fn = pairwise2.align.localxx
             alignment_fn_args = (sequence_A, sequence_B)
             alignment_fn_kwargs = dict()
