@@ -2,6 +2,7 @@ from os import path
 from functools import partial
 from nanome.api import ui
 from nanome.util import Logs, async_callback
+from nanome.util.enums import NotificationTypes
 
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
@@ -159,7 +160,7 @@ class ChainAlignController:
         return self.root.find_node('ln_moving_chain')
 
     @async_callback
-    async def render(self, complexes=None):
+    async def render(self, complexes=None, default_values=True):
         complexes = complexes or []
         fixed_dropdown = self.ln_fixed_struct.get_content()
         moving_dropdown = self.ln_moving_struct.get_content()
@@ -182,16 +183,16 @@ class ChainAlignController:
         # self.plugin.update_node(self.ln_fixed_struct, self.ln_moving_struct)
 
     def get_fixed_complex(self):
-        return next(ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected)
+        return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
 
     def get_moving_complex(self):
-        return next(ddi.complex for ddi in self.ln_moving_struct.get_content().items if ddi.selected)
+        return next((ddi.complex for ddi in self.ln_moving_struct.get_content().items if ddi.selected), None)
 
     def get_fixed_chain(self):
-        return next(ddi.name for ddi in self.ln_fixed_chain.get_content().items if ddi.selected)
+        return next((ddi.name for ddi in self.ln_fixed_chain.get_content().items if ddi.selected), None)
 
     def get_moving_chain(self):
-        return next(ddi.name for ddi in self.ln_moving_chain.get_content().items if ddi.selected)
+        return next((ddi.name for ddi in self.ln_moving_chain.get_content().items if ddi.selected), None)
 
     @async_callback
     async def update_chain_dropdown(self, ln_chain_dropdown, complex_dropdown, complex_dd_item):
@@ -302,13 +303,18 @@ class RMSDMenu:
             fixed_chain = self.chain_align_controller.get_fixed_chain()
             moving_comp = self.chain_align_controller.get_moving_complex()
             moving_chain = self.chain_align_controller.get_moving_chain()
-            rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp, moving_chain)
+            if not all([fixed_comp, fixed_chain, moving_comp, moving_chain]):
+                msg = "Please select all complexes and chains."
+                Logs.warning(msg)
+                self.plugin.send_notification(NotificationTypes.error, msg)
+            else:
+                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp, moving_chain)
+                results_list = self.render_rmsd_results(rmsd_results)
+                self.ln_rmsd_value.set_content(results_list)
+                self.plugin.update_node(self.ln_rmsd_value)
+                Logs.message("Superposition completed.")
         self.btn_submit.unusable = False
-        results_list = self.render_rmsd_results(rmsd_results)
-        self.ln_rmsd_value.set_content(results_list)
-        self.plugin.update_node(self.ln_rmsd_value)
         self.plugin.update_content(self.btn_submit)
-        Logs.message("Superposition completed.")
 
     def render_rmsd_results(self, rmsd_results):
         """Render rmsd results in a list of labels."""
@@ -323,5 +329,4 @@ class RMSDMenu:
             ln_rmsd_result.set_size_ratio(0.25)
             ln_rmsd_result.set_content(ui.Label(f'{comp_name}: {rms:.2f}'))
             results_list.items.append(ln_rmsd_result)
-
         return results_list
