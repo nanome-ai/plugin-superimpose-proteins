@@ -8,23 +8,6 @@ BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu.json')
 INFO_ICON_PATH = path.join(BASE_PATH, 'info_icon.png')
 
-
-def create_chain_dropdown_items(comp, set_default=False):
-    """Update chain dropdown to reflect changes in complex."""
-    dropdown_items = []
-    # Filter out hetatom chains (HA, HB, etc)
-    chain_names = [
-        ch.name for ch in comp.chains
-        if not ch.name.startswith('H') or len(ch.name) < 2
-    ]
-    for chain_name in chain_names:
-        ddi = ui.DropdownItem(chain_name)
-        dropdown_items.append(ddi)
-    if set_default and dropdown_items:
-        dropdown_items[0].selected = True
-    return dropdown_items
-
-
 class SelectionModeController:
 
     def __init__(self, plugin, menu):
@@ -79,13 +62,13 @@ class SelectionModeController:
                 group_item.selected = False
                 btns_to_update.append(group_item)
         if btn.name == 'btn_global_align':
-            Logs.message("Switched to entry mode")
+            Logs.message("Switched to superimpose by entry")
             self.current_mode = 'global'
             self.entry_align_panel.enabled = True
             self.chain_align_panel.enabled = False
             self.active_site_panel.enabled = False
         elif btn.name == 'btn_align_by_chain':
-            Logs.message("Switched to chain mode.")
+            Logs.message("Switched to superimpose by chain.")
             self.current_mode = 'chain'
             self.chain_align_panel.enabled = True
             self.entry_align_panel.enabled = False
@@ -652,8 +635,9 @@ class RMSDMenu:
         self.selection_mode_controller = SelectionModeController(plugin_instance, self._menu)
         self.global_align_controller = EntryAlignController(plugin_instance, self._menu)
         self.chain_align_controller = ChainAlignController(plugin_instance, self._menu)
-        self.active_site_controller = ActiveSiteController(plugin_instance, self._menu)
-        self.selection_mode_controller.set_default_state()
+        # Make sure Global Align Panel is always open
+        default_mode = self.selection_mode_controller.btn_global_align
+        self.selection_mode_controller.on_mode_selected(default_mode, update=False)
         self.btn_color_override.toggle_on_press = True
         self.btn_color_override.switch.active = True
         self.ln_info_img.add_new_image(INFO_ICON_PATH)
@@ -677,10 +661,6 @@ class RMSDMenu:
     @property
     def ln_info_img(self):
         return self._menu.root.find_node('ln_info_img')
-
-    @property
-    def ln_moving_comp_list(self):
-        return self._menu.root.find_node('ln_moving_comp_list')
 
     @async_callback
     async def render(self, complexes=None):
