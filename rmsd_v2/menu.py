@@ -7,7 +7,7 @@ from nanome.util.enums import NotificationTypes
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu.json')
-
+INFO_ICON_PATH = path.join(BASE_PATH, 'info_icon.png')
 
 class SelectionModeController:
 
@@ -50,10 +50,12 @@ class SelectionModeController:
                 group_item.selected = False
                 btns_to_update.append(group_item)
         if btn.name == 'btn_global_align':
+            Logs.message("Switched to superimpose by entry")
             self.current_mode = 'global'
             self.global_align_panel.enabled = True
             self.chain_align_panel.enabled = False
         elif btn.name == 'btn_align_by_chain':
+            Logs.message("Switched to superimpose by chain.")
             self.current_mode = 'chain'
             self.chain_align_panel.enabled = True
             self.global_align_panel.enabled = False
@@ -266,6 +268,9 @@ class RMSDMenu:
         # Make sure Global Align Panel is always open
         default_mode = self.selection_mode_controller.btn_global_align
         self.selection_mode_controller.on_mode_selected(default_mode, update=False)
+        self.btn_color_override.toggle_on_press = True
+        self.btn_color_override.switch.active = True
+        self.ln_info_img.add_new_image(INFO_ICON_PATH)
 
     @property
     def btn_submit(self):
@@ -278,6 +283,14 @@ class RMSDMenu:
     @property
     def lst_rmsd_results(self):
         return self._menu.root.find_node('ln_rmsd_results').get_content()
+
+    @property
+    def btn_color_override(self):
+        return self._menu.root.find_node('ln_color_override').get_content()
+
+    @property
+    def ln_info_img(self):
+        return self._menu.root.find_node('ln_info_img')
 
     @async_callback
     async def render(self, complexes=None):
