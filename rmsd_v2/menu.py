@@ -9,6 +9,7 @@ BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu.json')
 INFO_ICON_PATH = path.join(BASE_PATH, 'info_icon.png')
 
+
 class SelectionModeController:
 
     def __init__(self, plugin, menu):
@@ -35,8 +36,8 @@ class SelectionModeController:
         return self._menu.root.find_node('ln_btn_align_by_binding_site').get_content()
 
     @property
-    def global_align_panel(self):
-        return self._menu.root.find_node('Global Panel')
+    def entry_align_panel(self):
+        return self._menu.root.find_node('Entry Panel')
 
     @property
     def chain_align_panel(self):
@@ -52,18 +53,18 @@ class SelectionModeController:
         if btn.name == 'btn_global_align':
             Logs.message("Switched to superimpose by entry")
             self.current_mode = 'global'
-            self.global_align_panel.enabled = True
+            self.entry_align_panel.enabled = True
             self.chain_align_panel.enabled = False
         elif btn.name == 'btn_align_by_chain':
             Logs.message("Switched to superimpose by chain.")
             self.current_mode = 'chain'
             self.chain_align_panel.enabled = True
-            self.global_align_panel.enabled = False
+            self.entry_align_panel.enabled = False
         if update:
             self.plugin.update_menu(self._menu)
 
 
-class GlobalAlignController:
+class EntryAlignController:
 
     def __init__(self, plugin, menu):
         self.plugin = plugin
@@ -76,7 +77,7 @@ class GlobalAlignController:
 
     @property
     def root(self):
-        return self._menu.root.find_node('Global Panel')
+        return self._menu.root.find_node('Entry Panel')
 
     @property
     def ln_fixed_struct(self):
@@ -98,7 +99,12 @@ class GlobalAlignController:
         return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
 
     def get_moving_complexes(self):
-        return [ddi.complex for ddi in self.ln_moving_structs.get_content().items if ddi.selected]
+        comps = []
+        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            btn = item.get_content()
+            if btn.selected:
+                comps.append(btn.comp)
+        return comps
 
     def set_complex_dropdown(self, complexes, layoutnode, multi_select=False):
         """Create dropdown of complexes, and add to provided layoutnode."""
@@ -263,7 +269,7 @@ class RMSDMenu:
         self._menu = ui.Menu.io.from_json(MENU_PATH)
         self.plugin = plugin_instance
         self.selection_mode_controller = SelectionModeController(plugin_instance, self._menu)
-        self.global_align_controller = GlobalAlignController(plugin_instance, self._menu)
+        self.global_align_controller = EntryAlignController(plugin_instance, self._menu)
         self.chain_align_controller = ChainAlignController(plugin_instance, self._menu)
         # Make sure Global Align Panel is always open
         default_mode = self.selection_mode_controller.btn_global_align
@@ -292,35 +298,31 @@ class RMSDMenu:
     def ln_info_img(self):
         return self._menu.root.find_node('ln_info_img')
 
+    @property
+    def ln_moving_comp_list(self):
+        return self._menu.root.find_node('ln_moving_comp_list')
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
         self.complexes = complexes
         self.global_align_controller.render(complexes)
         self.chain_align_controller.render(complexes)
+        self.populate_comp_list(complexes)
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
-    async def create_chain_dropdown(self, complex):
-        """Create dropdown of chains, and add to provided layoutnode."""
-        dropdown = ui.Dropdown()
-        dropdown.complex = complex
-        dropdown_items = []
-        if sum(1 for ch in complex.chains) == 0:
-            # get deep complex
-            complex = (await self.plugin.request_complexes([complex.index]))[0]
-
-        # Filter out hetatm chains which have an H appended to beginning of name
-        chain_names = [
-            ch.name for ch in complex.chains
-            if not ch.name.startswith('H')
-            or len(ch.name) == 1]
-        for chain_name in chain_names:
-            ddi = ui.DropdownItem(chain_name)
-            dropdown_items.append(ddi)
-        dropdown.max_displayed_items = len(dropdown_items)
-        dropdown.items = dropdown_items
-        return dropdown
+    def populate_comp_list(self, complexes):
+        comp_list = self.ln_moving_comp_list.get_content()
+        for comp in complexes:
+            ln = ui.LayoutNode('ln_comp_item')
+            ln.forward_dist = 0.1
+            btn = ui.Button(comp.full_name)
+            btn.comp = comp
+            btn.toggle_on_press = True
+            ln.set_content(btn)
+            comp_list.items.append(ln)
+        self.plugin.update_node(self.ln_moving_comp_list)
 
     @async_callback
     async def submit(self, btn):
