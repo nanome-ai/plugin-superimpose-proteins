@@ -32,8 +32,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
     @async_callback
     async def on_complex_added(self):
-        self.complexes = await self.request_complex_list()
-        await self.menu.render(complexes=self.complexes)
+        complexes = await self.request_complex_list()
+        await self.menu.render(complexes=complexes)
 
     @async_callback
     async def on_complex_removed(self):
