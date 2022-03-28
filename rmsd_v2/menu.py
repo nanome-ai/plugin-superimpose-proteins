@@ -1,7 +1,7 @@
 from os import path
 from functools import partial
 from nanome.api import ui
-from nanome.util import Logs, async_callback
+from nanome.util import Logs, async_callback, Color
 from nanome.util.enums import NotificationTypes
 
 
@@ -313,14 +313,23 @@ class RMSDMenu:
         self.plugin.update_menu(self._menu)
 
     def populate_comp_list(self, complexes):
+        green = Color(36, 184, 177)
         comp_list = self.ln_moving_comp_list.get_content()
         for comp in complexes:
             ln = ui.LayoutNode('ln_comp_item')
-            ln.forward_dist = 0.1
-            btn = ui.Button(comp.full_name)
+            ln.forward_dist = 0.05
+            btn = ln.add_new_button(comp.full_name)
+            btn.outline.size.set_all(0)
+            btn.outline.size.highlighted = 0.3
+            btn.outline.size.selected_highlighted = 0.3
+            btn.mesh.active = True
+            btn.mesh.enabled.set_all(False)
+            btn.mesh.enabled.selected = True
+            btn.mesh.enabled.hover = True
+            btn.mesh.color.selected = green
+            btn.mesh.color.selected_highlighted = green
             btn.comp = comp
             btn.toggle_on_press = True
-            ln.set_content(btn)
             comp_list.items.append(ln)
         self.plugin.update_node(self.ln_moving_comp_list)
 
