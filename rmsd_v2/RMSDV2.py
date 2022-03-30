@@ -88,7 +88,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct:Structure, moving_struct:Structure, alignment_type='global'):
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global'):
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
         mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
@@ -120,7 +120,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
-        
+
         updated_moving_comps = []
         parser = PDBParser(QUIET=True)
 
