@@ -43,7 +43,7 @@ class SelectionModeController:
         return self._menu.root.find_node('Chain Panel')
 
     @async_callback
-    async def on_mode_selected(self, btn, update=True):
+    async def on_mode_selected(self, btn, update=True, log=True):
         btn.selected = True
         btns_to_update = [btn]
         for group_item in self.mode_selection_btn_group:
@@ -51,13 +51,15 @@ class SelectionModeController:
                 group_item.selected = False
                 btns_to_update.append(group_item)
         if btn.name == 'btn_global_align':
-            Logs.message("Switched to superimpose by entry")
+            if log:
+                Logs.message("Switched to entry mode")
             self.current_mode = 'global'
             self.entry_align_panel.enabled = True
             self.chain_align_panel.enabled = False
             self.active_site_panel.enabled = False
         elif btn.name == 'btn_align_by_chain':
-            Logs.message("Switched to superimpose by chain.")
+            if log:
+                Logs.message("Switched to chain mode.")
             self.current_mode = 'chain'
             self.chain_align_panel.enabled = True
             self.entry_align_panel.enabled = False
@@ -443,9 +445,9 @@ class RMSDMenu:
         self.selection_mode_controller = SelectionModeController(plugin_instance, self._menu)
         self.global_align_controller = EntryAlignController(plugin_instance, self._menu)
         self.chain_align_controller = ChainAlignController(plugin_instance, self._menu)
-        # Make sure Global Align Panel is always open
+        # Make sure Global Align Panel is always default
         default_mode = self.selection_mode_controller.btn_global_align
-        self.selection_mode_controller.on_mode_selected(default_mode, update=False)
+        self.selection_mode_controller.on_mode_selected(default_mode, update=False, log=False)
         self.btn_color_override.toggle_on_press = True
         self.btn_color_override.switch.active = True
         self.ln_info_img.add_new_image(INFO_ICON_PATH)
