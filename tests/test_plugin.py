@@ -5,8 +5,7 @@ from unittest.mock import patch
 from random import randint
 
 from unittest.mock import MagicMock
-from nanome.api import ui, PluginInstance
-from nanome.api.structure import Atom, Chain, Complex, Molecule
+from nanome.api.structure import Complex
 from rmsd_v2.RMSDV2 import RMSDV2
 
 
@@ -53,10 +52,11 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
 
+        moving_comp_chain_list = [(self.complex_1mbo, chain_name_1mbo)]
         result = run_awaitable(
             self.plugin_instance.superimpose_by_chain,
             self.complex_4hhb, chain_name_4hhb,
-            self.complex_1mbo, chain_name_1mbo
+            moving_comp_chain_list
         )
         expected_result = 1.954563078937366
         expected_output = {self.complex_1mbo.full_name: expected_result}
