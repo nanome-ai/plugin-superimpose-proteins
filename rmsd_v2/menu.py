@@ -43,8 +43,15 @@ class SelectionModeController:
     def chain_align_panel(self):
         return self._menu.root.find_node('Chain Panel')
 
-    # @async_callback
-    def on_mode_selected(self, btn, update=True, log=True):
+    def set_default_state(self):
+        self.btn_global_align.selected = True
+        self.btn_align_by_chain.selected = False
+        self.btn_align_by_binding_site.selected = False
+        self.entry_align_panel.enabled = True
+        self.chain_align_panel.enabled = False
+
+    @async_callback
+    async def on_mode_selected(self, btn):
         btn.selected = True
         btns_to_update = [btn]
         for group_item in self.mode_selection_btn_group:
@@ -52,14 +59,12 @@ class SelectionModeController:
                 group_item.selected = False
                 btns_to_update.append(group_item)
         if btn.name == 'btn_global_align':
-            if log:
-                Logs.message("Switched to entry mode")
+            Logs.message("Switched to entry mode")
             self.current_mode = 'global'
             self.entry_align_panel.enabled = True
             self.chain_align_panel.enabled = False
         elif btn.name == 'btn_align_by_chain':
-            if log:
-                Logs.message("Switched to chain mode.")
+            Logs.message("Switched to chain mode.")
             self.current_mode = 'chain'
             self.chain_align_panel.enabled = True
             self.entry_align_panel.enabled = False
@@ -70,15 +75,12 @@ class SelectionModeController:
                     self.plugin.update_content(self.btn_align_by_chain)
                     comp_indices = [cmp.index for cmp in self.plugin.complexes]
                     # Use event loop because on_mode_selected is called in __init__
-                    loop = asyncio.get_event_loop()
-                    self.plugin.complexes = loop.run_until_complete(
-                        self.plugin.request_complexes(comp_indices))
+                    self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
                     # This is kinda iffy, but it works
-                    loop.run_until_complete(self.plugin.menu.render(complexes=self.plugin.complexes))
+                    await self.plugin.menu.render(complexes=self.plugin.complexes)
                     self.btn_align_by_chain.unusable = False
                     break
-        if update:
-            self.plugin.update_menu(self._menu)
+        self.plugin.update_menu(self._menu)
 
 
 class EntryAlignController:
@@ -406,9 +408,7 @@ class RMSDMenu:
         self.selection_mode_controller = SelectionModeController(plugin_instance, self._menu)
         self.global_align_controller = EntryAlignController(plugin_instance, self._menu)
         self.chain_align_controller = ChainAlignController(plugin_instance, self._menu)
-        # Make sure Global Align Panel is always default
-        default_mode = self.selection_mode_controller.btn_global_align
-        self.selection_mode_controller.on_mode_selected(default_mode, update=False, log=False)
+        self.selection_mode_controller.set_default_state()
         self.btn_color_override.toggle_on_press = True
         self.btn_color_override.switch.active = True
         self.ln_info_img.add_new_image(INFO_ICON_PATH)
