@@ -65,10 +65,13 @@ class SelectionModeController:
             # Get deep complexes if necessary
             for comp in self.plugin.complexes:
                 if sum(1 for _ in comp.chains) == 0:
+                    self.btn_align_by_chain.unusable = True
+                    self.plugin.update_content(self.btn_align_by_chain)
                     comp_indices = [cmp.index for cmp in self.plugin.complexes]
                     self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
                     # This is kinda iffy, but it works
                     await self.plugin.menu.render(complexes=self.plugin.complexes)
+                    self.btn_align_by_chain.unusable = False
                     break
         if update:
             self.plugin.update_menu(self._menu)
@@ -180,7 +183,6 @@ class EntryAlignController:
         for comp in complexes:
             ln = ui.LayoutNode()
             ln.padding_type = PaddingTypes.fixed
-            # ln.padding = (0.02, 0.02, 0.02, 0.02)
 
             ln.forward_dist = 0.05
             ln.layout_orientation = 1
@@ -442,21 +444,22 @@ class RMSDMenu:
 
     def render_rmsd_results(self, rmsd_results):
         """Render rmsd results in a list of labels."""
-        results_list = self.lst_rmsd_results
-        results_list.display_rows = 5
-        results_list.items = []
+        pass
+        # results_list = self.lst_rmsd_results
+        # results_list.display_rows = 5
+        # results_list.items = []
 
-        rmsd_header = ui.LayoutNode()
-        rmsd_header.layout_orientation = 0
-        rmsd_header.set_size_ratio(0.25)
-        rmsd_header.set_content(ui.Label(f'RMSD Scores'))
-        results_list.items.append(rmsd_header)
+        # rmsd_header = ui.LayoutNode()
+        # rmsd_header.layout_orientation = 0
+        # rmsd_header.set_size_ratio(0.25)
+        # rmsd_header.set_content(ui.Label(f'RMSD Scores'))
+        # results_list.items.append(rmsd_header)
 
-        for comp_name, rms in rmsd_results.items():
-            ln_rmsd_result = ui.LayoutNode()
-            ln_rmsd_result.layout_orientation = 0
-            ln_rmsd_result.set_size_ratio(0.25)
-            ln_rmsd_result.set_content(ui.Label(f'{comp_name}: {rms:.2f}'))
-            results_list.items.append(ln_rmsd_result)
-        self.plugin.update_content(results_list)
-        return results_list
+        # for comp_name, rms in rmsd_results.items():
+        #     ln_rmsd_result = ui.LayoutNode()
+        #     ln_rmsd_result.layout_orientation = 0
+        #     ln_rmsd_result.set_size_ratio(0.25)
+        #     ln_rmsd_result.set_content(ui.Label(f'{comp_name}: {rms:.2f}'))
+        #     results_list.items.append(ln_rmsd_result)
+        # self.plugin.update_content(results_list)
+        # return results_list
