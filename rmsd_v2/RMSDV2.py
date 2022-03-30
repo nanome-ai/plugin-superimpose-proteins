@@ -130,7 +130,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         fixed_comp.io.to_pdb(fixed_pdb.name)
         fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
         fixed_chain = next(ch for ch in fixed_struct.get_chains() if ch.id == fixed_chain_name)
-        
+        results = {}
         for moving_comp, moving_chain_name in moving_comp_chain_list:
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
@@ -161,7 +161,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             superimposer.set_atoms(fixed_atoms, moving_atoms)
             rms = superimposer.rms
             Logs.message(f'RMSD: {rms}')
-
+            results[moving_comp.full_name] = rms
             m = self.create_transform_matrix(superimposer)
             # apply transformation to moving_comp
             moving_comp.set_surface_needs_redraw()
@@ -177,8 +177,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             f"Superposition completed in {round(end_time - start_time, 2)} seconds.",
             extra=extra)
 
-        self.send_notification(NotificationTypes.message, f'RMSD: {rms}')
-        return {moving_comp.full_name: rms}
+        return results
 
     def align_sequences(self, structA, structB, alignment_type='global'):
         """
