@@ -8,7 +8,6 @@ from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
 from Bio.Align import substitution_matrices
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
-from nanome.util.enums import NotificationTypes
 
 from .menu import RMSDMenu
 
@@ -21,9 +20,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
-        shallow_complexes = await self.request_complex_list()
-        complexes = await self.request_complexes([comp.index for comp in shallow_complexes])
-        self.menu.render(complexes=complexes)
+        self.complexes = await self.request_complex_list()
+        self.menu.render(complexes=self.complexes)
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
@@ -93,7 +91,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
     async def superimpose(self, fixed_struct:Structure, moving_struct:Structure, alignment_type='global'):
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
-        mapping = self.align_sequences(fixed_struct, moving_struct, alignment_type)
+        mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon = 'CA'
@@ -157,7 +155,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             extra=extra)
         return results
 
-    def align_sequences(self, structA, structB, alignment_type='global'):
+    def align_structures(self, structA, structB, alignment_type='global'):
         """
         Performs a global pairwise alignment between two sequences
         using the BLOSUM62 matrix and the Needleman-Wunsch algorithm

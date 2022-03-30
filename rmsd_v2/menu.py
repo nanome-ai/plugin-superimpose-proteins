@@ -43,7 +43,8 @@ class SelectionModeController:
     def chain_align_panel(self):
         return self._menu.root.find_node('Chain Panel')
 
-    def on_mode_selected(self, btn, update=True):
+    @async_callback
+    async def on_mode_selected(self, btn, update=True):
         btn.selected = True
         btns_to_update = [btn]
         for group_item in self.mode_selection_btn_group:
@@ -60,6 +61,14 @@ class SelectionModeController:
             self.current_mode = 'chain'
             self.chain_align_panel.enabled = True
             self.entry_align_panel.enabled = False
+            # Get deep complexes if necessary
+            for comp in self.plugin.complexes:
+                if sum(1 for _ in comp.chains) == 0:
+                    comp_indices = [cmp.index for cmp in self.plugin.complexes]
+                    self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
+                    # This is kinda iffy, but it works
+                    await self.plugin.menu.render(complexes=self.plugin.complexes)
+                    break
         if update:
             self.plugin.update_menu(self._menu)
 
@@ -313,6 +322,7 @@ class ChainAlignController:
     def populate_moving_comp_list(self, complexes):
         green = Color(36, 184, 177)
         comp_list = self.ln_moving_comp_list.get_content()
+        comp_list.items = []
         for comp in complexes:
             ln = ui.LayoutNode()
             ln.forward_dist = 0.05
@@ -392,9 +402,8 @@ class RMSDMenu:
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
-        self.complexes = complexes
         self.global_align_controller.render(complexes)
-        self.chain_align_controller.render(complexes)
+        await self.chain_align_controller.render(complexes)
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
