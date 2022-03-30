@@ -2,7 +2,7 @@ from os import path
 from functools import partial
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
-from nanome.util.enums import NotificationTypes
+from nanome.util.enums import NotificationTypes, SizingTypes, PaddingTypes
 
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
@@ -73,11 +73,15 @@ class EntryAlignController:
     def render(self, complexes=None):
         complexes = complexes or []
         self.set_complex_dropdown(complexes, self.ln_fixed_struct)
-        self.set_complex_dropdown(complexes, self.ln_moving_structs, multi_select=True)
+        self.populate_moving_comp_list(complexes)
 
     @property
     def root(self):
         return self._menu.root.find_node('Entry Panel')
+
+    @property
+    def ln_moving_comp_list(self):
+        return self.root.find_node('ln_moving_comp_list')
 
     @property
     def ln_fixed_struct(self):
@@ -101,7 +105,7 @@ class EntryAlignController:
     def get_moving_complexes(self):
         comps = []
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn = item.get_content()
+            btn = item.get_children()[0].get_content()
             if btn.selected:
                 comps.append(btn.comp)
         return comps
@@ -144,7 +148,6 @@ class EntryAlignController:
     @async_callback
     async def multi_select_item_selected(self, dropdown, ddi):
         """Callback for when a complex is selected in a dropdown."""
-        ln_selection = self.ln_moving_selections
 
         if not hasattr(dropdown, '_selected_items'):
             dropdown._selected_items = []
@@ -161,6 +164,41 @@ class EntryAlignController:
             ddi.selected = True
         self.plugin.update_content(dropdown)
 
+    def populate_moving_comp_list(self, complexes):
+        green = Color(36, 184, 177)
+        comp_list = self.ln_moving_comp_list.get_content()
+        for comp in complexes:
+            ln = ui.LayoutNode()
+            ln.padding_type = PaddingTypes.fixed
+            # ln.padding = (0.02, 0.02, 0.02, 0.02)
+
+            ln.forward_dist = 0.05
+            ln.layout_orientation = 1
+            btn_ln = ln.create_child_node(ui.LayoutNode())
+            lbl_ln = ln.create_child_node(ui.LayoutNode())
+            lbl_ln.padding = (0.02, 0.00, 0.0, 0.0)
+
+            btn_ln.sizing_type = SizingTypes.ratio
+            btn_ln.sizing_value = 0.1
+            btn = btn_ln.add_new_button()
+            btn.text.value.set_all("")
+            btn.mesh.active = True
+            btn.mesh.enabled.set_all(False)
+            btn.mesh.enabled.selected = True
+            btn.mesh.enabled.hover = True
+            btn.mesh.enabled.highlighted = True
+            btn.mesh.enabled.selected_highlighted = True
+            btn.mesh.color.selected = green
+            btn.mesh.color.highlighted = green
+            btn.mesh.color.selected_highlighted = green
+
+            btn.comp = comp
+            btn.toggle_on_press = True
+            lbl_ln.add_new_label(comp.full_name)
+            comp_list.items.append(ln)
+
+        self.plugin.update_node(self.ln_moving_comp_list)
+
 
 class ChainAlignController:
 
@@ -171,6 +209,10 @@ class ChainAlignController:
     @property
     def root(self):
         return self._menu.root.find_node('Chain Panel')
+
+    @property
+    def ln_moving_comp_list(self):
+        return self.root.find_node('ln_moving_comp_list')
 
     @property
     def ln_fixed_struct(self):
@@ -189,23 +231,17 @@ class ChainAlignController:
         return self.root.find_node('ln_moving_chain')
 
     @async_callback
-    async def render(self, complexes=None, default_values=True):
+    async def render(self, complexes=None):
         complexes = complexes or []
         fixed_dropdown = self.ln_fixed_struct.get_content()
-        moving_dropdown = self.ln_moving_struct.get_content()
 
         dropdown_items = self.create_structure_dropdown_items(complexes)
         fixed_dropdown.items = dropdown_items
         fixed_dropdown.max_displayed_items = len(dropdown_items)
 
-        dropdown_items = self.create_structure_dropdown_items(complexes)
-        moving_dropdown.items = dropdown_items
-        moving_dropdown.max_displayed_items = len(dropdown_items)
-
         fixed_dropdown.register_item_clicked_callback(
             partial(self.update_chain_dropdown, self.ln_fixed_chain))
-        moving_dropdown.register_item_clicked_callback(
-            partial(self.update_chain_dropdown, self.ln_moving_chain))
+        self.populate_moving_comp_list(complexes)
 
     def get_fixed_complex(self):
         return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
@@ -261,6 +297,26 @@ class ChainAlignController:
 
         return complex_ddis
 
+    def populate_moving_comp_list(self, complexes):
+        green = Color(36, 184, 177)
+        comp_list = self.ln_moving_comp_list.get_content()
+        for comp in complexes:
+            ln = ui.LayoutNode('ln_comp_item')
+            ln.forward_dist = 0.05
+            btn = ln.add_new_button(comp.full_name)
+            btn.outline.size.set_all(0)
+            btn.outline.size.highlighted = 0.3
+            btn.outline.size.selected_highlighted = 0.3
+            btn.mesh.active = True
+            btn.mesh.enabled.set_all(False)
+            btn.mesh.enabled.selected = True
+            btn.mesh.enabled.hover = True
+            btn.mesh.color.selected = green
+            btn.mesh.color.selected_highlighted = green
+            btn.comp = comp
+            btn.toggle_on_press = True
+            comp_list.items.append(ln)
+        self.plugin.update_node(self.ln_moving_comp_list)
 
 class RMSDMenu:
 
@@ -308,30 +364,8 @@ class RMSDMenu:
         self.complexes = complexes
         self.global_align_controller.render(complexes)
         self.chain_align_controller.render(complexes)
-        self.populate_comp_list(complexes)
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
-
-    def populate_comp_list(self, complexes):
-        green = Color(36, 184, 177)
-        comp_list = self.ln_moving_comp_list.get_content()
-        for comp in complexes:
-            ln = ui.LayoutNode('ln_comp_item')
-            ln.forward_dist = 0.05
-            btn = ln.add_new_button(comp.full_name)
-            btn.outline.size.set_all(0)
-            btn.outline.size.highlighted = 0.3
-            btn.outline.size.selected_highlighted = 0.3
-            btn.mesh.active = True
-            btn.mesh.enabled.set_all(False)
-            btn.mesh.enabled.selected = True
-            btn.mesh.enabled.hover = True
-            btn.mesh.color.selected = green
-            btn.mesh.color.selected_highlighted = green
-            btn.comp = comp
-            btn.toggle_on_press = True
-            comp_list.items.append(ln)
-        self.plugin.update_node(self.ln_moving_comp_list)
 
     @async_callback
     async def submit(self, btn):
