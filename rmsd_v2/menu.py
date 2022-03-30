@@ -481,6 +481,7 @@ class RMSDMenu:
     def render_rmsd_results(self, rmsd_results):
         """Render rmsd results in a list of labels."""
         new_menu = ui.Menu()
+        new_menu.index = 100
         new_menu.title = "RMSD Values"
         ln = ui.LayoutNode()
         results_list = ui.UIList()
