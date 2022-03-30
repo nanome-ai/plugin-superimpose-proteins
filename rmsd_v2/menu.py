@@ -474,22 +474,15 @@ class RMSDMenu:
 
     def render_rmsd_results(self, rmsd_results):
         """Render rmsd results in a list of labels."""
-        pass
-        # results_list = self.lst_rmsd_results
-        # results_list.display_rows = 5
-        # results_list.items = []
-
-        # rmsd_header = ui.LayoutNode()
-        # rmsd_header.layout_orientation = 0
-        # rmsd_header.set_size_ratio(0.25)
-        # rmsd_header.set_content(ui.Label(f'RMSD Scores'))
-        # results_list.items.append(rmsd_header)
-
-        # for comp_name, rms in rmsd_results.items():
-        #     ln_rmsd_result = ui.LayoutNode()
-        #     ln_rmsd_result.layout_orientation = 0
-        #     ln_rmsd_result.set_size_ratio(0.25)
-        #     ln_rmsd_result.set_content(ui.Label(f'{comp_name}: {rms:.2f}'))
-        #     results_list.items.append(ln_rmsd_result)
-        # self.plugin.update_content(results_list)
-        # return results_list
+        new_menu = ui.Menu()
+        new_menu.title = "RMSD Values"
+        ln = ui.LayoutNode()
+        results_list = ui.UIList()
+        for name, rms_val in rmsd_results.items():
+            item = ui.LayoutNode()
+            item.add_new_label(f"{name}: {rms_val:.2f}")
+            results_list.items.append(item)
+        ln.set_content(results_list)
+        new_menu.root.add_child(ln)
+        new_menu.enabled = True
+        self.plugin.update_menu(new_menu)
