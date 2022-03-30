@@ -85,8 +85,13 @@ class EntryAlignController:
 
     def render(self, complexes=None):
         complexes = complexes or []
-        self.set_complex_dropdown(complexes, self.ln_fixed_struct)
-        self.populate_moving_comp_list(complexes)
+        default_fixed = None
+        default_moving = None
+        if len(complexes) == 2:
+            default_fixed = complexes[0]
+            default_moving = complexes[1]
+        self.set_complex_dropdown(complexes, self.ln_fixed_struct, default_comp=default_fixed)
+        self.populate_moving_comp_list(complexes, default_comp=default_moving)
 
     @property
     def root(self):
@@ -123,9 +128,9 @@ class EntryAlignController:
                 comps.append(btn.comp)
         return comps
 
-    def set_complex_dropdown(self, complexes, layoutnode, multi_select=False):
+    def set_complex_dropdown(self, complexes, layoutnode, multi_select=False, default_comp=None):
         """Create dropdown of complexes, and add to provided layoutnode."""
-        dropdown_items = self.create_structure_dropdown_items(complexes, multi_select=multi_select)
+        dropdown_items = self.create_structure_dropdown_items(complexes, multi_select=multi_select, default_comp=default_comp)
         dropdown = ui.Dropdown()
         dropdown.max_displayed_items = len(dropdown_items)
         dropdown.items = dropdown_items
@@ -134,7 +139,7 @@ class EntryAlignController:
         if multi_select:
             dropdown.register_item_clicked_callback(self.multi_select_item_selected)
 
-    def create_structure_dropdown_items(self, complexes, multi_select=False):
+    def create_structure_dropdown_items(self, complexes, multi_select=False, default_comp=None):
         """Generate list of buttons corresponding to provided complexes."""
         complex_ddis = []
         ddi_labels = set()
@@ -154,6 +159,8 @@ class EntryAlignController:
             ddi = ui.DropdownItem(ddi_label)
             ddi.close_on_selected = not multi_select
             ddi.complex = struct
+            if ddi.complex == default_comp:
+                ddi.selected = True
             complex_ddis.append(ddi)
 
         return complex_ddis
@@ -177,7 +184,7 @@ class EntryAlignController:
             ddi.selected = True
         self.plugin.update_content(dropdown)
 
-    def populate_moving_comp_list(self, complexes):
+    def populate_moving_comp_list(self, complexes, default_comp=None):
         green = Color(36, 184, 177)
         comp_list = self.ln_moving_comp_list.get_content()
         for comp in complexes:
@@ -205,6 +212,9 @@ class EntryAlignController:
             btn.mesh.color.selected_highlighted = green
 
             btn.comp = comp
+            if comp == default_comp:
+                btn.selected = True
+
             btn.toggle_on_press = True
             lbl_ln.add_new_label(comp.full_name)
             comp_list.items.append(ln)
@@ -245,14 +255,27 @@ class ChainAlignController:
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
-        fixed_dropdown = self.ln_fixed_struct.get_content()
 
-        dropdown_items = self.create_structure_dropdown_items(complexes)
+        default_fixed = None
+        default_moving = None
+        if len(complexes) == 2:
+            default_fixed = complexes[0]
+            default_moving = complexes[1]
+
+        fixed_dropdown = self.ln_fixed_struct.get_content()
+        dropdown_items = self.create_structure_dropdown_items(complexes, default_comp=default_fixed)
         fixed_dropdown.items = dropdown_items
         fixed_dropdown.max_displayed_items = len(dropdown_items)
 
+        if default_fixed:
+            chain_dropdown = self.ln_fixed_chain.get_content()
+            chain_dropdown.items = self.create_chain_dropdown_items(default_fixed)
+
+        if len(self.plugin.complexes) == 2 and chain_dropdown.items:
+            chain_dropdown.items[0].selected = True
+
         fixed_dropdown.register_item_clicked_callback(self.update_fixed_chain_dropdown)
-        self.populate_moving_comp_list(complexes)
+        self.populate_moving_comp_list(complexes, default_comp=default_moving)
 
     def get_fixed_complex(self):
         return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
@@ -289,7 +312,7 @@ class ChainAlignController:
         self.plugin.update_content(chain_dropdown)
 
     @staticmethod
-    def create_chain_dropdown_items(comp):
+    def create_chain_dropdown_items(comp, set_default=False):
         """Update chain dropdown to reflect changes in complex."""
         dropdown_items = []
         # Filter out hetatom chains (HA, HB, etc)
@@ -300,9 +323,11 @@ class ChainAlignController:
         for chain_name in chain_names:
             ddi = ui.DropdownItem(chain_name)
             dropdown_items.append(ddi)
+        if set_default and dropdown_items:
+            dropdown_items[0].selected = True
         return dropdown_items
 
-    def create_structure_dropdown_items(self, complexes):
+    def create_structure_dropdown_items(self, complexes, default_comp=None):
         """Generate list of buttons corresponding to provided complexes."""
         complex_ddis = []
         ddi_labels = set()
@@ -318,11 +343,13 @@ class ChainAlignController:
             ddi_labels.add(ddi_label)
             ddi = ui.DropdownItem(ddi_label)
             ddi.complex = struct
+            if ddi.complex == default_comp:
+                ddi.selected = True
             complex_ddis.append(ddi)
 
         return complex_ddis
 
-    def populate_moving_comp_list(self, complexes):
+    def populate_moving_comp_list(self, complexes, default_comp=None):
         green = Color(36, 184, 177)
         comp_list = self.ln_moving_comp_list.get_content()
         comp_list.items = []
@@ -348,6 +375,8 @@ class ChainAlignController:
             btn.mesh.color.highlighted = green
             btn.mesh.color.selected_highlighted = green
             btn.comp = comp
+            if btn.comp == default_comp:
+                btn.selected = True
             btn.toggle_on_press = True
 
             info_ln.layout_orientation = 1
@@ -356,7 +385,8 @@ class ChainAlignController:
             btn_list_ln = info_ln.create_child_node(ui.LayoutNode())
 
             comp_dd = ui.Dropdown()
-            comp_dd.items = self.create_chain_dropdown_items(comp)            
+            set_default = bool(default_comp)
+            comp_dd.items = self.create_chain_dropdown_items(comp, set_default=set_default)            
             comp_dd = btn_list_ln.set_content(comp_dd)
             comp_list.items.append(ln)
 
