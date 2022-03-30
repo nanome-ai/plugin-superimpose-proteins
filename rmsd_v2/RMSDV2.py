@@ -10,7 +10,7 @@ from Bio.Align import substitution_matrices
 from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
-from nanome.api.structure import Complex
+
 from .menu import RMSDMenu
 from .fpocket_client import FPocketClient
 
@@ -23,9 +23,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
-        shallow_complexes = await self.request_complex_list()
-        complexes = await self.request_complexes([comp.index for comp in shallow_complexes])
-        self.menu.render(complexes=complexes)
+        self.complexes = await self.request_complex_list()
+        self.menu.render(complexes=self.complexes)
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
@@ -95,7 +94,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
     async def superimpose(self, fixed_struct:Structure, moving_struct:Structure, alignment_type='global'):
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
-        mapping = self.align_sequences(fixed_struct, moving_struct, alignment_type)
+        mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon = 'CA'
