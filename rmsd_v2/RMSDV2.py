@@ -60,7 +60,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-            transform_matrix, rms = await self.superimpose(fixed_struct, moving_struct)
+            transform_matrix, rms = await self.superimpose(fixed_struct, moving_struct, alignment_type)
             moving_comp.set_surface_needs_redraw()
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
@@ -92,10 +92,10 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure):
-        """Run alignment on two structures and return the transform matrix and RMSD."""
+    async def superimpose(self, fixed_struct:Structure, moving_struct:Structure, alignment_type='global'):
+        # Collect aligned residues
         # Align Residues based on Alpha Carbon
-        mapping = self.align_structures(fixed_struct, moving_struct)
+        mapping = self.align_sequences(fixed_struct, moving_struct, alignment_type)
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon = 'CA'
@@ -112,7 +112,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        rms = round(superimposer.rms, 5)
+        rms = superimposer.rms
         transform_matrix = self.create_transform_matrix(superimposer)
         Logs.message(f"RMSD: {rms}")
         return transform_matrix, rms
@@ -120,10 +120,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
     async def superimpose_by_chain(self, fixed_comp, fixed_chain_name, moving_comp_chain_list):
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
-        # moving_comp_indices = [item[0].index for item in moving_comp_chain_list]
-        # updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
-        # fixed_comp = updated_comps[0]
-        # moving_comps = updated_comps[1:]
+        moving_comp_indices = [item[0].index for item in moving_comp_chain_list]
+        updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
+        fixed_comp = updated_comps[0]
+        moving_comps = updated_comps[1:]
+        
         updated_moving_comps = []
         parser = PDBParser(QUIET=True)
 
@@ -132,7 +133,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
         fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
         fixed_chain = next(ch for ch in fixed_struct.get_chains() if ch.id == fixed_chain_name)
         results = {}
-        for moving_comp, moving_chain_name in moving_comp_chain_list:
+        for i, moving_comp in enumerate(moving_comps):
+            moving_chain_name = moving_comp_chain_list[i][1]
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
             moving_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -140,36 +142,14 @@ class RMSDV2(nanome.AsyncPluginInstance):
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
             moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
-            mapping = self.align_sequences(fixed_chain, moving_chain)
-
-            # Collect aligned residues
-            # Align Residues based on Alpha Carbon
-            fixed_atoms = []
-            moving_atoms = []
-            alpha_carbon = 'CA'
-            for fixed_residue in fixed_chain.get_residues():
-                fixed_id = fixed_residue.id[1]
-                if fixed_id in mapping:
-                    fixed_atoms.append(fixed_residue[alpha_carbon])
-                    moving_residue_serial = mapping[fixed_id]
-                    moving_residue = next(
-                        rez for rez in moving_chain.get_residues()
-                        if rez.id[1] == moving_residue_serial)
-                    moving_atoms.append(moving_residue[alpha_carbon])
-            assert len(moving_atoms) == len(fixed_atoms)
-            Logs.message("Superimposing Structures.")
-            superimposer = Superimposer()
-            superimposer.set_atoms(fixed_atoms, moving_atoms)
-            rms = superimposer.rms
-            Logs.message(f'RMSD: {rms}')
+            transform_matrix, rms = await self.superimpose(fixed_chain, moving_chain)
             results[moving_comp.full_name] = rms
-            m = self.create_transform_matrix(superimposer)
             # apply transformation to moving_comp
             moving_comp.set_surface_needs_redraw()
             for comp_atom in moving_comp.atoms:
-                comp_atom.position = m * comp_atom.position
+                comp_atom.position = transform_matrix * comp_atom.position
             updated_moving_comps.append(moving_comp)
-        end_time = time.time()
+
         await self.update_structures_deep(updated_moving_comps)
         end_time = time.time()
         process_time = end_time - start_time
@@ -177,58 +157,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message(
             f"Superposition completed in {round(process_time, 2)} seconds.",
             extra=extra)
-        return results
-
-    async def superimpose_by_active_site(
-            self, target_reference: Complex, ligand_name: str, moving_comp_list, site_size=5):
-        # Select the binding site on the target_reference.
-        moving_indices = [comp.index for comp in moving_comp_list]
-        updated_complexes = await self.request_complexes([target_reference.index, *moving_indices])
-        target_reference = updated_complexes[0]
-        binding_site_atoms = await self.get_binding_site_atoms(target_reference, ligand_name, site_size)
-        for atom in binding_site_atoms:
-            atom.selected = True
-        await self.update_structures_deep([target_reference])
-
-        # For each moving comp, select the potential binding sites.
-        fpocket_client = FPocketClient()
-        for moving_comp in moving_comp_list:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                output_dir = fpocket_client.run(moving_comp, tmpdir)
-                pocket_sets = fpocket_client.parse_results(moving_comp, output_dir)
-            for i in range(len(pocket_sets) - 1, -1, -1):
-                Logs.debug(f"Highlighting pocket {i + 1}")
-                for atom in moving_comp.atoms:
-                    atom.selected = atom in pocket_sets[i]
-                await self.update_structures_deep([moving_comp])
-
-    async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
-        """Identify atoms in the active site around a ligand."""
-        mol = next(
-            mol for i, mol in enumerate(target_reference.molecules)
-            if i == target_reference.current_frame)
-        target_ligands = await mol.get_ligands()
-        ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
-        # Use KDTree to find target atoms within site_size radius of ligand atoms
-        ligand_atoms = chain(*[res.atoms for res in ligand.residues])
-        binding_site_atoms = self.calculate_binding_site_atoms(target_reference, ligand_atoms)
-        return binding_site_atoms
-
-    def calculate_binding_site_atoms(self, target_reference: Complex, ligand_atoms: list, site_size=4.5):
-        """Use KDTree to find target atoms within site_size radius of ligand atoms."""
-        mol = next(
-            mol for i, mol in enumerate(target_reference.molecules)
-            if i == target_reference.current_frame)
-        ligand_positions = [atom.position.unpack() for atom in ligand_atoms]
-        target_atoms = chain(*[ch.atoms for ch in mol.chains if not ch.name.startswith("H")])
-        target_tree = KDTree([atom.position.unpack() for atom in target_atoms])
-        target_point_indices = target_tree.query_ball_point(ligand_positions, site_size)
-        near_point_set = set()
-        for point_indices in target_point_indices:
-            for point_index in point_indices:
-                near_point_set.add(tuple(target_tree.data[point_index]))
-        binding_site_atoms = []
-
         return results
 
     def align_structures(self, structA, structB, alignment_type='global'):
