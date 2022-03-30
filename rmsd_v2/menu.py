@@ -239,32 +239,47 @@ class ChainAlignController:
         fixed_dropdown.items = dropdown_items
         fixed_dropdown.max_displayed_items = len(dropdown_items)
 
-        fixed_dropdown.register_item_clicked_callback(
-            partial(self.update_chain_dropdown, self.ln_fixed_chain))
+        fixed_dropdown.register_item_clicked_callback(self.update_fixed_chain_dropdown)
         self.populate_moving_comp_list(complexes)
 
     def get_fixed_complex(self):
         return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
 
-    def get_moving_complex(self):
-        return next((ddi.complex for ddi in self.ln_moving_struct.get_content().items if ddi.selected), None)
+    def get_moving_complexes_and_chains(self):
+        comp_chain_list = []
+        lst = self.ln_moving_comp_list.get_content()
+        for item in lst.items:
+            btn = item.get_children()[0].get_content()
+            chain_dd = item.get_children()[1].get_children()[1].get_content()
+            if not btn.selected:
+                continue
+            
+            selected_comp = btn.comp
+            selected_chain = None
+            for chain_ddi in chain_dd.items:
+                if chain_ddi.selected:
+                    selected_chain = chain_ddi.name
+                    break
+                print('here')
+            comp_chain_list.append((selected_comp, selected_chain))
+        return comp_chain_list
 
     def get_fixed_chain(self):
         return next((ddi.name for ddi in self.ln_fixed_chain.get_content().items if ddi.selected), None)
 
-    def get_moving_chain(self):
+    def get_moving_chains(self):
         return next((ddi.name for ddi in self.ln_moving_chain.get_content().items if ddi.selected), None)
 
-    @async_callback
-    async def update_chain_dropdown(self, ln_chain_dropdown, complex_dropdown, complex_dd_item):
+    def update_fixed_chain_dropdown(self, dropdown, ddi):
+        comp = ddi.complex
+        chain_dropdown = self.ln_fixed_chain.get_content()
+        chain_dropdown.items = self.create_chain_dropdown_items(comp)
+        self.plugin.update_content(chain_dropdown)
+
+    @staticmethod
+    def create_chain_dropdown_items(comp):
         """Update chain dropdown to reflect changes in complex."""
-        comp = complex_dd_item.complex
-        Logs.message("Updating Chain dropdown")
-        dropdown = ln_chain_dropdown.get_content()
         dropdown_items = []
-        if sum(1 for ch in comp.chains) == 0:
-            # get deep complex
-            comp = (await self.plugin.request_complexes([comp.index]))[0]
         # Filter out hetatom chains (HA, HB, etc)
         chain_names = [
             ch.name for ch in comp.chains
@@ -273,9 +288,7 @@ class ChainAlignController:
         for chain_name in chain_names:
             ddi = ui.DropdownItem(chain_name)
             dropdown_items.append(ddi)
-        dropdown.max_displayed_items = len(dropdown_items)
-        dropdown.items = dropdown_items
-        self.plugin.update_node(ln_chain_dropdown)
+        return dropdown_items
 
     def create_structure_dropdown_items(self, complexes):
         """Generate list of buttons corresponding to provided complexes."""
@@ -301,21 +314,39 @@ class ChainAlignController:
         green = Color(36, 184, 177)
         comp_list = self.ln_moving_comp_list.get_content()
         for comp in complexes:
-            ln = ui.LayoutNode('ln_comp_item')
+            ln = ui.LayoutNode()
             ln.forward_dist = 0.05
-            btn = ln.add_new_button(comp.full_name)
-            btn.outline.size.set_all(0)
-            btn.outline.size.highlighted = 0.3
-            btn.outline.size.selected_highlighted = 0.3
+            ln.layout_orientation = 1
+            btn_ln = ln.create_child_node(ui.LayoutNode())
+            info_ln = ln.create_child_node(ui.LayoutNode())
+            info_ln.padding = (0.02, 0.00, 0.0, 0.0)
+
+            btn_ln.sizing_type = SizingTypes.ratio
+            btn_ln.sizing_value = 0.1
+            btn = btn_ln.add_new_button()
+            btn.text.value.set_all("")
             btn.mesh.active = True
             btn.mesh.enabled.set_all(False)
             btn.mesh.enabled.selected = True
             btn.mesh.enabled.hover = True
+            btn.mesh.enabled.highlighted = True
+            btn.mesh.enabled.selected_highlighted = True
             btn.mesh.color.selected = green
+            btn.mesh.color.highlighted = green
             btn.mesh.color.selected_highlighted = green
             btn.comp = comp
             btn.toggle_on_press = True
+
+            info_ln.layout_orientation = 1
+            lbl_ln = info_ln.create_child_node(ui.LayoutNode())
+            lbl_ln.add_new_label(comp.full_name)
+            btn_list_ln = info_ln.create_child_node(ui.LayoutNode())
+
+            comp_dd = ui.Dropdown()
+            comp_dd.items = self.create_chain_dropdown_items(comp)            
+            comp_dd = btn_list_ln.set_content(comp_dd)
             comp_list.items.append(ln)
+
         self.plugin.update_node(self.ln_moving_comp_list)
 
 class RMSDMenu:
@@ -386,14 +417,14 @@ class RMSDMenu:
         if current_mode == 'chain':
             fixed_comp = self.chain_align_controller.get_fixed_complex()
             fixed_chain = self.chain_align_controller.get_fixed_chain()
-            moving_comp = self.chain_align_controller.get_moving_complex()
-            moving_chain = self.chain_align_controller.get_moving_chain()
-            if not all([fixed_comp, fixed_chain, moving_comp, moving_chain]):
+            moving_comp_chain_list = self.chain_align_controller.get_moving_complexes_and_chains()
+            # moving_chain = self.chain_align_controller.get_moving_chains()
+            if not all([fixed_comp, fixed_chain, moving_comp_chain_list]):
                 msg = "Please select all complexes and chains."
                 Logs.warning(msg)
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
-                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp, moving_chain)
+                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp_chain_list)
         if rmsd_results:
             self.render_rmsd_results(rmsd_results)
         self.btn_submit.unusable = False
