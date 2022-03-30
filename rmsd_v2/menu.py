@@ -1,3 +1,4 @@
+import asyncio
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
@@ -42,8 +43,8 @@ class SelectionModeController:
     def chain_align_panel(self):
         return self._menu.root.find_node('Chain Panel')
 
-    @async_callback
-    async def on_mode_selected(self, btn, update=True, log=True):
+    # @async_callback
+    def on_mode_selected(self, btn, update=True, log=True):
         btn.selected = True
         btns_to_update = [btn]
         for group_item in self.mode_selection_btn_group:
@@ -68,9 +69,12 @@ class SelectionModeController:
                     self.btn_align_by_chain.unusable = True
                     self.plugin.update_content(self.btn_align_by_chain)
                     comp_indices = [cmp.index for cmp in self.plugin.complexes]
-                    self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
+                    # Use event loop because on_mode_selected is called in __init__
+                    loop = asyncio.get_event_loop()
+                    self.plugin.complexes = loop.run_until_complete(
+                        self.plugin.request_complexes(comp_indices))
                     # This is kinda iffy, but it works
-                    await self.plugin.menu.render(complexes=self.plugin.complexes)
+                    loop.run_until_complete(self.plugin.menu.render(complexes=self.plugin.complexes))
                     self.btn_align_by_chain.unusable = False
                     break
         if update:

@@ -5,8 +5,7 @@ from unittest.mock import patch
 from random import randint
 
 from unittest.mock import MagicMock
-from nanome.api import ui, PluginInstance
-from nanome.api.structure import Atom, Chain, Complex, Molecule
+from nanome.api.structure import Complex
 from rmsd_v2.RMSDV2 import RMSDV2
 
 
