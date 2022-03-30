@@ -289,7 +289,7 @@ class ChainAlignController:
             chain_dd = item.get_children()[1].get_children()[1].get_content()
             if not btn.selected:
                 continue
-            
+
             selected_comp = btn.comp
             selected_chain = None
             for chain_ddi in chain_dd.items:
@@ -387,11 +387,12 @@ class ChainAlignController:
 
             comp_dd = ui.Dropdown()
             set_default = bool(default_comp)
-            comp_dd.items = self.create_chain_dropdown_items(comp, set_default=set_default)            
+            comp_dd.items = self.create_chain_dropdown_items(comp, set_default=set_default)
             comp_dd = btn_list_ln.set_content(comp_dd)
             comp_list.items.append(ln)
 
         self.plugin.update_node(self.ln_moving_comp_list)
+
 
 class RMSDMenu:
 
