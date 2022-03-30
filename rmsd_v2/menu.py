@@ -193,6 +193,7 @@ class EntryAlignController:
     def populate_moving_comp_list(self, complexes, default_comp=None):
         green = Color(36, 184, 177)
         comp_list = self.ln_moving_comp_list.get_content()
+        comp_list.items = []
         for comp in complexes:
             ln = ui.LayoutNode()
             ln.padding_type = PaddingTypes.fixed
@@ -458,7 +459,7 @@ class RMSDMenu:
             if not all([fixed_comp, moving_comps]):
                 msg = "Please select all complexes."
                 Logs.warning(msg)
-                self.plugin.send_notification(NotificationTypes.error, msg)
+                self.plugin.send_notification(NotificationTypes.warning, msg)
             else:
                 rmsd_results = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
         if current_mode == 'chain':
