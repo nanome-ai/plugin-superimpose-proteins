@@ -24,6 +24,7 @@ jobs:
         region: us-west-1
         tags: ${{ github.event.inputs.tag }},${{ github.sha }}
         path: docker/Dockerfile
+        extra_build_args: ".."
         # create_repo: true
         # image_scanning_configuration: true
         # set_repo_policy: true
