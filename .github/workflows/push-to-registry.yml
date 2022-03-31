@@ -16,6 +16,9 @@ jobs:
       INPUT_PATH: "."
     steps:
     - uses: actions/checkout@v2
+    - name: Get short SHA
+      id: sha
+      run: echo "::set-output name=sha7::$(echo ${GITHUB_SHA} | cut -c1-7)"
     - uses: docker://ghcr.io/kciter/aws-ecr-action:latest
       with:
         access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -23,7 +26,7 @@ jobs:
         account_id: ${{ secrets.AWS_ACCOUNT_ID }}
         repo: rmsd-v2
         region: us-west-1
-        tags: ${{ github.event.inputs.tag }},${{ github.sha }}
+        tags: ${{ github.event.inputs.tag }},${{ steps.sha.outputs.sha7 }}
         dockerfile: docker/Dockerfile
         # create_repo: true
         # image_scanning_configuration: true
