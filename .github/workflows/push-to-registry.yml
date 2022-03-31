@@ -19,10 +19,11 @@ jobs:
       with:
         access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        account_id: "441665557124"
+        account_id: ${{ secrets.AWS_ACCOUNT_ID }}
         repo: rmsd-v2
         region: us-west-1
         tags: ${{ github.event.inputs.tag }},${{ github.sha }}
+        dockerfile: docker/Dockerfile
         # create_repo: true
         # image_scanning_configuration: true
         # set_repo_policy: true
