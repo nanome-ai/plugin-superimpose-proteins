@@ -24,7 +24,7 @@ jobs:
       run: echo "::set-output name=sha7::$(echo ${GITHUB_SHA} | cut -c1-7)"
     - name: Get tag
       id: tag
-        run: |
+      run: |
         input_tag=${{ github.event.inputs.tag }}
         default_tag=${{ steps.default_tag.outputs.default_tag }}
         if [ -z "$input_tag" ]; then
