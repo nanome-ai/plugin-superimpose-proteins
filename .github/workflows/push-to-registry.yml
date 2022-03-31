@@ -6,9 +6,14 @@ on:
       tag:
         type: string
         description: tag to use for the image
-        default: test
-  push:
+        default: latest
+  pull_request:
     branches: [ master ]
+    inputs:
+      tag:
+        type: string
+        description: tag to use for the image
+        default: latest
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
