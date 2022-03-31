@@ -13,12 +13,13 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
+    - run: echo ""
     - uses: actions/checkout@v2
     - uses: docker://ghcr.io/kciter/aws-ecr-action:latest
       with:
         access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+        account_id: "441665557124"
         repo: rmsd-v2
         region: us-west-1
         tags: ${{ github.event.inputs.tag }},${{ github.sha }}
