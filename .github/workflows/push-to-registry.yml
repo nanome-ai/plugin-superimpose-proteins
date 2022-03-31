@@ -12,8 +12,9 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    env:
+      INPUT_PATH: ..
     steps:
-    - run: echo ""
     - uses: actions/checkout@v2
     - uses: docker://ghcr.io/kciter/aws-ecr-action:latest
       with:
