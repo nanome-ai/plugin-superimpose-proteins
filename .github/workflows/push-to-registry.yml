@@ -19,7 +19,7 @@ jobs:
         access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         account_id: ${{ secrets.AWS_ACCOUNT_ID }}
-        repo: 441665557124.dkr.ecr.us-west-1.amazonaws.com/rmsd-v2
+        repo: rmsd-v2
         region: us-west-1
         tags: ${{ github.event.inputs.tag }},${{ github.sha }}
         # create_repo: true
