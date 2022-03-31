@@ -32,7 +32,6 @@ jobs:
         else
           echo "::set-output name=tag::$input_tag"
         fi
-        echo "::set-output name=tag::${INPUT_TAG}"
     - uses: docker://ghcr.io/kciter/aws-ecr-action:latest
       with:
         access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
