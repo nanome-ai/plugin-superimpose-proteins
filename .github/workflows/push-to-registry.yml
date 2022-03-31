@@ -1,42 +1,64 @@
 name: Push to ECR Registry
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        description: tag to use for the image
+        default: latest
   push:
     branches: [ master ]
 jobs:
-  build:
-    name: Build Image
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
-    - name: Get repo name
-      id: repoName
-      run: |
-        prefix=nanome-ai/plugin-
-        git_repository="${{github.repository}}"
-        repo_name=${git_repository/#$prefix} 
-        echo $repo_name
-        echo "::set-output name=repo_name::$(echo $repo_name)"
-    - name: Get short SHA
-      id: sha
-      run: echo "::set-output name=sha7::$(echo ${GITHUB_SHA} | cut -c1-7)"
-    - name: Check out code
-      uses: actions/checkout@v2
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+    - uses: actions/checkout@v2
+    - uses: docker://ghcr.io/kciter/aws-ecr-action:latest
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+        access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+        repo: 441665557124.dkr.ecr.us-west-1.amazonaws.com/rmsd-v2
+        region: us-west-1
+        tags: ${{ github.event.inputs.tag }},${{ github.sha }}
+        # create_repo: true
+        # image_scanning_configuration: true
+        # set_repo_policy: true
+        # repo_policy_file: repo-policy.json
+  # build:
+  #   name: Build Image
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Get repo name
+  #     id: repoName
+  #     run: |
+  #       prefix=nanome-ai/plugin-
+  #       git_repository="${{github.repository}}"
+  #       repo_name=${git_repository/#$prefix} 
+  #       echo $repo_name
+  #       echo "::set-output name=repo_name::$(echo $repo_name)"
+  #   - name: Get short SHA
+  #     id: sha
+  #     run: echo "::set-output name=sha7::$(echo ${GITHUB_SHA} | cut -c1-7)"
+  #   - name: Check out code
+  #     uses: actions/checkout@v2
+  #   - name: Configure AWS credentials
+  #     uses: aws-actions/configure-aws-credentials@v1
+  #     with:
+  #       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #       aws-region: us-east-1
+  #   - name: Login to Amazon ECR
+  #     id: login-ecr
+  #     uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build and Push to ECR public
-      id: build-and-push
-      uses: pahud/ecr-public-action@8cd826db40befb59b0cd0b60b22a7ba72d06a7f7
-      with:
-        dockerfile: docker/Dockerfile
-        context: .
-        tags: |
-          public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:latest
-          public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:${{ steps.sha.outputs.sha7 }}
+  #   - name: Build and Push to ECR public
+  #     id: build-and-push
+  #     uses: pahud/ecr-public-action@8cd826db40befb59b0cd0b60b22a7ba72d06a7f7
+  #     with:
+  #       dockerfile: docker/Dockerfile
+  #       context: .
+  #       tags: |
+  #         public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:latest
+  #         public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:${{ steps.sha.outputs.sha7 }}
