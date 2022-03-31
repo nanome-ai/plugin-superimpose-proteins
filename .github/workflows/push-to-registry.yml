@@ -6,7 +6,7 @@ on:
       tag:
         type: string
         description: tag to use for the image
-        default: latest
+        default: test
   push:
     branches: [ master ]
 jobs:
@@ -24,7 +24,7 @@ jobs:
         repo: rmsd-v2
         region: us-west-1
         tags: ${{ github.event.inputs.tag }},${{ github.sha }}
-        path: docker/Dockerfile
+        dockerfile: docker/Dockerfile
         # create_repo: true
         # image_scanning_configuration: true
         # set_repo_policy: true
