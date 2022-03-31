@@ -23,7 +23,7 @@ jobs:
         repo: rmsd-v2
         region: us-west-1
         tags: ${{ github.event.inputs.tag }},${{ github.sha }}
-        dockerfile: docker/Dockerfile
+        path: docker/Dockerfile
         # create_repo: true
         # image_scanning_configuration: true
         # set_repo_policy: true
