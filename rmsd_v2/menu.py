@@ -112,28 +112,28 @@ class EntryAlignController:
         self.populate_moving_comp_list(complexes, default_comp=default_moving)
 
     @property
-    def root(self):
+    def panel_root(self):
         return self._menu.root.find_node('Entry Panel')
 
     @property
     def ln_moving_comp_list(self):
-        return self.root.find_node('ln_moving_comp_list')
+        return self.panel_root.find_node('ln_moving_comp_list')
 
     @property
     def ln_fixed_struct(self):
-        return self.root.find_node('ln_fixed_struct')
+        return self.panel_root.find_node('ln_fixed_struct')
 
     @property
     def ln_moving_structs(self):
-        return self.root.find_node('ln_moving_structs')
+        return self.panel_root.find_node('ln_moving_structs')
 
     @property
     def ln_fixed_selection(self):
-        return self.root.find_node('ln_fixed_selection')
+        return self.panel_root.find_node('ln_fixed_selection')
 
     @property
     def ln_moving_selections(self):
-        return self.root.find_node('ln_moving_selection')
+        return self.panel_root.find_node('ln_moving_selection')
 
     def get_fixed_complex(self):
         return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
@@ -258,28 +258,28 @@ class ActiveSiteController:
         self.populate_moving_comp_list(complexes, default_comp=default_moving)
 
     @property
-    def root(self):
+    def panel_root(self):
         return self._menu.root.find_node('Active Site Panel')
 
     @property
     def ln_moving_comp_list(self):
-        return self.root.find_node('ln_moving_comp_list')
+        return self.panel_root.find_node('ln_moving_comp_list')
 
     @property
     def ln_fixed_struct(self):
-        return self.root.find_node('ln_fixed_struct')
+        return self.panel_root.find_node('ln_fixed_struct')
 
     @property
     def ln_moving_structs(self):
-        return self.root.find_node('ln_moving_structs')
+        return self.panel_root.find_node('ln_moving_structs')
 
     @property
     def ln_fixed_selection(self):
-        return self.root.find_node('ln_fixed_selection')
+        return self.panel_root.find_node('ln_fixed_selection')
 
     @property
     def ln_moving_selections(self):
-        return self.root.find_node('ln_moving_selection')
+        return self.panel_root.find_node('ln_moving_selection')
 
     def get_fixed_complex(self):
         return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
@@ -394,28 +394,28 @@ class ChainAlignController:
         self._menu = menu
 
     @property
-    def root(self):
+    def panel_root(self):
         return self._menu.root.find_node('Chain Panel')
 
     @property
     def ln_moving_comp_list(self):
-        return self.root.find_node('ln_moving_comp_list')
+        return self.panel_root.find_node('ln_moving_comp_list')
 
     @property
     def ln_fixed_struct(self):
-        return self.root.find_node('ln_fixed_struct')
+        return self.panel_root.find_node('ln_fixed_struct')
 
     @property
     def ln_moving_struct(self):
-        return self.root.find_node('ln_moving_struct')
+        return self.panel_root.find_node('ln_moving_struct')
 
     @property
     def ln_fixed_chain(self):
-        return self.root.find_node('ln_fixed_chain')
+        return self.panel_root.find_node('ln_fixed_chain')
 
     @property
     def ln_moving_chain(self):
-        return self.root.find_node('ln_moving_chain')
+        return self.panel_root.find_node('ln_moving_chain')
 
     @async_callback
     async def render(self, complexes=None):

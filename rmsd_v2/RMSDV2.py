@@ -29,13 +29,13 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
     @async_callback
     async def on_complex_added(self):
-        complexes = await self.request_complex_list()
-        await self.menu.render(complexes=complexes)
+        self.complexes = await self.request_complex_list()
+        await self.menu.render(complexes=self.complexes)
 
     @async_callback
     async def on_complex_removed(self):
-        complexes = await self.request_complex_list()
-        await self.menu.render(complexes=complexes)
+        self.complexes = await self.request_complex_list()
+        await self.menu.render(complexes=self.complexes)
 
     async def msa_superimpose(self, fixed_comp, moving_comps, alignment_type='global'):
         start_time = time.time()
