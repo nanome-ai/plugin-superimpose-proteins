@@ -1,4 +1,3 @@
-import asyncio
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
@@ -21,7 +20,7 @@ class SelectionModeController:
 
     @property
     def mode_selection_btn_group(self):
-        return [self.btn_global_align, self.btn_align_by_chain, self.btn_align_by_binding_site]
+        return [self.btn_global_align, self.btn_align_by_chain, self.btn_align_by_active_site]
 
     @property
     def btn_global_align(self):
@@ -32,8 +31,8 @@ class SelectionModeController:
         return self._menu.root.find_node('ln_btn_align_by_chain').get_content()
 
     @property
-    def btn_align_by_binding_site(self):
-        return self._menu.root.find_node('ln_btn_align_by_binding_site').get_content()
+    def btn_align_by_active_site(self):
+        return self._menu.root.find_node('ln_btn_align_by_active_site').get_content()
 
     @property
     def entry_align_panel(self):
@@ -44,17 +43,16 @@ class SelectionModeController:
         return self._menu.root.find_node('Chain Panel')
 
     @property
-    def binding_site_panel(self):
+    def active_site_panel(self):
         return self._menu.root.find_node('Active Site Panel')
-
 
     def set_default_state(self):
         self.btn_global_align.selected = True
         self.btn_align_by_chain.selected = False
-        self.btn_align_by_binding_site.selected = False
+        self.btn_align_by_active_site.selected = False
         self.entry_align_panel.enabled = True
         self.chain_align_panel.enabled = False
-        self.binding_site_panel.enabled = False
+        self.active_site_panel.enabled = False
 
     @async_callback
     async def on_mode_selected(self, btn):
@@ -69,31 +67,45 @@ class SelectionModeController:
             self.current_mode = 'global'
             self.entry_align_panel.enabled = True
             self.chain_align_panel.enabled = False
-            self.binding_site_panel.enabled = False
+            self.active_site_panel.enabled = False
         elif btn.name == 'btn_align_by_chain':
             Logs.message("Switched to chain mode.")
             self.current_mode = 'chain'
             self.chain_align_panel.enabled = True
             self.entry_align_panel.enabled = False
-            self.binding_site_panel.enabled = False
+            self.active_site_panel.enabled = False
             # Get deep complexes if necessary
-            for comp in self.plugin.complexes:
-                if sum(1 for _ in comp.chains) == 0:
-                    self.btn_align_by_chain.unusable = True
-                    self.plugin.update_content(self.btn_align_by_chain)
-                    comp_indices = [cmp.index for cmp in self.plugin.complexes]
-                    # Use event loop because on_mode_selected is called in __init__
-                    self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
-                    # This is kinda iffy, but it works
-                    await self.plugin.menu.render(complexes=self.plugin.complexes)
-                    self.btn_align_by_chain.unusable = False
-                    break
-        elif btn.name == 'btn_align_by_binding_site':
-            self.binding_site_panel.enabled = True
+            if self.is_shallow_complexes(self.plugin.complexes):
+                self.btn_align_by_chain.unusable = True
+                self.plugin.update_content(self.btn_align_by_chain)
+                self.plugin.complexes = await self.get_deep_complexes(self.plugin.complexes)
+                self.btn_align_by_chain.unusable = False
+        elif btn.name == 'btn_align_by_active_site':
+            Logs.message("Switched to active site mode.")
+            self.current_mode = 'active_site'
+            self.active_site_panel.enabled = True
             self.entry_align_panel.enabled = False
             self.chain_align_panel.enabled = False
+            if self.is_shallow_complexes(self.plugin.complexes):
+                self.btn_align_by_active_site.unusable = True
+                self.plugin.update_content(self.btn_align_by_active_site)
+                self.plugin.complexes = await self.get_deep_complexes(self.plugin.complexes)
+                self.btn_align_by_active_site.unusable = False
         self.plugin.update_menu(self._menu)
 
+    def is_shallow_complexes(self, complex_list):
+        for comp in complex_list:
+            if sum(1 for _ in comp.chains) == 0:
+                return True
+        return False
+
+    async def get_deep_complexes(self, complex_list):
+        Logs.debug("Retrieving deep complexes.")
+        comp_indices = [cmp.index for cmp in complex_list]
+        complex_list = await self.plugin.request_complexes(comp_indices)
+        # This is kinda iffy, but it seems to work
+        await self.plugin.menu.render(complexes=complex_list)
+        return complex_list
 
 class EntryAlignController:
 
@@ -246,16 +258,34 @@ class ActiveSiteController:
     def __init__(self, plugin, menu):
         self.plugin = plugin
         self._menu = menu
-
-    def render(self, complexes=None):
+    
+    @async_callback
+    async def render(self, complexes=None):
         complexes = complexes or []
         default_fixed = None
         default_moving = None
         if len(complexes) == 2:
             default_fixed = complexes[0]
             default_moving = complexes[1]
-        self.set_complex_dropdown(complexes, self.ln_fixed_struct, default_comp=default_fixed)
+
+        target_dropdown = self.ln_target_reference.get_content()
+        dropdown_items = self.create_structure_dropdown_items(complexes, default_comp=default_fixed)
+        target_dropdown.items = dropdown_items
+        target_dropdown.max_displayed_items = len(dropdown_items)
+
+        if default_fixed:
+            chain_dropdown = self.ln_fixed_chain.get_content()
+            chain_dropdown.items = self.create_chain_dropdown_items(default_fixed)
+
+        if len(self.plugin.complexes) == 2 and chain_dropdown.items:
+            chain_dropdown.items[0].selected = True
+
+        target_dropdown.register_item_clicked_callback(self.update_target_chain_dropdown)
         self.populate_moving_comp_list(complexes, default_comp=default_moving)
+
+    def update_target_chain_dropdown(self, dropdown, ddi):
+        """Callback for when a target structure is selected in a dropdown."""
+        pass
 
     @property
     def panel_root(self):
@@ -266,8 +296,8 @@ class ActiveSiteController:
         return self.panel_root.find_node('ln_moving_comp_list')
 
     @property
-    def ln_fixed_struct(self):
-        return self.panel_root.find_node('ln_fixed_struct')
+    def ln_target_reference(self):
+        return self.panel_root.find_node('ln_target_reference')
 
     @property
     def ln_moving_structs(self):
@@ -567,7 +597,7 @@ class RMSDMenu:
         self.selection_mode_controller = SelectionModeController(plugin_instance, self._menu)
         self.global_align_controller = EntryAlignController(plugin_instance, self._menu)
         self.chain_align_controller = ChainAlignController(plugin_instance, self._menu)
-        self.binding_site_controller = ActiveSiteController(plugin_instance, self._menu)
+        self.active_site_controller = ActiveSiteController(plugin_instance, self._menu)
         self.selection_mode_controller.set_default_state()
         self.btn_color_override.toggle_on_press = True
         self.btn_color_override.switch.active = True
@@ -602,6 +632,7 @@ class RMSDMenu:
         complexes = complexes or []
         self.global_align_controller.render(complexes)
         await self.chain_align_controller.render(complexes)
+        await self.active_site_controller.render(complexes)
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
