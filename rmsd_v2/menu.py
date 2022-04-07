@@ -9,6 +9,21 @@ MENU_PATH = path.join(BASE_PATH, 'menu.json')
 INFO_ICON_PATH = path.join(BASE_PATH, 'info_icon.png')
 
 
+def create_chain_dropdown_items(comp, set_default=False):
+    """Update chain dropdown to reflect changes in complex."""
+    dropdown_items = []
+    # Filter out hetatom chains (HA, HB, etc)
+    chain_names = [
+        ch.name for ch in comp.chains
+        if not ch.name.startswith('H') or len(ch.name) < 2
+    ]
+    for chain_name in chain_names:
+        ddi = ui.DropdownItem(chain_name)
+        dropdown_items.append(ddi)
+    if set_default and dropdown_items:
+        dropdown_items[0].selected = True
+    return dropdown_items
+
 class SelectionModeController:
 
     def __init__(self, plugin, menu):
@@ -106,6 +121,7 @@ class SelectionModeController:
         # This is kinda iffy, but it seems to work
         await self.plugin.menu.render(complexes=complex_list)
         return complex_list
+
 
 class EntryAlignController:
 
@@ -275,7 +291,7 @@ class ActiveSiteController:
 
         if default_fixed:
             chain_dropdown = self.ln_fixed_chain.get_content()
-            chain_dropdown.items = self.create_chain_dropdown_items(default_fixed)
+            chain_dropdown.items = create_chain_dropdown_items(default_fixed)
 
         if len(self.plugin.complexes) == 2 and chain_dropdown.items:
             chain_dropdown.items[0].selected = True
@@ -283,9 +299,30 @@ class ActiveSiteController:
         target_dropdown.register_item_clicked_callback(self.update_target_chain_dropdown)
         self.populate_moving_comp_list(complexes, default_comp=default_moving)
 
-    def update_target_chain_dropdown(self, dropdown, ddi):
+    @async_callback
+    async def update_target_chain_dropdown(self, dropdown, ddi):
         """Callback for when a target structure is selected in a dropdown."""
-        pass
+        comp = ddi.complex
+        chain_dropdown = self.ln_target_chain.get_content()
+        ligand_dropdown = self.ln_target_ligand.get_content()
+        chain_dropdown.items = create_chain_dropdown_items(comp)
+        ligand_dropdown.items = await self.create_ligand_dropdown_items(comp)
+        self.plugin.update_content(chain_dropdown, ligand_dropdown)
+
+    async def create_ligand_dropdown_items(self, comp, set_default=False):
+        # Find ligands nested inside of complex, and add them to dropdown.
+        mol = next(
+            mol for i, mol in enumerate(comp.molecules)
+            if i == comp.current_frame
+        )
+        ligands = await mol.get_ligands()
+        dropdown_items = []
+        for lig in ligands:
+            ddi = ui.DropdownItem(lig.name)
+            dropdown_items.append(ddi)
+        if set_default and dropdown_items:
+            dropdown_items[0].selected = True
+        return dropdown_items
 
     @property
     def panel_root(self):
@@ -300,12 +337,16 @@ class ActiveSiteController:
         return self.panel_root.find_node('ln_target_reference')
 
     @property
-    def ln_moving_structs(self):
-        return self.panel_root.find_node('ln_moving_structs')
+    def ln_target_chain(self):
+        return self.panel_root.find_node('ln_target_chain')
+    
+    @property
+    def ln_target_ligand(self):
+        return self.panel_root.find_node('ln_target_ligand')
 
     @property
-    def ln_fixed_selection(self):
-        return self.panel_root.find_node('ln_fixed_selection')
+    def ln_target_ligand(self):
+        return self.panel_root.find_node('ln_target_ligand')
 
     @property
     def ln_moving_selections(self):
@@ -464,7 +505,7 @@ class ChainAlignController:
 
         if default_fixed:
             chain_dropdown = self.ln_fixed_chain.get_content()
-            chain_dropdown.items = self.create_chain_dropdown_items(default_fixed)
+            chain_dropdown.items = create_chain_dropdown_items(default_fixed)
 
         if len(self.plugin.complexes) == 2 and chain_dropdown.items:
             chain_dropdown.items[0].selected = True
@@ -503,24 +544,8 @@ class ChainAlignController:
     def update_fixed_chain_dropdown(self, dropdown, ddi):
         comp = ddi.complex
         chain_dropdown = self.ln_fixed_chain.get_content()
-        chain_dropdown.items = self.create_chain_dropdown_items(comp)
+        chain_dropdown.items = create_chain_dropdown_items(comp)
         self.plugin.update_content(chain_dropdown)
-
-    @staticmethod
-    def create_chain_dropdown_items(comp, set_default=False):
-        """Update chain dropdown to reflect changes in complex."""
-        dropdown_items = []
-        # Filter out hetatom chains (HA, HB, etc)
-        chain_names = [
-            ch.name for ch in comp.chains
-            if not ch.name.startswith('H') or len(ch.name) < 2
-        ]
-        for chain_name in chain_names:
-            ddi = ui.DropdownItem(chain_name)
-            dropdown_items.append(ddi)
-        if set_default and dropdown_items:
-            dropdown_items[0].selected = True
-        return dropdown_items
 
     def create_structure_dropdown_items(self, complexes, default_comp=None):
         """Generate list of buttons corresponding to provided complexes."""
@@ -581,7 +606,7 @@ class ChainAlignController:
 
             comp_dd = ui.Dropdown()
             set_default = bool(default_comp)
-            comp_dd.items = self.create_chain_dropdown_items(comp, set_default=set_default)
+            comp_dd.items = create_chain_dropdown_items(comp, set_default=set_default)
             comp_dd = btn_list_ln.set_content(comp_dd)
             comp_list.items.append(ln)
 
