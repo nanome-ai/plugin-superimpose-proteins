@@ -173,9 +173,9 @@ class RMSDV2(nanome.AsyncPluginInstance):
         ligand_atoms = chain(*[res.atoms for res in ligand.residues])
         ligand_positions = [atom.position.unpack() for atom in ligand_atoms]
         target_atoms = chain(*[ch.atoms for ch in mol.chains if not ch.name.startswith("H")])
-        near_point_set = set()
         target_tree = KDTree([atom.position.unpack() for atom in target_atoms])
         target_point_indices = target_tree.query_ball_point(ligand_positions, site_size)
+        near_point_set = set()
         for point_indices in target_point_indices:
             for point_index in point_indices:
                 near_point_set.add(tuple(target_tree.data[point_index]))
