@@ -1,5 +1,4 @@
 import nanome
-import numpy as np
 import tempfile
 import time
 from Bio.PDB.Structure import Structure
@@ -90,7 +89,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global'):
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global') -> tuple[Matrix, float]: 
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
         mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
@@ -157,28 +156,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
             extra=extra)
         return results
 
-    @staticmethod
-    def ligand_atoms(ligand):
-        yield (list(res.atoms) for res in ligand.residues)
-
-    @staticmethod
-    def get_ligand_center(ligand):
-        """Calculate the center of a complex."""
-        inf = float('inf')
-        min_pos = Vector3(inf, inf, inf)
-        max_pos = Vector3(-inf, -inf, -inf)
-        ligand_atoms = chain(*[res.atoms for res in ligand.residues])
-        for atom in ligand_atoms:
-            min_pos.x = min(min_pos.x, atom.position.x)
-            min_pos.y = min(min_pos.y, atom.position.y)
-            min_pos.z = min(min_pos.z, atom.position.z)
-            max_pos.x = max(max_pos.x, atom.position.x)
-            max_pos.y = max(max_pos.y, atom.position.y)
-            max_pos.z = max(max_pos.z, atom.position.z)
-
-        return (min_pos + max_pos) * 0.5
-
-
     async def superimpose_by_active_site(self, target_reference, ligand_name, moving_comp_list, site_size=5):
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
@@ -203,6 +180,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
                 ligand_atoms.append(atom)
 
         # Only look at atoms within the site size threshold of the mins and maxes of the ligand
+        # Significantly faster than looking at all atoms
         target_atom_generator = (
             atom for atom in mol.atoms
             if all([
@@ -221,6 +199,9 @@ class RMSDV2(nanome.AsyncPluginInstance):
         active_site_atoms = []
         for target_atom in target_atom_generator:
             Logs.debug(f"Checking target atom {target_atom.name}")
+            # active_site_atoms.append(atom)
+            # target_atom.selected = True
+            # continue
             for lig_atom in ligand_atoms:
                 atom_distance = Vector3.distance(target_atom.position, lig_atom.position)
                 Logs.debug(atom_distance)
@@ -230,8 +211,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
                     break
         Logs.message(f"{len(active_site_atoms)} atoms identified in binding site for superimposition.")
         await self.update_structures_deep([target_reference])
-        Logs.message(f"Structure should be updated.")
-        pass
 
     def align_structures(self, structA, structB, alignment_type='global'):
         """
