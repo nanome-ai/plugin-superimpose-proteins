@@ -275,6 +275,7 @@ class ActiveSiteController:
     def __init__(self, plugin, menu):
         self.plugin = plugin
         self._menu = menu
+        self.sld_distance_slider.current_value = 5.0
         self.sld_distance_slider.register_changed_callback(self.on_distance_slider_changed)
 
     @property
@@ -327,6 +328,9 @@ class ActiveSiteController:
     def get_target_ligand_name(self):
         return next((ddi.name for ddi in self.ln_target_ligand.get_content().items if ddi.selected), None)
 
+    def get_site_size(self):
+        return self.sld_distance_slider.current_value
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
@@ -361,10 +365,11 @@ class ActiveSiteController:
 
     async def create_ligand_dropdown_items(self, comp, set_default=False):
         # Find ligands nested inside of complex, and add them to dropdown.
-        mol = next(
-            mol for i, mol in enumerate(comp.molecules)
-            if i == comp.current_frame
-        )
+        mol = next((
+            mol for i, mol in enumerate(comp.molecules) if i == comp.current_frame
+        ), None)
+        if not mol:
+            return list()
         ligands = await mol.get_ligands()
         dropdown_items = []
         for lig in ligands:
@@ -718,12 +723,15 @@ class RMSDMenu:
             target_reference = self.active_site_controller.get_target_reference()
             ligand_name = self.active_site_controller.get_target_ligand_name()
             moving_comp_list = self.active_site_controller.get_moving_complexes()
+            site_size = self.active_site_controller.get_site_size()
+
             if not all([target_reference, ligand_name, moving_comp_list]):
                 msg = "Please select all complexes and chains."
                 Logs.warning(msg)
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
-                rmsd_results = await self.plugin.superimpose_by_active_site(target_reference, ligand_name, moving_comp_list)
+                rmsd_results = await self.plugin.superimpose_by_active_site(
+                    target_reference, ligand_name, moving_comp_list, site_size)
         if rmsd_results:
             self.render_rmsd_results(rmsd_results)
         self.btn_submit.unusable = False
