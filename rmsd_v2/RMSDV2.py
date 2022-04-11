@@ -9,8 +9,8 @@ from Bio.PDB.Polypeptide import is_aa
 from Bio.Align import substitution_matrices
 from itertools import chain
 from scipy.spatial import KDTree
-from nanome.util import Logs, async_callback, Matrix, ComplexUtils, Vector3
-
+from nanome.util import Logs, async_callback, Matrix, ComplexUtils
+from nanome.api.structure import Atom, Complex
 from .menu import RMSDMenu
 
 
@@ -39,7 +39,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         self.complexes = await self.request_complex_list()
         await self.menu.render(complexes=self.complexes)
 
-    async def superimpose_by_entry(self, fixed_comp, moving_comps, alignment_type='global'):
+    async def superimpose_by_entry(self, fixed_comp: Complex, moving_comps: list[Complex]):
         start_time = time.time()
         Logs.message(f"Superimposing {len(moving_comps)} structures")
         moving_comp_indices = [comp.index for comp in moving_comps]
@@ -75,7 +75,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         return rmsd_results
 
     @staticmethod
-    def create_transform_matrix(superimposer):
+    def create_transform_matrix(superimposer: Superimposer) -> Matrix:
         """Convert rotation and transform matrix from superimposer into Nanome Matrix."""
         rot, tran = superimposer.rotran
         rot = rot.tolist()
@@ -90,10 +90,10 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global') -> tuple[Matrix, float]: 
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure) -> tuple[Matrix, float]: 
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
-        mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
+        mapping = self.align_structures(fixed_struct, moving_struct)
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon = 'CA'
@@ -115,7 +115,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message(f"RMSD: {rms}")
         return transform_matrix, rms
 
-    async def superimpose_by_chain(self, fixed_comp, fixed_chain_name, moving_comp_chain_list):
+    async def superimpose_by_chain(self, fixed_comp: Complex, fixed_chain_name: str, moving_comp_chain_list: list):
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
         moving_comp_indices = [item[0].index for item in moving_comp_chain_list]
@@ -157,17 +157,22 @@ class RMSDV2(nanome.AsyncPluginInstance):
             extra=extra)
         return results
 
-    async def superimpose_by_active_site(self, target_reference, ligand_name, moving_comp_list, site_size=5):
+    async def superimpose_by_active_site(
+            self, target_reference: Complex, ligand_name: str, moving_comp_list: list[Complex], site_size=5):
+        binding_site_atoms = await self.get_binding_site_atoms(target_reference, ligand_name, site_size)
+
+    async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=5) -> list[Atom]:
+        """Identify atoms in the active site around a ligand."""
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
             if i == target_reference.current_frame)
         target_ligands = await mol.get_ligands()
         ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
+
         # Use KDTree to find target atoms within site_size radius of ligand atoms
         ligand_atoms = chain(*[res.atoms for res in ligand.residues])
         ligand_positions = [atom.position.unpack() for atom in ligand_atoms]
         target_atoms = chain(*[ch.atoms for ch in mol.chains if not ch.name.startswith("H")])
-
         near_point_set = set()
         target_tree = KDTree([atom.position.unpack() for atom in target_atoms])
         target_point_indices = target_tree.query_ball_point(ligand_positions, site_size)
@@ -181,7 +186,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
                 active_site_atoms.append(targ_atom)
         Logs.message(f"{len(active_site_atoms)} atoms identified in binding site.")
         await self.update_structures_deep([target_reference])
-        # return active_site_atoms
+        return active_site_atoms
 
     def align_structures(self, structA, structB, alignment_type='global'):
         """
