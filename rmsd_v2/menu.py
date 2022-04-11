@@ -274,7 +274,44 @@ class ActiveSiteController:
     def __init__(self, plugin, menu):
         self.plugin = plugin
         self._menu = menu
+        self.sld_distance_slider.register_changed_callback(self.on_distance_slider_changed)
+
+    @property
+    def panel_root(self):
+        return self._menu.root.find_node('Active Site Panel')
+
+    @property
+    def ln_moving_comp_list(self):
+        return self.panel_root.find_node('ln_moving_comp_list')
+
+    @property
+    def ln_target_reference(self):
+        return self.panel_root.find_node('ln_target_reference')
+
+    @property
+    def ln_target_chain(self):
+        return self.panel_root.find_node('ln_target_chain')
     
+    @property
+    def ln_target_ligand(self):
+        return self.panel_root.find_node('ln_target_ligand')
+
+    @property
+    def ln_target_ligand(self):
+        return self.panel_root.find_node('ln_target_ligand')
+
+    @property
+    def ln_moving_selections(self):
+        return self.panel_root.find_node('ln_moving_selection')
+
+    @property
+    def lbl_distance_slider_lbl(self):
+        return self.panel_root.find_node('ln_distance_slider_lbl').get_content()
+
+    @property
+    def sld_distance_slider(self):
+        return self.panel_root.find_node('ln_distance_slider').get_content()
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
@@ -323,34 +360,6 @@ class ActiveSiteController:
         if set_default and dropdown_items:
             dropdown_items[0].selected = True
         return dropdown_items
-
-    @property
-    def panel_root(self):
-        return self._menu.root.find_node('Active Site Panel')
-
-    @property
-    def ln_moving_comp_list(self):
-        return self.panel_root.find_node('ln_moving_comp_list')
-
-    @property
-    def ln_target_reference(self):
-        return self.panel_root.find_node('ln_target_reference')
-
-    @property
-    def ln_target_chain(self):
-        return self.panel_root.find_node('ln_target_chain')
-    
-    @property
-    def ln_target_ligand(self):
-        return self.panel_root.find_node('ln_target_ligand')
-
-    @property
-    def ln_target_ligand(self):
-        return self.panel_root.find_node('ln_target_ligand')
-
-    @property
-    def ln_moving_selections(self):
-        return self.panel_root.find_node('ln_moving_selection')
 
     def get_fixed_complex(self):
         return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
@@ -457,6 +466,9 @@ class ActiveSiteController:
 
         self.plugin.update_node(self.ln_moving_comp_list)
 
+    def on_distance_slider_changed(self, slider):
+        self.lbl_distance_slider_lbl.text_value = f'{slider.current_value:.1f}'
+        self.plugin.update_content(self.lbl_distance_slider_lbl)
 
 class ChainAlignController:
 
