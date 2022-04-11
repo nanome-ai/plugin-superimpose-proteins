@@ -7,7 +7,8 @@ from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
 from Bio.Align import substitution_matrices
-from itertools import chain
+from scipy.spatial import KDTree
+
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils, Vector3
 
 from .menu import RMSDMenu
@@ -196,19 +197,33 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.debug(f"Ligand Atoms Count: {len(ligand_atoms)}")
         # Logs.debug(f"Protein Atoms Count: {len(list(target_atom_generator))}")
 
+        # Use KDTree to find target atoms within site_size radius of ligand atoms
+        near_point_set = set()
+        target_tree = KDTree([atom.position.unpack() for atom in target_atom_generator])
+        lig_atom_coords = [lig_atom.position.unpack() for lig_atom in ligand_atoms]
+        target_point_indices = target_tree.query_ball_point(lig_atom_coords, site_size)
+        for point_indices in target_point_indices:
+            for point_index in point_indices:
+                near_point_set.add(tuple(target_tree.data[point_index]))
+        print("here")
         active_site_atoms = []
-        for target_atom in target_atom_generator:
-            Logs.debug(f"Checking target atom {target_atom.name}")
-            # active_site_atoms.append(atom)
-            # target_atom.selected = True
-            # continue
-            for lig_atom in ligand_atoms:
-                atom_distance = Vector3.distance(target_atom.position, lig_atom.position)
-                Logs.debug(atom_distance)
-                if atom_distance > 0 and atom_distance < site_size:
-                    active_site_atoms.append(atom)
-                    target_atom.selected = True
-                    break
+        for targ_atom in mol.atoms:
+            if targ_atom.position.unpack() in near_point_set:
+                targ_atom.selected = True
+                active_site_atoms.append(targ_atom)
+
+        # for target_atom in target_atom_generator:
+        #     Logs.debug(f"Checking target atom {target_atom.name}")
+        #     # active_site_atoms.append(atom)
+        #     # target_atom.selected = True
+        #     # continue
+        #     for lig_atom in ligand_atoms:
+        #         atom_distance = Vector3.distance(target_atom.position, lig_atom.position)
+        #         Logs.debug(atom_distance)
+        #         if atom_distance > 0 and atom_distance < site_size:
+        #             active_site_atoms.append(atom)
+        #             target_atom.selected = True
+        #             break
         Logs.message(f"{len(active_site_atoms)} atoms identified in binding site for superimposition.")
         await self.update_structures_deep([target_reference])
 
