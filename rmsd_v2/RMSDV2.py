@@ -159,6 +159,10 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
     async def superimpose_by_active_site(
             self, target_reference: Complex, ligand_name: str, moving_comp_list: list[Complex], site_size=5):
+        moving_indices = [comp.index for comp in moving_comp_list]
+        updated_complexes = await self.request_complexes([target_reference.index, *moving_indices])
+        target_reference = updated_complexes[0]
+        moving_comps = updated_complexes[1:]
         binding_site_atoms = await self.get_binding_site_atoms(target_reference, ligand_name, site_size)
 
     async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=5) -> list[Atom]:
@@ -168,7 +172,6 @@ class RMSDV2(nanome.AsyncPluginInstance):
             if i == target_reference.current_frame)
         target_ligands = await mol.get_ligands()
         ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
-
         # Use KDTree to find target atoms within site_size radius of ligand atoms
         ligand_atoms = chain(*[res.atoms for res in ligand.residues])
         ligand_positions = [atom.position.unpack() for atom in ligand_atoms]
