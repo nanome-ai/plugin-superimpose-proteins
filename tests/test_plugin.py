@@ -65,7 +65,7 @@ class PluginFunctionTestCase(unittest.TestCase):
     @patch('nanome._internal._network._ProcessNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
-    def test_msa_superimpose(self, request_complexes_mock, update_structures_mock, *mocks):
+    def test_superimpose_by_entry(self, request_complexes_mock, update_structures_mock, *mocks):
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
@@ -75,7 +75,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_structures_mock.return_value = update_fut
 
         result = run_awaitable(
-            self.plugin_instance.msa_superimpose,
+            self.plugin_instance.superimpose_by_entry,
             self.complex_4hhb,
             [self.complex_1mbo]
         )

@@ -37,7 +37,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         self.complexes = await self.request_complex_list()
         await self.menu.render(complexes=self.complexes)
 
-    async def msa_superimpose(self, fixed_comp, moving_comps, alignment_type='global'):
+    async def superimpose_by_entry(self, fixed_comp, moving_comps, alignment_type='global'):
         start_time = time.time()
         Logs.message(f"Superimposing {len(moving_comps)} structures")
         moving_comp_indices = [comp.index for comp in moving_comps]

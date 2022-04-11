@@ -702,7 +702,7 @@ class RMSDMenu:
                 Logs.warning(msg)
                 self.plugin.send_notification(NotificationTypes.warning, msg)
             else:
-                rmsd_results = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
+                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp, moving_comps)
         if current_mode == 'chain':
             fixed_comp = self.chain_align_controller.get_fixed_complex()
             fixed_chain = self.chain_align_controller.get_fixed_chain()
