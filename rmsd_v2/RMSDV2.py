@@ -7,8 +7,8 @@ from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
 from Bio.Align import substitution_matrices
+from itertools import chain
 from scipy.spatial import KDTree
-
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils, Vector3
 
 from .menu import RMSDMenu
@@ -160,72 +160,28 @@ class RMSDV2(nanome.AsyncPluginInstance):
     async def superimpose_by_active_site(self, target_reference, ligand_name, moving_comp_list, site_size=5):
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
-            if i == target_reference.current_frame
-        )
+            if i == target_reference.current_frame)
         target_ligands = await mol.get_ligands()
         ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
-
-        ligand_atoms = []
-        # Find min and max coordinates of ligand
-        min_x = min_y = min_z = float('inf')
-        max_x = max_y = max_z = -float('inf')
-        for res in ligand.residues:
-            for atom in res.atoms:
-                pos_vec = atom.position
-                min_x = min(min_x, pos_vec.x)
-                min_y = min(min_y, pos_vec.y)
-                min_z = min(min_z, pos_vec.z)
-                max_x = max(max_x, pos_vec.x)
-                max_y = max(max_y, pos_vec.y)
-                max_z = max(max_z, pos_vec.z)
-                ligand_atoms.append(atom)
-
-        # Only look at atoms within the site size threshold of the mins and maxes of the ligand
-        # Significantly faster than looking at all atoms
-        target_atom_generator = (
-            atom for atom in mol.atoms
-            if all([
-                not atom.chain.name.startswith("H"),
-                atom.position.x >= min_x - site_size,
-                atom.position.x <= max_x + site_size,
-                atom.position.y >= min_y - site_size,
-                atom.position.y <= max_y + site_size,
-                atom.position.z >= min_z - site_size,
-                atom.position.z <= max_z + site_size
-            ])
-        )
-        Logs.debug(f"Ligand Atoms Count: {len(ligand_atoms)}")
-        # Logs.debug(f"Protein Atoms Count: {len(list(target_atom_generator))}")
-
         # Use KDTree to find target atoms within site_size radius of ligand atoms
+        ligand_atoms = chain(*[res.atoms for res in ligand.residues])
+        ligand_positions = [atom.position.unpack() for atom in ligand_atoms]
+        target_atoms = chain(*[ch.atoms for ch in mol.chains if not ch.name.startswith("H")])
+
         near_point_set = set()
-        target_tree = KDTree([atom.position.unpack() for atom in target_atom_generator])
-        lig_atom_coords = [lig_atom.position.unpack() for lig_atom in ligand_atoms]
-        target_point_indices = target_tree.query_ball_point(lig_atom_coords, site_size)
+        target_tree = KDTree([atom.position.unpack() for atom in target_atoms])
+        target_point_indices = target_tree.query_ball_point(ligand_positions, site_size)
         for point_indices in target_point_indices:
             for point_index in point_indices:
                 near_point_set.add(tuple(target_tree.data[point_index]))
-        print("here")
         active_site_atoms = []
         for targ_atom in mol.atoms:
             if targ_atom.position.unpack() in near_point_set:
                 targ_atom.selected = True
                 active_site_atoms.append(targ_atom)
-
-        # for target_atom in target_atom_generator:
-        #     Logs.debug(f"Checking target atom {target_atom.name}")
-        #     # active_site_atoms.append(atom)
-        #     # target_atom.selected = True
-        #     # continue
-        #     for lig_atom in ligand_atoms:
-        #         atom_distance = Vector3.distance(target_atom.position, lig_atom.position)
-        #         Logs.debug(atom_distance)
-        #         if atom_distance > 0 and atom_distance < site_size:
-        #             active_site_atoms.append(atom)
-        #             target_atom.selected = True
-        #             break
-        Logs.message(f"{len(active_site_atoms)} atoms identified in binding site for superimposition.")
+        Logs.message(f"{len(active_site_atoms)} atoms identified in binding site.")
         await self.update_structures_deep([target_reference])
+        # return active_site_atoms
 
     def align_structures(self, structA, structB, alignment_type='global'):
         """
