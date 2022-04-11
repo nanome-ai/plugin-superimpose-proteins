@@ -155,6 +155,9 @@ class RMSDV2(nanome.AsyncPluginInstance):
             extra=extra)
         return results
 
+    async def superimpose_by_active_site(self, target_reference, ligand_name, moving_comp_list):
+        pass
+
     def align_structures(self, structA, structB, alignment_type='global'):
         """
         Performs a global pairwise alignment between two sequences

@@ -24,6 +24,7 @@ def create_chain_dropdown_items(comp, set_default=False):
         dropdown_items[0].selected = True
     return dropdown_items
 
+
 class SelectionModeController:
 
     def __init__(self, plugin, menu):
@@ -312,6 +313,20 @@ class ActiveSiteController:
     def sld_distance_slider(self):
         return self.panel_root.find_node('ln_distance_slider').get_content()
 
+    def get_target_reference(self):
+        return next((ddi.complex for ddi in self.ln_target_reference.get_content().items if ddi.selected), None)
+
+    def get_moving_complexes(self):
+        comps = []
+        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            btn = item.get_children()[0].get_content()
+            if btn.selected:
+                comps.append(btn.comp)
+        return comps
+
+    def get_target_ligand_name(self):
+        return next((ddi.name for ddi in self.ln_target_ligand.get_content().items if ddi.selected), None)
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
@@ -320,31 +335,29 @@ class ActiveSiteController:
         if len(complexes) == 2:
             default_fixed = complexes[0]
             default_moving = complexes[1]
+            # Set ligand dropdown to ligands in default fixed
+            dd_ligands = self.ln_target_ligand.get_content()
+            dd_ligands.items = await self.create_ligand_dropdown_items(default_fixed)
+            if dd_ligands.items:
+                dd_ligands.items[0].selected = True
+
 
         target_dropdown = self.ln_target_reference.get_content()
         dropdown_items = self.create_structure_dropdown_items(complexes, default_comp=default_fixed)
         target_dropdown.items = dropdown_items
         target_dropdown.max_displayed_items = len(dropdown_items)
-
-        if default_fixed:
-            chain_dropdown = self.ln_fixed_chain.get_content()
-            chain_dropdown.items = create_chain_dropdown_items(default_fixed)
-
-        if len(self.plugin.complexes) == 2 and chain_dropdown.items:
-            chain_dropdown.items[0].selected = True
-
-        target_dropdown.register_item_clicked_callback(self.update_target_chain_dropdown)
+        target_dropdown.register_item_clicked_callback(self.update_target_ligand_dropdown)
         self.populate_moving_comp_list(complexes, default_comp=default_moving)
 
     @async_callback
-    async def update_target_chain_dropdown(self, dropdown, ddi):
+    async def update_target_ligand_dropdown(self, dropdown, ddi):
         """Callback for when a target structure is selected in a dropdown."""
         comp = ddi.complex
-        chain_dropdown = self.ln_target_chain.get_content()
+        # chain_dropdown = self.ln_target_chain.get_content()
         ligand_dropdown = self.ln_target_ligand.get_content()
-        chain_dropdown.items = create_chain_dropdown_items(comp)
+        # chain_dropdown.items = create_chain_dropdown_items(comp)
         ligand_dropdown.items = await self.create_ligand_dropdown_items(comp)
-        self.plugin.update_content(chain_dropdown, ligand_dropdown)
+        self.plugin.update_content(ligand_dropdown)
 
     async def create_ligand_dropdown_items(self, comp, set_default=False):
         # Find ligands nested inside of complex, and add them to dropdown.
@@ -469,6 +482,7 @@ class ActiveSiteController:
     def on_distance_slider_changed(self, slider):
         self.lbl_distance_slider_lbl.text_value = f'{slider.current_value:.1f}'
         self.plugin.update_content(self.lbl_distance_slider_lbl)
+
 
 class ChainAlignController:
 
@@ -700,6 +714,16 @@ class RMSDMenu:
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp_chain_list)
+        elif current_mode == 'active_site':
+            target_reference = self.active_site_controller.get_target_reference()
+            ligand_name = self.active_site_controller.get_target_ligand_name()
+            moving_comp_list = self.active_site_controller.get_moving_complexes()
+            if not all([target_reference, ligand_name, moving_comp_list]):
+                msg = "Please select all complexes and chains."
+                Logs.warning(msg)
+                self.plugin.send_notification(NotificationTypes.error, msg)
+            else:
+                rmsd_results = await self.plugin.superimpose_by_active_site(target_reference, ligand_name, moving_comp_list)
         if rmsd_results:
             self.render_rmsd_results(rmsd_results)
         self.btn_submit.unusable = False
