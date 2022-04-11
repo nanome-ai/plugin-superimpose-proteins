@@ -58,7 +58,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-            transform_matrix, rms = await self.superimpose(fixed_struct, moving_struct, alignment_type)
+            transform_matrix, rms = await self.superimpose(fixed_struct, moving_struct)
             moving_comp.set_surface_needs_redraw()
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
