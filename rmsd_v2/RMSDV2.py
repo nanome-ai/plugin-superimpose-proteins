@@ -162,8 +162,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
         moving_indices = [comp.index for comp in moving_comp_list]
         updated_complexes = await self.request_complexes([target_reference.index, *moving_indices])
         target_reference = updated_complexes[0]
-        moving_comps = updated_complexes[1:]
+        # moving_comps = updated_complexes[1:]
         binding_site_atoms = await self.get_binding_site_atoms(target_reference, ligand_name, site_size)
+        for atom in binding_site_atoms:
+            atom.selected = True
+        await self.update_structures_deep([target_reference])
 
     async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=5) -> list[Atom]:
         """Identify atoms in the active site around a ligand."""
@@ -185,10 +188,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
         active_site_atoms = []
         for targ_atom in mol.atoms:
             if targ_atom.position.unpack() in near_point_set:
-                targ_atom.selected = True
                 active_site_atoms.append(targ_atom)
         Logs.message(f"{len(active_site_atoms)} atoms identified in binding site.")
-        await self.update_structures_deep([target_reference])
         return active_site_atoms
 
     def align_structures(self, structA, structB, alignment_type='global'):
