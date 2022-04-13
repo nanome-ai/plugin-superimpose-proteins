@@ -58,14 +58,14 @@ class PluginFunctionTestCase(unittest.TestCase):
             self.complex_4hhb, chain_name_4hhb,
             moving_comp_chain_list
         )
-        expected_result = 1.954563078937366
+        expected_result = 1.95456
         expected_output = {self.complex_1mbo.full_name: expected_result}
         self.assertEqual(result, expected_output)
 
     @patch('nanome._internal._network._ProcessNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
-    def test_msa_superimpose(self, request_complexes_mock, update_structures_mock, *mocks):
+    def test_superimpose_by_entry(self, request_complexes_mock, update_structures_mock, *mocks):
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
@@ -75,9 +75,9 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_structures_mock.return_value = update_fut
 
         result = run_awaitable(
-            self.plugin_instance.msa_superimpose,
+            self.plugin_instance.superimpose_by_entry,
             self.complex_4hhb,
             [self.complex_1mbo]
         )
-        expected_result = {self.complex_1mbo.full_name: 27.69646398871505}
+        expected_result = {self.complex_1mbo.full_name: 27.69646}
         self.assertEqual(result, expected_result)
