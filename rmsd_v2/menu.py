@@ -293,7 +293,7 @@ class ActiveSiteController:
     @property
     def ln_target_chain(self):
         return self.panel_root.find_node('ln_target_chain')
-    
+
     @property
     def ln_target_ligand(self):
         return self.panel_root.find_node('ln_target_ligand')
@@ -344,7 +344,6 @@ class ActiveSiteController:
             dd_ligands.items = await self.create_ligand_dropdown_items(default_fixed)
             if dd_ligands.items:
                 dd_ligands.items[0].selected = True
-
 
         target_dropdown = self.ln_target_reference.get_content()
         dropdown_items = self.create_structure_dropdown_items(complexes, default_comp=default_fixed)
