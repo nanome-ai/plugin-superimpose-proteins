@@ -58,7 +58,7 @@ class PluginFunctionTestCase(unittest.TestCase):
             self.complex_4hhb, chain_name_4hhb,
             moving_comp_chain_list
         )
-        expected_result = 1.954563078937366
+        expected_result = 1.95456
         expected_output = {self.complex_1mbo.full_name: expected_result}
         self.assertEqual(result, expected_output)
 
@@ -79,5 +79,5 @@ class PluginFunctionTestCase(unittest.TestCase):
             self.complex_4hhb,
             [self.complex_1mbo]
         )
-        expected_result = {self.complex_1mbo.full_name: 27.69646398871505}
+        expected_result = {self.complex_1mbo.full_name: 27.69646}
         self.assertEqual(result, expected_result)

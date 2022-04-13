@@ -39,7 +39,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         self.complexes = await self.request_complex_list()
         await self.menu.render(complexes=self.complexes)
 
-    async def superimpose_by_entry(self, fixed_comp: Complex, moving_comps: list[Complex]):
+    async def superimpose_by_entry(self, fixed_comp: Complex, moving_comps: list):
         start_time = time.time()
         Logs.message(f"Superimposing {len(moving_comps)} structures")
         moving_comp_indices = [comp.index for comp in moving_comps]
@@ -90,7 +90,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure) -> tuple[Matrix, float]:
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure):
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
         mapping = self.align_structures(fixed_struct, moving_struct)
@@ -110,7 +110,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        rms = superimposer.rms
+        rms = round(superimposer.rms, 5)
         transform_matrix = self.create_transform_matrix(superimposer)
         Logs.message(f"RMSD: {rms}")
         return transform_matrix, rms
@@ -158,7 +158,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         return results
 
     async def superimpose_by_active_site(
-            self, target_reference: Complex, ligand_name: str, moving_comp_list: list[Complex], site_size=5):
+            self, target_reference: Complex, ligand_name: str, moving_comp_list, site_size=5):
         moving_indices = [comp.index for comp in moving_comp_list]
         updated_complexes = await self.request_complexes([target_reference.index, *moving_indices])
         target_reference = updated_complexes[0]
@@ -168,7 +168,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             atom.selected = True
         await self.update_structures_deep([target_reference])
 
-    async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=5) -> list[Atom]:
+    async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=5):
         """Identify atoms in the active site around a ligand."""
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
