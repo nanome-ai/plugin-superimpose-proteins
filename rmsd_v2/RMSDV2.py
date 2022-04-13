@@ -90,7 +90,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure) -> tuple[Matrix, float]: 
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure) -> tuple[Matrix, float]:
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
         mapping = self.align_structures(fixed_struct, moving_struct)
