@@ -1,2 +1,6 @@
-.git
+*
+!rmsd_v2
+!tests
+!requirements.txt
+!run_tests.py
 **/__pycache__

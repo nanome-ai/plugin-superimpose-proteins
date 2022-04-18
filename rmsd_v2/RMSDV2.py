@@ -1,4 +1,6 @@
 import nanome
+import subprocess
+import os
 import tempfile
 import time
 from Bio.PDB.Structure import Structure
@@ -258,6 +260,34 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
         return mapping
 
+    def run_fpocket(self, comp):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            comp_pdb = tempfile.NamedTemporaryFile(dir=tmpdir, suffix=".pdb")
+            comp_pdb_path = comp_pdb.name
+            comp_filename = comp_pdb.name.split('/')[-1].split('.pdb')[0]
+            output_folder = os.path.join(tmpdir, f"{comp_filename}_out")
+            comp.io.to_pdb(path=comp_pdb_path)
+            completed_process = subprocess.run(
+                ["fpocket", "-f",  comp_pdb_path],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+
+            Logs.message(f"fpocket output: {completed_process.returncode}")
+            os.listdir(output_folder)
+            pocket_file = os.path.join(output_folder, 'pockets', 'pocket1_atm.pdb')
+            pocket_serials = []
+            # Get atoms that are part of pocket
+            with open(pocket_file) as fd:
+                for line in fd:
+                    if not line.startswith("ATOM"):
+                        continue
+                    # Collect serials for pocket atoms
+                    row = line.split()
+                    pocket_atom_serial = int(row[1])
+                    pocket_serials.append(pocket_atom_serial)
+            pocket_atoms = [atom for atom in comp.atoms if atom.serial in pocket_serials]
+            breakpoint()
+            return pocket_atoms
 
 def main():
     plugin = nanome.Plugin('RMSD V2', 'Superimpose two structures', 'alignment', False)
