@@ -8,3 +8,12 @@ __pycache__
 .env*
 !.env.sample
 .cachebust
+*.pyc
+*.ipynb_checkpoints
+cookbook/.cache
+cookbook/.jupyter
+cookbook/.local
+cookbook/.ipython
+cookbook/.jupyter
+cookbook/.nanome_lib
+.env
