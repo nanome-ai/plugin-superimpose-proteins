@@ -116,16 +116,15 @@ class PluginInstanceRedisInterface:
         pubsub.subscribe(response_channel)
         self.redis.publish(self.channel, message)
 
-        timeout = time.time() + 60
+        timeout = time.time() + 5
         for message in pubsub.listen():
-
             if time.time() > timeout:
                 pubsub.unsubscribe()
                 raise Exception("Timeout error")
 
             if message.get('type') == 'message':
                 response_channel = next(iter(pubsub.channels.keys())).decode('utf-8')
-                Logs.message(f"Response received on channel {response_channel}")
+                print(f"Response received on channel {response_channel}")
                 response_data = self.unpickle_message(message)
                 pubsub.unsubscribe()
                 return response_data
