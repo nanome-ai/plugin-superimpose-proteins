@@ -1,4 +1,4 @@
-nanome==0.35.0
+nanome==0.36.7
 jupyterlab
 dill==0.3.4
 redis==4.1.3
