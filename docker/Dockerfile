@@ -11,7 +11,7 @@ RUN cd fpocket && make && make install
 ARG CACHEBUST
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-COPY . .
+COPY rmsd_v2 /app/rmsd_v2
 
 CMD python run.py ${ARGS}
 
@@ -35,8 +35,9 @@ COPY package.json .
 RUN npm install
 
 RUN pip install jupyterlab pip
-COPY requirements-cookbook.txt .
+COPY cookbook/requirements-cookbook.txt .
 RUN pip install -r requirements-cookbook.txt
 
+COPY cookbook .
 RUN jupyter notebook --generate-config
 CMD jupyter lab --ip 0.0.0.0 --allow-root

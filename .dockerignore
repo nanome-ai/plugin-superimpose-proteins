@@ -6,3 +6,4 @@
 !run_tests.py
 **/__pycache__
 !package.json
+!cookbook*
