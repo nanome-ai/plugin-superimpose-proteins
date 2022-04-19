@@ -6,7 +6,6 @@ import base64
 import dill
 import io
 from nanome import PluginInstance
-from nanome.util import Logs
 
 
 def pickle_data(data):

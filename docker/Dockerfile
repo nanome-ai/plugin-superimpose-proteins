@@ -39,5 +39,6 @@ COPY cookbook/requirements-cookbook.txt .
 RUN pip install -r requirements-cookbook.txt
 
 COPY cookbook .
+WORKDIR /app/cookbook/notebooks
 RUN jupyter notebook --generate-config
 CMD jupyter lab --ip 0.0.0.0 --allow-root
