@@ -110,7 +110,7 @@ class PluginInstanceRedisInterface:
             'kwargs': pickle_data(kwargs),
             'response_channel': response_channel
         })
-        Logs.message(f"Sending {function_name} Request to Redis Channel {self.channel}")
+        print(f"Sending {function_name} Request to Redis Channel {self.channel}")
         # Subscribe to response channel before publishing message
         pubsub = self.redis.pubsub(ignore_subscribe_messages=True)
         pubsub.subscribe(response_channel)
