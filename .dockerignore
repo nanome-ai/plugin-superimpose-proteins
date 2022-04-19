@@ -2,5 +2,7 @@
 !rmsd_v2
 !tests
 !requirements.txt
+!requirements-cookbook.txt
 !run_tests.py
 **/__pycache__
+!package.json

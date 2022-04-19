@@ -1,0 +1,47 @@
+version: '3'
+services:
+  redis:
+    image: redis
+  
+  plugin_service:
+    image: plugin-cookbook_plugin_service
+    tty: true
+    environment:
+      - DEFAULT_URL=http://127.0.0.1:8888
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - NTS_HOST=${NTS_HOST:-}
+      - NTS_PORT=${NTS_PORT:-}
+      - NTS_KEY=${NTS_KEY:-}
+      - ARGS=${ARGS:-}
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-change_me}
+      - REDIS_CHANNEL=${REDIS_CHANNEL:-}
+      - PLUGIN_NAME="[cb] rmsd"
+    depends_on:
+      - redis
+  
+  superposition_cookbook:
+    build:
+      dockerfile: docker/Dockerfile
+      target: cookbook
+      context: .
+    environment:
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-change_me}
+      - REDIS_CHANNEL=${REDIS_CHANNEL:-}
+    ports:
+      - 8888:8888
+    volumes:
+      # - ./cookbook:/app
+      # Service code is required in cookbook, for stream deserialization.
+      # This is a little hacky, but it works.
+      # - ./plugin_service/service.py:/app/notebooks/service.py
+      - /home/mike/workspace/rmsd-2/rmsd_v2:/app/rmsd_v2
+    tty: true
+    stdin_open: true
+    depends_on:
+      - redis
+    command: jupyter lab --ip 0.0.0.0 --allow-root

@@ -69,7 +69,6 @@ class PluginFunctionTestCase(unittest.TestCase):
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
-
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
