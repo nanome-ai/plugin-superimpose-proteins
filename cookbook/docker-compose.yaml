@@ -17,7 +17,7 @@ services:
       - ARGS=${ARGS:-}
       - JUPYTER_TOKEN=${JUPYTER_TOKEN:-change_me}
       - REDIS_CHANNEL=${REDIS_CHANNEL:-}
-      - PLUGIN_NAME="[cb] rmsd"
+      - PLUGIN_NAME=[cb]-superimpose
     depends_on:
       - redis
 
@@ -36,9 +36,9 @@ services:
     ports:
       - 8888:8888
     volumes:
-      - /home/mike/workspace/rmsd-2/rmsd_v2:/usr/local/lib/python3.10/site-packages/rmsd_v2
-      - /home/mike/workspace/rmsd-2/cookbook:/usr/local/lib/python3.10/site-packages/cookbook
-      - /home/mike/workspace/rmsd-2/cookbook:/app/cookbook
+      - /home/mike/workspace/rmsd-2/rmsd_v2:/app/rmsd_v2
+      - /home/mike/workspace/rmsd-2/cookbook/notebooks:/app/cookbook/notebooks
+
     tty: true
     stdin_open: true
     depends_on:
