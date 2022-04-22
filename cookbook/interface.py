@@ -36,7 +36,6 @@ class StreamRedisInterface:
         self.stream_id = stream_data['stream_id']
         self._plugin_interface = plugin_interface
 
-
     def update(self, stream_data):
         response = self._plugin_interface._rpc_request(
             'stream_update', args=[self.stream_id, stream_data])
