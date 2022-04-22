@@ -92,7 +92,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         return m
 
     async def superimpose(self, fixed_struct: Structure, moving_struct: Structure):
-        # Collect aligned residues
+        """Run alignment on two structures and return the transform matrix and RMSD."""
         # Align Residues based on Alpha Carbon
         mapping = self.align_structures(fixed_struct, moving_struct)
         fixed_atoms = []
@@ -117,6 +117,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
         return transform_matrix, rms
 
     async def superimpose_by_chain(self, fixed_comp: Complex, fixed_chain_name: str, moving_comp_chain_list: list):
+        """Superimpose a single chain from a complex to a list of other chains."""
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
         moving_comp_indices = [item[0].index for item in moving_comp_chain_list]
@@ -135,11 +136,9 @@ class RMSDV2(nanome.AsyncPluginInstance):
         for i, moving_comp in enumerate(moving_comps):
             moving_chain_name = moving_comp_chain_list[i][1]
             ComplexUtils.align_to(moving_comp, fixed_comp)
-
             moving_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
             moving_comp.io.to_pdb(moving_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-
             moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
             transform_matrix, rms = await self.superimpose(fixed_chain, moving_chain)
             results[moving_comp.full_name] = rms
@@ -160,30 +159,26 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
     async def superimpose_by_active_site(
             self, target_reference: Complex, ligand_name: str, moving_comp_list, site_size=5):
+        # Select the binding site on the target_reference.
         moving_indices = [comp.index for comp in moving_comp_list]
         updated_complexes = await self.request_complexes([target_reference.index, *moving_indices])
         target_reference = updated_complexes[0]
-        # Determine binding site on the target reference
         binding_site_atoms = await self.get_binding_site_atoms(target_reference, ligand_name, site_size)
         for atom in binding_site_atoms:
             atom.selected = True
         await self.update_structures_deep([target_reference])
 
+        # For each moving comp, select the potential binding sites. 
         fpocket_client = FPocketClient()
         for moving_comp in moving_comp_list:
             pocket_sets = fpocket_client.get_pockets(moving_comp)
-            start_time = time.time()
-            current_index = 0
-            while time.time() - start_time < 30:
-                print(f"Highlighting pocket {current_index}")
+            for i in range(len(pocket_sets)):
+                print(f"Highlighting pocket {i}")
                 for atom in moving_comp.atoms:
-                    atom.selected = atom in pocket_sets[current_index]
-                    if atom.selected:
-                        Logs.message(f"{atom.name} is in pocket {current_index}")
+                    atom.selected = atom in pocket_sets[i]
                 await self.update_structures_deep([moving_comp])
-                current_index = (current_index + 1) % len(pocket_sets)
-
-    async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=5):
+    
+    async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
         """Identify atoms in the active site around a ligand."""
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
@@ -192,6 +187,14 @@ class RMSDV2(nanome.AsyncPluginInstance):
         ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
         # Use KDTree to find target atoms within site_size radius of ligand atoms
         ligand_atoms = chain(*[res.atoms for res in ligand.residues])
+        binding_site_atoms = self.calculate_binding_site_atoms(target_reference, ligand_atoms)
+        return binding_site_atoms
+
+    def calculate_binding_site_atoms(self, target_reference: Complex, ligand_atoms: list, site_size=4.5):
+        """Use KDTree to find target atoms within site_size radius of ligand atoms."""
+        mol = next(
+            mol for i, mol in enumerate(target_reference.molecules)
+            if i == target_reference.current_frame)
         ligand_positions = [atom.position.unpack() for atom in ligand_atoms]
         target_atoms = chain(*[ch.atoms for ch in mol.chains if not ch.name.startswith("H")])
         target_tree = KDTree([atom.position.unpack() for atom in target_atoms])
@@ -200,12 +203,13 @@ class RMSDV2(nanome.AsyncPluginInstance):
         for point_indices in target_point_indices:
             for point_index in point_indices:
                 near_point_set.add(tuple(target_tree.data[point_index]))
-        active_site_atoms = []
+        binding_site_atoms = []
+
         for targ_atom in mol.atoms:
             if targ_atom.position.unpack() in near_point_set:
-                active_site_atoms.append(targ_atom)
-        Logs.message(f"{len(active_site_atoms)} atoms identified in binding site.")
-        return active_site_atoms
+                binding_site_atoms.append(targ_atom)
+        Logs.message(f"{len(binding_site_atoms)} atoms identified in binding site.")
+        return binding_site_atoms
 
     def align_structures(self, structA, structB, alignment_type='global'):
         """
