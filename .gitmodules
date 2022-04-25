@@ -1,3 +1,6 @@
 [submodule "fpocket"]
 	path = fpocket
 	url = https://github.com/Discngine/fpocket
+[submodule "Site-Motif"]
+	path = site_motif
+	url = https://github.com/santhoshgits/MAPP-3D

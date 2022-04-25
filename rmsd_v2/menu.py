@@ -275,7 +275,7 @@ class ActiveSiteController:
     def __init__(self, plugin, menu):
         self.plugin = plugin
         self._menu = menu
-        self.sld_distance_slider.current_value = 5.0
+        self.sld_distance_slider.current_value = 4.5
         self.sld_distance_slider.register_changed_callback(self.on_distance_slider_changed)
 
     @property
