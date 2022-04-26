@@ -2,7 +2,7 @@ FROM continuumio/miniconda3:4.11.0 as production
 ENV ARGS=''
 
 WORKDIR /app
-RUN apt update && apt upgrade -y && apt install -y build-essential
+RUN apt update && apt upgrade -y && apt install -y build-essential mpich
 # Install and compile FPocket
 ARG FPOCKET_VERSION=4.0.1
 RUN git clone -b ${FPOCKET_VERSION} https://github.com/Discngine/fpocket.git
@@ -11,7 +11,8 @@ RUN cd fpocket && make && make install
 # Install Python2 environment and SiteMotif
 RUN git clone https://github.com/santhoshgits/MAPP-3D /app/site_motif
 RUN conda create --name py27 python=2.7
-RUN conda install -n py27 numpy
+RUN conda install -n py27 numpy mpi4py
+
 COPY rmsd_v2 /app/rmsd_v2
 
 ARG CACHEBUST
