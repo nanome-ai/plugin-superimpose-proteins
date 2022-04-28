@@ -9,7 +9,7 @@ __pycache__
 !.env.sample
 .cachebust
 *.pyc
-*.ipynb_checkpoints
+*ipynb_checkpoints*
 cookbook/.cache
 cookbook/.jupyter
 cookbook/.local
