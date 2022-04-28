@@ -1,9 +1,9 @@
-import asyncio
 import os
+import tempfile
 import unittest
 from random import randint
 
-from unittest.mock import MagicMock
+
 from nanome.api.structure import Complex
 from rmsd_v2.fpocket_client import FPocketClient
 
@@ -25,6 +25,8 @@ class FPocketClientTestCase(unittest.TestCase):
         self.client = FPocketClient()
 
     def test_fpocket(self):
-        pocket_list = self.client.get_pockets(self.complex_4hhb)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = self.client.run(self.complex_4hhb, tmpdir)
+            pocket_list = self.client.parse_results(self.complex_4hhb, output_dir)
         self.assertEqual(len(pocket_list), 24)
 
