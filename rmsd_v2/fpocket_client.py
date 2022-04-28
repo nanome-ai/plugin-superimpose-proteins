@@ -13,7 +13,7 @@ class FPocketClient:
         output_folder = os.path.join(output_dir, f"{comp_filename}_out")
         comp.io.to_pdb(path=comp_pdb_path)
         completed_process = subprocess.run(
-            ["fpocket", "-f",  comp_pdb_path],
+            ["fpocket", "-f", comp_pdb_path],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         comp_pdb.close()

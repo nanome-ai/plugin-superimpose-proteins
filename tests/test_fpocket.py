@@ -29,4 +29,3 @@ class FPocketClientTestCase(unittest.TestCase):
             output_dir = self.client.run(self.complex_4hhb, tmpdir)
             pocket_list = self.client.parse_results(self.complex_4hhb, output_dir)
         self.assertEqual(len(pocket_list), 24)
-
