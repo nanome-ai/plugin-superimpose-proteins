@@ -36,7 +36,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         self.plugin_instance.start()
         self.plugin_instance._network = MagicMock()
 
-    @patch('nanome._internal._network._ProcessNetwork._instance')
+    @patch('nanome._internal._network.PluginNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
     def test_superimpose_by_chain(self, request_complexes_mock, update_structures_mock, *mocks):
@@ -62,14 +62,13 @@ class PluginFunctionTestCase(unittest.TestCase):
         expected_output = {self.complex_1mbo.full_name: expected_result}
         self.assertEqual(result, expected_output)
 
-    @patch('nanome._internal._network._ProcessNetwork._instance')
+    @patch('nanome._internal._network.PluginNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
     def test_superimpose_by_entry(self, request_complexes_mock, update_structures_mock, *mocks):
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
-
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut

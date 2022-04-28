@@ -10,5 +10,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: pip install -r requirements.txt
-    - run: python run_tests.py
+    - run: cd docker && ./build.sh
+    - run: docker run --rm rmsd-v2 python run_tests.py
