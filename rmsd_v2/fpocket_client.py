@@ -20,16 +20,14 @@ class FPocketClient:
         Logs.message(f"fpocket output: {completed_process.returncode}")
         return output_folder
 
-    def get_pockets_atoms(self, comp):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pocket_files = self.run(comp, tmpdir)
-            # Convert atoms
-            pocket_folder = os.path.join(tmpdir, 'pockets')
-            # Every pocket returns a .pdb of atoms and a .pqr of vertices
-            # Get atoms that are part of pocket
-            output_pdb_files = [fi for fi in os.listdir(pocket_folder) if fi.endswith('.pdb')]
-            return output_pdb_files
-        
+    def get_pockets_atoms(self, comp, fpocket_results_path):
+        # Convert atoms
+        pocket_folder = os.path.join(fpocket_results_path, 'pockets')
+        # Every pocket returns a .pdb of atoms and a .pqr of vertices
+        # Get atoms that are part of pocket
+        output_pdb_files = [fi for fi in os.listdir(pocket_folder) if fi.endswith('.pdb')]
+        return output_pdb_files
+
     def parse_results(self, comp, output_dir):
         # Convert atoms
         pocket_folder = os.path.join(output_dir, 'pockets')
