@@ -168,7 +168,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
             atom.selected = True
         await self.update_structures_deep([target_reference])
 
-        # For each moving comp, select the potential binding sites. 
+        # For each moving comp, select the potential binding sites.
         fpocket_client = FPocketClient()
         for moving_comp in moving_comp_list:
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -179,7 +179,7 @@ class RMSDV2(nanome.AsyncPluginInstance):
                 for atom in moving_comp.atoms:
                     atom.selected = atom in pocket_sets[i]
                 await self.update_structures_deep([moving_comp])
-    
+
     async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
         """Identify atoms in the active site around a ligand."""
         mol = next(
