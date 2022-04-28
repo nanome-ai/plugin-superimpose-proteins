@@ -171,9 +171,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
         # For each moving comp, select the potential binding sites. 
         fpocket_client = FPocketClient()
         for moving_comp in moving_comp_list:
-            pocket_sets = fpocket_client.get_pockets(moving_comp)
-            for i in range(len(pocket_sets)):
-                print(f"Highlighting pocket {i}")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_dir = fpocket_client.run(moving_comp, tmpdir)
+                pocket_sets = fpocket_client.parse_results(moving_comp, output_dir)
+            for i in range(len(pocket_sets) - 1, -1, -1):
+                Logs.debug(f"Highlighting pocket {i + 1}")
                 for atom in moving_comp.atoms:
                     atom.selected = atom in pocket_sets[i]
                 await self.update_structures_deep([moving_comp])
