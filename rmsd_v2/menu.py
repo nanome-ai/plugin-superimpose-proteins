@@ -3,11 +3,24 @@ from nanome.api import ui
 from nanome.util import Logs, async_callback
 from nanome.util.enums import NotificationTypes
 
+def create_chain_dropdown_items(comp, set_default=False):
+    """Update chain dropdown to reflect changes in complex."""
+    dropdown_items = []
+    # Filter out hetatom chains (HA, HB, etc)
+    chain_names = [
+        ch.name for ch in comp.chains
+        if not ch.name.startswith('H') or len(ch.name) < 2
+    ]
+    for chain_name in chain_names:
+        ddi = ui.DropdownItem(chain_name)
+        dropdown_items.append(ddi)
+    if set_default and dropdown_items:
+        dropdown_items[0].selected = True
+    return dropdown_items
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
 MENU_ITEM_PATH_ENTRY = path.join(BASE_PATH, 'menu_json', 'menu_item_entry.json')
-MENU_ITEM_PATH_CHAIN = path.join(BASE_PATH, 'menu_json', 'menu_item_chain.json')
 INFO_ICON_PATH = path.join(BASE_PATH, 'assets', 'info_icon.png')
 
 
@@ -75,9 +88,9 @@ class RMSDMenu:
             else:
                 rmsd_results = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
         if current_mode == 'chain':
-            fixed_comp = self.chain_align_controller.get_fixed_complex()
-            fixed_chain = self.chain_align_controller.get_fixed_chain()
-            moving_comp_chain_list = self.chain_align_controller.get_moving_complexes_and_chains()
+            fixed_comp = self.get_fixed_complex()
+            fixed_chain = self.get_fixed_chain()
+            moving_comp_chain_list = self.get_moving_complexes_and_chains()
             # moving_chain = self.chain_align_controller.get_moving_chains()
             if not all([fixed_comp, fixed_chain, moving_comp_chain_list]):
                 msg = "Please select all complexes and chains."
@@ -147,25 +160,38 @@ class RMSDMenu:
                 comps.append(comp)
         return comps
 
+    def get_fixed_chain(self):
+        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            struct_name = item.find_node('lbl_struct_name').get_content().text_value
+            btn_fixed = item.find_node('btn_fixed').get_content()
+            if btn_fixed.selected:
+                dd_chain = item.find_node('dd_chain').get_content()
+                selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
+                return getattr(selected_ddi, 'name', '')
+
     def populate_comp_list(self, complexes, mode='global', default_comp=None):
-        comp_list = self.ln_moving_comp_list.get_content()
-        layout_json = ''
-        if mode == 'global':
-            layout_json = MENU_ITEM_PATH_ENTRY
-        elif mode == 'chain':
-            layout_json = MENU_ITEM_PATH_CHAIN
+        comp_list = self.ln_moving_comp_list.get_content()        
         comp_list.items = []
         for comp in complexes:
-            ln = ui.LayoutNode.io.from_json(layout_json)
+            ln = ui.LayoutNode.io.from_json(MENU_ITEM_PATH_ENTRY)
             btn_fixed = ln.find_node('btn_fixed').get_content()
             btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
             btn_moving = ln.find_node('btn_moving').get_content()
-            struct_name = ln.find_node('lbl_struct_name').get_content()
-            struct_name.text_value = comp.full_name
+            lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
+            lbl_struct_name.text_value = comp.full_name
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
+
+            ln_dd_chain = ln.find_node('dd_chain')
+            ln_dd_chain.enabled = mode == 'chain'
+            # Set up chain dropdown if in chain mode
+            if mode == 'chain':
+                dd_chain = ln_dd_chain.get_content()
+                comp = next(
+                    cmp for cmp in self.plugin.complexes
+                    if cmp.full_name == lbl_struct_name.text_value)
+                dd_chain.items = create_chain_dropdown_items(comp)
             comp_list.items.append(ln)
-            continue
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def btn_fixed_clicked(self, btn):
@@ -233,3 +259,26 @@ class RMSDMenu:
         await self.plugin.menu.render(complexes=self.plugin.complexes)
         if update:
             self.plugin.update_menu(self._menu)
+    
+    def get_moving_complexes_and_chains(self):
+        comp_chain_list = []
+        lst = self.ln_moving_comp_list.get_content()
+        for item in lst.items:
+            btn = item.find_node('btn_moving').get_content()
+            chain_dd =  item.find_node('dd_chain').get_content()
+            comp_name = item.find_node('lbl_struct_name').get_content().text_value
+            if not btn.selected:
+                continue
+
+            selected_comp = next((
+                comp for comp in self.plugin.complexes
+                if comp.full_name == comp_name
+            ), None)
+            selected_chain = None
+            for chain_ddi in chain_dd.items:
+                if chain_ddi.selected:
+                    selected_chain = chain_ddi.name
+                    break
+                print('here')
+            comp_chain_list.append((selected_comp, selected_chain))
+        return comp_chain_list
