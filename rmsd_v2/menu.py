@@ -78,26 +78,24 @@ class RMSDMenu:
         self.plugin.update_content(self.btn_submit)
         current_mode = self.current_mode
         rmsd_results = None
+        fixed_comp_index = self.get_fixed_comp_index() or 0
         if current_mode == 'global':
-            fixed_comp = self.get_fixed_complex()
-            moving_comps = self.get_moving_complexes()
-            if not all([fixed_comp, moving_comps]):
+            moving_comp_indices = self.get_moving_comp_indices()
+            if not all([fixed_comp_index, moving_comp_indices]):
                 msg = "Please select all complexes."
                 Logs.warning(msg)
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
-                rmsd_results = await self.plugin.msa_superimpose(fixed_comp, moving_comps)
+                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices)
         if current_mode == 'chain':
-            fixed_comp = self.get_fixed_complex()
             fixed_chain = self.get_fixed_chain()
-            moving_comp_chain_list = self.get_moving_complexes_and_chains()
-            # moving_chain = self.chain_align_controller.get_moving_chains()
-            if not all([fixed_comp, fixed_chain, moving_comp_chain_list]):
+            moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
+            if not all([fixed_comp_index, fixed_chain, moving_comp_chain_list]):
                 msg = "Please select all complexes and chains."
                 Logs.warning(msg)
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
-                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp_chain_list)
+                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list)
         if rmsd_results:
             self.render_rmsd_results(rmsd_results)
         self.btn_submit.unusable = False
@@ -142,22 +140,22 @@ class RMSDMenu:
     def ln_moving_selections(self):
         return self.panel_root.find_node('ln_moving_selection')
 
-    def get_fixed_complex(self):
+    def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
             btn_fixed = item.find_node('btn_fixed').get_content()
             struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_fixed.selected:
                 comp = next(comp for comp in self.plugin.complexes if comp.full_name == struct_name)
-                return comp
+                return comp.index
 
-    def get_moving_complexes(self):
+    def get_moving_comp_indices(self):
         comps = []
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
             btn_moving = item.find_node('btn_moving').get_content()
             struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_moving.selected:
                 comp = next(comp for comp in self.plugin.complexes if comp.full_name == struct_name)
-                comps.append(comp)
+                comps.append(comp.index)
         return comps
 
     def get_fixed_chain(self):
@@ -260,7 +258,7 @@ class RMSDMenu:
         if update:
             self.plugin.update_menu(self._menu)
     
-    def get_moving_complexes_and_chains(self):
+    def get_moving_comp_indices_and_chains(self):
         comp_chain_list = []
         lst = self.ln_moving_comp_list.get_content()
         for item in lst.items:
@@ -280,5 +278,5 @@ class RMSDMenu:
                     selected_chain = chain_ddi.name
                     break
                 print('here')
-            comp_chain_list.append((selected_comp, selected_chain))
+            comp_chain_list.append((selected_comp.index, selected_chain))
         return comp_chain_list

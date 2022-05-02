@@ -40,13 +40,12 @@ class RMSDV2(nanome.AsyncPluginInstance):
         self.complexes = await self.request_complex_list()
         await self.menu.render(complexes=self.complexes)
 
-    async def superimpose_by_entry(self, fixed_comp: Complex, moving_comps: list):
+    async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_type='global'):
         start_time = time.time()
-        Logs.message(f"Superimposing {len(moving_comps)} structures")
-        moving_comp_indices = [comp.index for comp in moving_comps]
-        updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
+        updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
+        Logs.message(f"Superimposing {len(moving_comps)} structures")
         fixed_comp.locked = True
         comps_to_update = [fixed_comp]
         rmsd_results = {}
@@ -116,11 +115,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message(f"RMSD: {rms}")
         return transform_matrix, rms
 
-    async def superimpose_by_chain(self, fixed_comp, fixed_chain_name, moving_comp_chain_list):
+    async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list):
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
-        moving_comp_indices = [item[0].index for item in moving_comp_chain_list]
-        updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
+        moving_comp_indices = [item[0] for item in moving_comp_chain_list]
+        updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
 
