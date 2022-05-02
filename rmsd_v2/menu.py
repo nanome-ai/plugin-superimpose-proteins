@@ -122,14 +122,21 @@ class EntryAlignController:
         return self.panel_root.find_node('ln_moving_selection')
 
     def get_fixed_complex(self):
-        return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
+        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            btn_fixed = item.find_node('btn_fixed').get_content()
+            struct_name = item.find_node('lbl_struct_name').get_content().text_value
+            if btn_fixed.selected:
+                comp = next(comp for comp in self.plugin.complexes if comp.full_name == struct_name)
+                return comp
 
     def get_moving_complexes(self):
         comps = []
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn = item.get_children()[0].get_content()
-            if btn.selected:
-                comps.append(btn.comp)
+            btn_moving = item.find_node('btn_moving').get_content()
+            struct_name = item.find_node('lbl_struct_name').get_content().text_value
+            if btn_moving.selected:
+                comp = next(comp for comp in self.plugin.complexes if comp.full_name == struct_name)
+                comps.append(comp)
         return comps
 
     def set_complex_dropdown(self, complexes, layoutnode, multi_select=False, default_comp=None):
