@@ -4,6 +4,7 @@ from nanome.api import ui
 from nanome.util import Logs, async_callback
 from nanome.util.enums import NotificationTypes
 
+
 def create_chain_dropdown_items(comp, set_default=False):
     """Update chain dropdown to reflect changes in complex."""
     dropdown_items = []
@@ -18,6 +19,7 @@ def create_chain_dropdown_items(comp, set_default=False):
     if set_default and dropdown_items:
         dropdown_items[0].selected = True
     return dropdown_items
+
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
@@ -35,7 +37,7 @@ class RMSDMenu:
         self.btn_color_override.toggle_on_press = True
         self.btn_color_override.switch.active = True
         self.ln_info_img.add_new_image(INFO_ICON_PATH)
-        
+
         self.current_mode = 'global'
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
@@ -44,7 +46,7 @@ class RMSDMenu:
     @property
     def btn_submit(self):
         return self._menu.root.find_node('ln_submit').get_content()
-    
+
     @property
     def ln_btn_rmsd_table(self):
         return self._menu.root.find_node('btn_rmsd_table')
@@ -181,7 +183,7 @@ class RMSDMenu:
                 return getattr(selected_ddi, 'name', '')
 
     def populate_comp_list(self, complexes, mode='global', default_comp=None):
-        comp_list = self.ln_moving_comp_list.get_content()        
+        comp_list = self.ln_moving_comp_list.get_content()
         comp_list.items = []
         for comp in complexes:
             ln = ui.LayoutNode.io.from_json(MENU_ITEM_PATH_ENTRY)
@@ -270,13 +272,13 @@ class RMSDMenu:
         await self.plugin.menu.render(complexes=self.plugin.complexes)
         if update:
             self.plugin.update_menu(self._menu)
-    
+
     def get_moving_comp_indices_and_chains(self):
         comp_chain_list = []
         lst = self.ln_moving_comp_list.get_content()
         for item in lst.items:
             btn = item.find_node('btn_moving').get_content()
-            chain_dd =  item.find_node('dd_chain').get_content()
+            chain_dd = item.find_node('dd_chain').get_content()
             comp_name = item.find_node('lbl_struct_name').get_content().text_value
             if not btn.selected:
                 continue
@@ -293,7 +295,7 @@ class RMSDMenu:
                 print('here')
             comp_chain_list.append((selected_comp.index, selected_chain))
         return comp_chain_list
-    
+
     def open_rmsd_table(self, btn):
         self.rmsd_menu.enabled = True
         self.plugin.update_menu(self.rmsd_menu)
