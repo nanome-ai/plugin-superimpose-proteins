@@ -1,3 +1,4 @@
+from hashlib import new
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback
@@ -38,10 +39,19 @@ class RMSDMenu:
         self.current_mode = 'global'
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
+        self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
 
     @property
     def btn_submit(self):
         return self._menu.root.find_node('ln_submit').get_content()
+    
+    @property
+    def ln_btn_rmsd_table(self):
+        return self._menu.root.find_node('btn_rmsd_table')
+
+    @property
+    def btn_rmsd_table(self):
+        return self.ln_btn_rmsd_table.get_content()
 
     @property
     def ln_rmsd_value(self):
@@ -98,12 +108,16 @@ class RMSDMenu:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list)
         if rmsd_results:
             self.render_rmsd_results(rmsd_results)
+            self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
+        self.plugin.update_node(self.ln_btn_rmsd_table)
         self.plugin.update_content(self.btn_submit)
 
     def render_rmsd_results(self, rmsd_results):
         """Render rmsd results in a list of labels."""
         new_menu = ui.Menu()
+        new_menu.index = 200
+
         new_menu.title = "RMSD Values"
         ln = ui.LayoutNode()
         results_list = ui.UIList()
@@ -113,8 +127,8 @@ class RMSDMenu:
             results_list.items.append(item)
         ln.set_content(results_list)
         new_menu.root.add_child(ln)
-        new_menu.enabled = True
-        self.plugin.update_menu(new_menu)
+        new_menu.enabled = False
+        self.rmsd_menu = new_menu
 
     @property
     def root(self):
@@ -160,7 +174,6 @@ class RMSDMenu:
 
     def get_fixed_chain(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            struct_name = item.find_node('lbl_struct_name').get_content().text_value
             btn_fixed = item.find_node('btn_fixed').get_content()
             if btn_fixed.selected:
                 dd_chain = item.find_node('dd_chain').get_content()
@@ -280,3 +293,7 @@ class RMSDMenu:
                 print('here')
             comp_chain_list.append((selected_comp.index, selected_chain))
         return comp_chain_list
+    
+    def open_rmsd_table(self, btn):
+        self.rmsd_menu.enabled = True
+        self.plugin.update_menu(self.rmsd_menu)
