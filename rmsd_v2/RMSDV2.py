@@ -123,7 +123,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
 
-        updated_moving_comps = []
+        fixed_comp.locked = True
+        comps_to_update = [fixed_comp]
         parser = PDBParser(QUIET=True)
 
         fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -146,9 +147,10 @@ class RMSDV2(nanome.AsyncPluginInstance):
             moving_comp.set_surface_needs_redraw()
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
-            updated_moving_comps.append(moving_comp)
+            moving_comp.locked = True
+            comps_to_update.append(moving_comp)
 
-        await self.update_structures_deep(updated_moving_comps)
+        await self.update_structures_deep(comps_to_update)
         end_time = time.time()
         process_time = end_time - start_time
         extra = {"process_time": process_time}
