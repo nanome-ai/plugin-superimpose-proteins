@@ -1,14 +1,14 @@
 import asyncio
 from os import path
 from nanome.api import ui
-from nanome.util import Logs, async_callback, Color
-from nanome.util.enums import NotificationTypes, SizingTypes, PaddingTypes
+from nanome.util import Logs, async_callback
+from nanome.util.enums import NotificationTypes
 
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'newMenu.json')
-MENU_ITEM_PATH = path.join(BASE_PATH, 'menu_item.json')
-INFO_ICON_PATH = path.join(BASE_PATH, 'info_icon.png')
+MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
+MENU_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'menu_item.json')
+INFO_ICON_PATH = path.join(BASE_PATH, 'assets', 'info_icon.png')
 
 
 class SelectionModeController:
@@ -205,14 +205,22 @@ class EntryAlignController:
 
     def btn_fixed_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
-        if not btn.selected:
-            return
         btns_to_update = [btn]
         for menu_item in self.ln_moving_comp_list.get_content().items:
             btn_fixed = menu_item.find_node('btn_fixed').get_content()
-            if btn_fixed != btn:
+            btn_moving = menu_item.find_node('btn_moving').get_content()
+            if btn_fixed == btn:
+                # Fixed structure cannot also be a moving structure.
+                if not btn.selected:
+                    btn_moving.unusable = False
+                else:
+                    btn_moving.selected = False
+                    btn_moving.unusable = True
+            else:
                 btn_fixed.selected = False
+                btn_moving.unusable = False
             btns_to_update.append(btn_fixed)
+            btns_to_update.append(btn_moving)
         self.plugin.update_content(*btns_to_update)
 
 
