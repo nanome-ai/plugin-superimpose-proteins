@@ -52,10 +52,10 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
 
-        moving_comp_chain_list = [(self.complex_1mbo, chain_name_1mbo)]
+        moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
         result = run_awaitable(
             self.plugin_instance.superimpose_by_chain,
-            self.complex_4hhb, chain_name_4hhb,
+            self.complex_4hhb.index, chain_name_4hhb,
             moving_comp_chain_list
         )
         expected_result = 1.95456
@@ -75,8 +75,8 @@ class PluginFunctionTestCase(unittest.TestCase):
 
         result = run_awaitable(
             self.plugin_instance.superimpose_by_entry,
-            self.complex_4hhb,
-            [self.complex_1mbo]
+            self.complex_4hhb.index,
+            [self.complex_1mbo.index]
         )
         expected_result = {self.complex_1mbo.full_name: 27.69646}
         self.assertEqual(result, expected_result)

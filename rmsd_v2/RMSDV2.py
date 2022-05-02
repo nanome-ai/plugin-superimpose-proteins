@@ -32,21 +32,20 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
     @async_callback
     async def on_complex_added(self):
-        self.complexes = await self.request_complex_list()
-        await self.menu.render(complexes=self.complexes)
+        complexes = await self.request_complex_list()
+        await self.menu.render(complexes=complexes)
 
     @async_callback
     async def on_complex_removed(self):
         self.complexes = await self.request_complex_list()
         await self.menu.render(complexes=self.complexes)
 
-    async def superimpose_by_entry(self, fixed_comp: Complex, moving_comps: list):
+    async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_type='global'):
         start_time = time.time()
-        Logs.message(f"Superimposing {len(moving_comps)} structures")
-        moving_comp_indices = [comp.index for comp in moving_comps]
-        updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
+        updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
+        Logs.message(f"Superimposing {len(moving_comps)} structures")
         fixed_comp.locked = True
         comps_to_update = [fixed_comp]
         rmsd_results = {}
@@ -91,10 +90,10 @@ class RMSDV2(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure):
-        """Run alignment on two structures and return the transform matrix and RMSD."""
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global'):
+        # Collect aligned residues
         # Align Residues based on Alpha Carbon
-        mapping = self.align_structures(fixed_struct, moving_struct)
+        mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon = 'CA'
@@ -116,16 +115,16 @@ class RMSDV2(nanome.AsyncPluginInstance):
         Logs.message(f"RMSD: {rms}")
         return transform_matrix, rms
 
-    async def superimpose_by_chain(self, fixed_comp: Complex, fixed_chain_name: str, moving_comp_chain_list: list):
-        """Superimpose a single chain from a complex to a list of other chains."""
+    async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list):
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
-        moving_comp_indices = [item[0].index for item in moving_comp_chain_list]
-        updated_comps = await self.request_complexes([fixed_comp.index, *moving_comp_indices])
+        moving_comp_indices = [item[0] for item in moving_comp_chain_list]
+        updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
 
-        updated_moving_comps = []
+        fixed_comp.locked = True
+        comps_to_update = [fixed_comp]
         parser = PDBParser(QUIET=True)
 
         fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -136,9 +135,11 @@ class RMSDV2(nanome.AsyncPluginInstance):
         for i, moving_comp in enumerate(moving_comps):
             moving_chain_name = moving_comp_chain_list[i][1]
             ComplexUtils.align_to(moving_comp, fixed_comp)
+
             moving_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
             moving_comp.io.to_pdb(moving_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
+
             moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
             transform_matrix, rms = await self.superimpose(fixed_chain, moving_chain)
             results[moving_comp.full_name] = rms
@@ -146,9 +147,10 @@ class RMSDV2(nanome.AsyncPluginInstance):
             moving_comp.set_surface_needs_redraw()
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
-            updated_moving_comps.append(moving_comp)
+            moving_comp.locked = True
+            comps_to_update.append(moving_comp)
 
-        await self.update_structures_deep(updated_moving_comps)
+        await self.update_structures_deep(comps_to_update)
         end_time = time.time()
         process_time = end_time - start_time
         extra = {"process_time": process_time}

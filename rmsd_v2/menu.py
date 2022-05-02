@@ -1,12 +1,8 @@
+from hashlib import new
 from os import path
 from nanome.api import ui
-from nanome.util import Logs, async_callback, Color
-from nanome.util.enums import NotificationTypes, SizingTypes, PaddingTypes
-
-
-BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu.json')
-INFO_ICON_PATH = path.join(BASE_PATH, 'info_icon.png')
+from nanome.util import Logs, async_callback
+from nanome.util.enums import NotificationTypes
 
 
 def create_chain_dropdown_items(comp, set_default=False):
@@ -25,622 +21,10 @@ def create_chain_dropdown_items(comp, set_default=False):
     return dropdown_items
 
 
-class SelectionModeController:
-
-    def __init__(self, plugin, menu):
-        self.plugin = plugin
-        self._menu = menu
-        self.current_mode = 'global'
-        for btn in self.mode_selection_btn_group:
-            btn.register_pressed_callback(self.on_mode_selected)
-
-    @property
-    def mode_selection_btn_group(self):
-        return [self.btn_global_align, self.btn_align_by_chain, self.btn_align_by_active_site]
-
-    @property
-    def btn_global_align(self):
-        return self._menu.root.find_node('ln_btn_global_align').get_content()
-
-    @property
-    def btn_align_by_chain(self):
-        return self._menu.root.find_node('ln_btn_align_by_chain').get_content()
-
-    @property
-    def btn_align_by_active_site(self):
-        return self._menu.root.find_node('ln_btn_align_by_active_site').get_content()
-
-    @property
-    def entry_align_panel(self):
-        return self._menu.root.find_node('Entry Panel')
-
-    @property
-    def chain_align_panel(self):
-        return self._menu.root.find_node('Chain Panel')
-
-    @property
-    def active_site_panel(self):
-        return self._menu.root.find_node('Active Site Panel')
-
-    def set_default_state(self):
-        self.btn_global_align.selected = True
-        self.btn_align_by_chain.selected = False
-        self.btn_align_by_active_site.selected = False
-        self.entry_align_panel.enabled = True
-        self.chain_align_panel.enabled = False
-        self.active_site_panel.enabled = False
-
-    @async_callback
-    async def on_mode_selected(self, btn):
-        btn.selected = True
-        btns_to_update = [btn]
-        for group_item in self.mode_selection_btn_group:
-            if btn._content_id != group_item._content_id:
-                group_item.selected = False
-                btns_to_update.append(group_item)
-        if btn.name == 'btn_global_align':
-            Logs.message("Switched to entry mode")
-            self.current_mode = 'global'
-            self.entry_align_panel.enabled = True
-            self.chain_align_panel.enabled = False
-            self.active_site_panel.enabled = False
-        elif btn.name == 'btn_align_by_chain':
-            Logs.message("Switched to chain mode.")
-            self.current_mode = 'chain'
-            self.chain_align_panel.enabled = True
-            self.entry_align_panel.enabled = False
-            self.active_site_panel.enabled = False
-            # Get deep complexes if necessary
-            if self.is_shallow_complexes(self.plugin.complexes):
-                self.btn_align_by_chain.unusable = True
-                self.plugin.update_content(self.btn_align_by_chain)
-                self.plugin.complexes = await self.get_deep_complexes(self.plugin.complexes)
-                self.btn_align_by_chain.unusable = False
-        elif btn.name == 'btn_align_by_active_site':
-            Logs.message("Switched to active site mode.")
-            self.current_mode = 'active_site'
-            self.active_site_panel.enabled = True
-            self.entry_align_panel.enabled = False
-            self.chain_align_panel.enabled = False
-            if self.is_shallow_complexes(self.plugin.complexes):
-                self.btn_align_by_active_site.unusable = True
-                self.plugin.update_content(self.btn_align_by_active_site)
-                self.plugin.complexes = await self.get_deep_complexes(self.plugin.complexes)
-                self.btn_align_by_active_site.unusable = False
-        self.plugin.update_menu(self._menu)
-
-    def is_shallow_complexes(self, complex_list):
-        for comp in complex_list:
-            if sum(1 for _ in comp.chains) == 0:
-                return True
-        return False
-
-    async def get_deep_complexes(self, complex_list):
-        Logs.debug("Retrieving deep complexes.")
-        comp_indices = [cmp.index for cmp in complex_list]
-        complex_list = await self.plugin.request_complexes(comp_indices)
-        # This is kinda iffy, but it seems to work
-        await self.plugin.menu.render(complexes=complex_list)
-        return complex_list
-
-
-class EntryAlignController:
-
-    def __init__(self, plugin, menu):
-        self.plugin = plugin
-        self._menu = menu
-
-    def render(self, complexes=None):
-        complexes = complexes or []
-        default_fixed = None
-        default_moving = None
-        if len(complexes) == 2:
-            default_fixed = complexes[0]
-            default_moving = complexes[1]
-        self.set_complex_dropdown(complexes, self.ln_fixed_struct, default_comp=default_fixed)
-        self.populate_moving_comp_list(complexes, default_comp=default_moving)
-
-    @property
-    def panel_root(self):
-        return self._menu.root.find_node('Entry Panel')
-
-    @property
-    def ln_moving_comp_list(self):
-        return self.panel_root.find_node('ln_moving_comp_list')
-
-    @property
-    def ln_fixed_struct(self):
-        return self.panel_root.find_node('ln_fixed_struct')
-
-    @property
-    def ln_moving_structs(self):
-        return self.panel_root.find_node('ln_moving_structs')
-
-    @property
-    def ln_fixed_selection(self):
-        return self.panel_root.find_node('ln_fixed_selection')
-
-    @property
-    def ln_moving_selections(self):
-        return self.panel_root.find_node('ln_moving_selection')
-
-    def get_fixed_complex(self):
-        return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
-
-    def get_moving_complexes(self):
-        comps = []
-        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn = item.get_children()[0].get_content()
-            if btn.selected:
-                comps.append(btn.comp)
-        return comps
-
-    def set_complex_dropdown(self, complexes, layoutnode, multi_select=False, default_comp=None):
-        """Create dropdown of complexes, and add to provided layoutnode."""
-        dropdown_items = self.create_structure_dropdown_items(complexes, multi_select=multi_select, default_comp=default_comp)
-        dropdown = ui.Dropdown()
-        dropdown.max_displayed_items = len(dropdown_items)
-        dropdown.items = dropdown_items
-        layoutnode.set_content(dropdown)
-        self.plugin.update_node(layoutnode)
-        if multi_select:
-            dropdown.register_item_clicked_callback(self.multi_select_item_selected)
-
-    def create_structure_dropdown_items(self, complexes, multi_select=False, default_comp=None):
-        """Generate list of buttons corresponding to provided complexes."""
-        complex_ddis = []
-        ddi_labels = set()
-
-        for struct in complexes:
-            struct_name = struct.full_name
-
-            # Make sure we have a unique name for every structure
-            ddi_label = struct_name
-            if ddi_label in ddi_labels:
-                num = 1
-                while ddi_label in ddi_labels:
-                    ddi_label = f'{struct_name} {{{num}}}'
-                    num += 1
-
-            ddi_labels.add(ddi_label)
-            ddi = ui.DropdownItem(ddi_label)
-            ddi.close_on_selected = not multi_select
-            ddi.complex = struct
-            if ddi.complex == default_comp:
-                ddi.selected = True
-            complex_ddis.append(ddi)
-
-        return complex_ddis
-
-    @async_callback
-    async def multi_select_item_selected(self, dropdown, ddi):
-        """Callback for when a complex is selected in a dropdown."""
-
-        if not hasattr(dropdown, '_selected_items'):
-            dropdown._selected_items = []
-
-        if ddi in dropdown._selected_items:
-            # Deselect item
-            ddi.selected = False
-            dropdown._selected_items.remove(ddi)
-
-        if ddi.selected and ddi not in dropdown._selected_items:
-            dropdown._selected_items.append(ddi)
-        # Reselect selected items
-        for ddi in dropdown._selected_items:
-            ddi.selected = True
-        self.plugin.update_content(dropdown)
-
-    def populate_moving_comp_list(self, complexes, default_comp=None):
-        green = Color(36, 184, 177)
-        comp_list = self.ln_moving_comp_list.get_content()
-        comp_list.items = []
-        for comp in complexes:
-            ln = ui.LayoutNode()
-            ln.padding_type = PaddingTypes.fixed
-
-            ln.forward_dist = 0.05
-            ln.layout_orientation = 1
-            btn_ln = ln.create_child_node(ui.LayoutNode())
-            lbl_ln = ln.create_child_node(ui.LayoutNode())
-            lbl_ln.padding = (0.02, 0.00, 0.0, 0.0)
-
-            btn_ln.sizing_type = SizingTypes.ratio
-            btn_ln.sizing_value = 0.1
-            btn = btn_ln.add_new_button()
-            btn.text.value.set_all("")
-            btn.mesh.active = True
-            btn.mesh.enabled.set_all(False)
-            btn.mesh.enabled.selected = True
-            btn.mesh.enabled.hover = True
-            btn.mesh.enabled.highlighted = True
-            btn.mesh.enabled.selected_highlighted = True
-            btn.mesh.color.selected = green
-            btn.mesh.color.highlighted = green
-            btn.mesh.color.selected_highlighted = green
-
-            btn.comp = comp
-            if comp == default_comp:
-                btn.selected = True
-
-            btn.toggle_on_press = True
-            lbl_ln.add_new_label(comp.full_name)
-            comp_list.items.append(ln)
-
-        self.plugin.update_node(self.ln_moving_comp_list)
-
-
-class ActiveSiteController:
-
-    def __init__(self, plugin, menu):
-        self.plugin = plugin
-        self._menu = menu
-        self.sld_distance_slider.current_value = 4.5
-        self.sld_distance_slider.register_changed_callback(self.on_distance_slider_changed)
-
-    @property
-    def panel_root(self):
-        return self._menu.root.find_node('Active Site Panel')
-
-    @property
-    def ln_moving_comp_list(self):
-        return self.panel_root.find_node('ln_moving_comp_list')
-
-    @property
-    def ln_target_reference(self):
-        return self.panel_root.find_node('ln_target_reference')
-
-    @property
-    def ln_target_chain(self):
-        return self.panel_root.find_node('ln_target_chain')
-
-    @property
-    def ln_target_ligand(self):
-        return self.panel_root.find_node('ln_target_ligand')
-
-    @property
-    def ln_target_ligand(self):
-        return self.panel_root.find_node('ln_target_ligand')
-
-    @property
-    def ln_moving_selections(self):
-        return self.panel_root.find_node('ln_moving_selection')
-
-    @property
-    def lbl_distance_slider_lbl(self):
-        return self.panel_root.find_node('ln_distance_slider_lbl').get_content()
-
-    @property
-    def sld_distance_slider(self):
-        return self.panel_root.find_node('ln_distance_slider').get_content()
-
-    def get_target_reference(self):
-        return next((ddi.complex for ddi in self.ln_target_reference.get_content().items if ddi.selected), None)
-
-    def get_moving_complexes(self):
-        comps = []
-        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn = item.get_children()[0].get_content()
-            if btn.selected:
-                comps.append(btn.comp)
-        return comps
-
-    def get_target_ligand_name(self):
-        return next((ddi.name for ddi in self.ln_target_ligand.get_content().items if ddi.selected), None)
-
-    def get_site_size(self):
-        return self.sld_distance_slider.current_value
-
-    @async_callback
-    async def render(self, complexes=None):
-        complexes = complexes or []
-        default_fixed = None
-        default_moving = None
-        if len(complexes) == 2:
-            default_fixed = complexes[0]
-            default_moving = complexes[1]
-            # Set ligand dropdown to ligands in default fixed
-            dd_ligands = self.ln_target_ligand.get_content()
-            dd_ligands.items = await self.create_ligand_dropdown_items(default_fixed)
-            if dd_ligands.items:
-                dd_ligands.items[0].selected = True
-
-        target_dropdown = self.ln_target_reference.get_content()
-        dropdown_items = self.create_structure_dropdown_items(complexes, default_comp=default_fixed)
-        target_dropdown.items = dropdown_items
-        target_dropdown.max_displayed_items = len(dropdown_items)
-        target_dropdown.register_item_clicked_callback(self.update_target_ligand_dropdown)
-        self.populate_moving_comp_list(complexes, default_comp=default_moving)
-
-    @async_callback
-    async def update_target_ligand_dropdown(self, dropdown, ddi):
-        """Callback for when a target structure is selected in a dropdown."""
-        comp = ddi.complex
-        # chain_dropdown = self.ln_target_chain.get_content()
-        ligand_dropdown = self.ln_target_ligand.get_content()
-        # chain_dropdown.items = create_chain_dropdown_items(comp)
-        ligand_dropdown.items = await self.create_ligand_dropdown_items(comp)
-        self.plugin.update_content(ligand_dropdown)
-
-    async def create_ligand_dropdown_items(self, comp, set_default=False):
-        # Find ligands nested inside of complex, and add them to dropdown.
-        mol = next((
-            mol for i, mol in enumerate(comp.molecules) if i == comp.current_frame
-        ), None)
-        if not mol:
-            return list()
-        ligands = await mol.get_ligands()
-        dropdown_items = []
-        for lig in ligands:
-            ddi = ui.DropdownItem(lig.name)
-            dropdown_items.append(ddi)
-        if set_default and dropdown_items:
-            dropdown_items[0].selected = True
-        return dropdown_items
-
-    def get_fixed_complex(self):
-        return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
-
-    def get_moving_complexes(self):
-        comps = []
-        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn = item.get_children()[0].get_content()
-            if btn.selected:
-                comps.append(btn.comp)
-        return comps
-
-    def set_complex_dropdown(self, complexes, layoutnode, multi_select=False, default_comp=None):
-        """Create dropdown of complexes, and add to provided layoutnode."""
-        dropdown_items = self.create_structure_dropdown_items(complexes, multi_select=multi_select, default_comp=default_comp)
-        dropdown = ui.Dropdown()
-        dropdown.max_displayed_items = len(dropdown_items)
-        dropdown.items = dropdown_items
-        layoutnode.set_content(dropdown)
-        self.plugin.update_node(layoutnode)
-        if multi_select:
-            dropdown.register_item_clicked_callback(self.multi_select_item_selected)
-
-    def create_structure_dropdown_items(self, complexes, multi_select=False, default_comp=None):
-        """Generate list of buttons corresponding to provided complexes."""
-        complex_ddis = []
-        ddi_labels = set()
-
-        for struct in complexes:
-            struct_name = struct.full_name
-
-            # Make sure we have a unique name for every structure
-            ddi_label = struct_name
-            if ddi_label in ddi_labels:
-                num = 1
-                while ddi_label in ddi_labels:
-                    ddi_label = f'{struct_name} {{{num}}}'
-                    num += 1
-
-            ddi_labels.add(ddi_label)
-            ddi = ui.DropdownItem(ddi_label)
-            ddi.close_on_selected = not multi_select
-            ddi.complex = struct
-            if ddi.complex == default_comp:
-                ddi.selected = True
-            complex_ddis.append(ddi)
-
-        return complex_ddis
-
-    @async_callback
-    async def multi_select_item_selected(self, dropdown, ddi):
-        """Callback for when a complex is selected in a dropdown."""
-
-        if not hasattr(dropdown, '_selected_items'):
-            dropdown._selected_items = []
-
-        if ddi in dropdown._selected_items:
-            # Deselect item
-            ddi.selected = False
-            dropdown._selected_items.remove(ddi)
-
-        if ddi.selected and ddi not in dropdown._selected_items:
-            dropdown._selected_items.append(ddi)
-        # Reselect selected items
-        for ddi in dropdown._selected_items:
-            ddi.selected = True
-        self.plugin.update_content(dropdown)
-
-    def populate_moving_comp_list(self, complexes, default_comp=None):
-        green = Color(36, 184, 177)
-        comp_list = self.ln_moving_comp_list.get_content()
-        comp_list.items = []
-        for comp in complexes:
-            ln = ui.LayoutNode()
-            ln.padding_type = PaddingTypes.fixed
-
-            ln.forward_dist = 0.05
-            ln.layout_orientation = 1
-            btn_ln = ln.create_child_node(ui.LayoutNode())
-            lbl_ln = ln.create_child_node(ui.LayoutNode())
-            lbl_ln.padding = (0.02, 0.00, 0.0, 0.0)
-
-            btn_ln.sizing_type = SizingTypes.ratio
-            btn_ln.sizing_value = 0.1
-            btn = btn_ln.add_new_button()
-            btn.text.value.set_all("")
-            btn.mesh.active = True
-            btn.mesh.enabled.set_all(False)
-            btn.mesh.enabled.selected = True
-            btn.mesh.enabled.hover = True
-            btn.mesh.enabled.highlighted = True
-            btn.mesh.enabled.selected_highlighted = True
-            btn.mesh.color.selected = green
-            btn.mesh.color.highlighted = green
-            btn.mesh.color.selected_highlighted = green
-
-            btn.comp = comp
-            if comp == default_comp:
-                btn.selected = True
-
-            btn.toggle_on_press = True
-            lbl_ln.add_new_label(comp.full_name)
-            comp_list.items.append(ln)
-
-        self.plugin.update_node(self.ln_moving_comp_list)
-
-    def on_distance_slider_changed(self, slider):
-        self.lbl_distance_slider_lbl.text_value = f'{slider.current_value:.1f}'
-        self.plugin.update_content(self.lbl_distance_slider_lbl)
-
-
-class ChainAlignController:
-
-    def __init__(self, plugin, menu):
-        self.plugin = plugin
-        self._menu = menu
-
-    @property
-    def panel_root(self):
-        return self._menu.root.find_node('Chain Panel')
-
-    @property
-    def ln_moving_comp_list(self):
-        return self.panel_root.find_node('ln_moving_comp_list')
-
-    @property
-    def ln_fixed_struct(self):
-        return self.panel_root.find_node('ln_fixed_struct')
-
-    @property
-    def ln_moving_struct(self):
-        return self.panel_root.find_node('ln_moving_struct')
-
-    @property
-    def ln_fixed_chain(self):
-        return self.panel_root.find_node('ln_fixed_chain')
-
-    @property
-    def ln_moving_chain(self):
-        return self.panel_root.find_node('ln_moving_chain')
-
-    @async_callback
-    async def render(self, complexes=None):
-        complexes = complexes or []
-
-        default_fixed = None
-        default_moving = None
-        if len(complexes) == 2:
-            default_fixed = complexes[0]
-            default_moving = complexes[1]
-
-        fixed_dropdown = self.ln_fixed_struct.get_content()
-        dropdown_items = self.create_structure_dropdown_items(complexes, default_comp=default_fixed)
-        fixed_dropdown.items = dropdown_items
-        fixed_dropdown.max_displayed_items = len(dropdown_items)
-
-        if default_fixed:
-            chain_dropdown = self.ln_fixed_chain.get_content()
-            chain_dropdown.items = create_chain_dropdown_items(default_fixed)
-
-        if len(self.plugin.complexes) == 2 and chain_dropdown.items:
-            chain_dropdown.items[0].selected = True
-
-        fixed_dropdown.register_item_clicked_callback(self.update_fixed_chain_dropdown)
-        self.populate_moving_comp_list(complexes, default_comp=default_moving)
-
-    def get_fixed_complex(self):
-        return next((ddi.complex for ddi in self.ln_fixed_struct.get_content().items if ddi.selected), None)
-
-    def get_moving_complexes_and_chains(self):
-        comp_chain_list = []
-        lst = self.ln_moving_comp_list.get_content()
-        for item in lst.items:
-            btn = item.get_children()[0].get_content()
-            chain_dd = item.get_children()[1].get_children()[1].get_content()
-            if not btn.selected:
-                continue
-
-            selected_comp = btn.comp
-            selected_chain = None
-            for chain_ddi in chain_dd.items:
-                if chain_ddi.selected:
-                    selected_chain = chain_ddi.name
-                    break
-                print('here')
-            comp_chain_list.append((selected_comp, selected_chain))
-        return comp_chain_list
-
-    def get_fixed_chain(self):
-        return next((ddi.name for ddi in self.ln_fixed_chain.get_content().items if ddi.selected), None)
-
-    def get_moving_chains(self):
-        return next((ddi.name for ddi in self.ln_moving_chain.get_content().items if ddi.selected), None)
-
-    def update_fixed_chain_dropdown(self, dropdown, ddi):
-        comp = ddi.complex
-        chain_dropdown = self.ln_fixed_chain.get_content()
-        chain_dropdown.items = create_chain_dropdown_items(comp)
-        self.plugin.update_content(chain_dropdown)
-
-    def create_structure_dropdown_items(self, complexes, default_comp=None):
-        """Generate list of buttons corresponding to provided complexes."""
-        complex_ddis = []
-        ddi_labels = set()
-        for struct in complexes:
-            struct_name = struct.full_name
-            # Make sure we have a unique name for every structure
-            ddi_label = struct_name
-            if ddi_label in ddi_labels:
-                num = 1
-                while ddi_label in ddi_labels:
-                    ddi_label = f'{struct_name} {{{num}}}'
-                    num += 1
-            ddi_labels.add(ddi_label)
-            ddi = ui.DropdownItem(ddi_label)
-            ddi.complex = struct
-            if ddi.complex == default_comp:
-                ddi.selected = True
-            complex_ddis.append(ddi)
-
-        return complex_ddis
-
-    def populate_moving_comp_list(self, complexes, default_comp=None):
-        green = Color(36, 184, 177)
-        comp_list = self.ln_moving_comp_list.get_content()
-        comp_list.items = []
-        for comp in complexes:
-            ln = ui.LayoutNode()
-            ln.forward_dist = 0.05
-            ln.layout_orientation = 1
-            btn_ln = ln.create_child_node(ui.LayoutNode())
-            info_ln = ln.create_child_node(ui.LayoutNode())
-            info_ln.padding = (0.02, 0.00, 0.0, 0.0)
-
-            btn_ln.sizing_type = SizingTypes.ratio
-            btn_ln.sizing_value = 0.1
-            btn = btn_ln.add_new_button()
-            btn.text.value.set_all("")
-            btn.mesh.active = True
-            btn.mesh.enabled.set_all(False)
-            btn.mesh.enabled.selected = True
-            btn.mesh.enabled.hover = True
-            btn.mesh.enabled.highlighted = True
-            btn.mesh.enabled.selected_highlighted = True
-            btn.mesh.color.selected = green
-            btn.mesh.color.highlighted = green
-            btn.mesh.color.selected_highlighted = green
-            btn.comp = comp
-            if btn.comp == default_comp:
-                btn.selected = True
-            btn.toggle_on_press = True
-
-            info_ln.layout_orientation = 1
-            lbl_ln = info_ln.create_child_node(ui.LayoutNode())
-            lbl_ln.add_new_label(comp.full_name)
-            btn_list_ln = info_ln.create_child_node(ui.LayoutNode())
-
-            comp_dd = ui.Dropdown()
-            set_default = bool(default_comp)
-            comp_dd.items = create_chain_dropdown_items(comp, set_default=set_default)
-            comp_dd = btn_list_ln.set_content(comp_dd)
-            comp_list.items.append(ln)
-
-        self.plugin.update_node(self.ln_moving_comp_list)
+BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
+MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
+MENU_ITEM_PATH_ENTRY = path.join(BASE_PATH, 'menu_json', 'menu_item_entry.json')
+INFO_ICON_PATH = path.join(BASE_PATH, 'assets', 'info_icon.png')
 
 
 class RMSDMenu:
@@ -649,18 +33,27 @@ class RMSDMenu:
         super().__init__()
         self._menu = ui.Menu.io.from_json(MENU_PATH)
         self.plugin = plugin_instance
-        self.selection_mode_controller = SelectionModeController(plugin_instance, self._menu)
-        self.global_align_controller = EntryAlignController(plugin_instance, self._menu)
-        self.chain_align_controller = ChainAlignController(plugin_instance, self._menu)
-        self.active_site_controller = ActiveSiteController(plugin_instance, self._menu)
-        self.selection_mode_controller.set_default_state()
+        # Make sure Global Align Panel is always default
         self.btn_color_override.toggle_on_press = True
         self.btn_color_override.switch.active = True
         self.ln_info_img.add_new_image(INFO_ICON_PATH)
 
+        self.current_mode = 'global'
+        for btn in self.mode_selection_btn_group:
+            btn.register_pressed_callback(self.on_mode_selected)
+        self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
+
     @property
     def btn_submit(self):
         return self._menu.root.find_node('ln_submit').get_content()
+
+    @property
+    def ln_btn_rmsd_table(self):
+        return self._menu.root.find_node('btn_rmsd_table')
+
+    @property
+    def btn_rmsd_table(self):
+        return self.ln_btn_rmsd_table.get_content()
 
     @property
     def ln_rmsd_value(self):
@@ -685,9 +78,8 @@ class RMSDMenu:
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
-        self.global_align_controller.render(complexes)
-        await self.chain_align_controller.render(complexes)
-        await self.active_site_controller.render(complexes)
+        current_mode = self.current_mode
+        self.populate_comp_list(complexes, current_mode)
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -696,50 +88,38 @@ class RMSDMenu:
         Logs.message("Submit button Pressed.")
         self.btn_submit.unusable = True
         self.plugin.update_content(self.btn_submit)
-        current_mode = self.selection_mode_controller.current_mode
+        current_mode = self.current_mode
         rmsd_results = None
+        fixed_comp_index = self.get_fixed_comp_index() or 0
         if current_mode == 'global':
-            fixed_comp = self.global_align_controller.get_fixed_complex()
-            moving_comps = self.global_align_controller.get_moving_complexes()
-            if not all([fixed_comp, moving_comps]):
+            moving_comp_indices = self.get_moving_comp_indices()
+            if not all([fixed_comp_index, moving_comp_indices]):
                 msg = "Please select all complexes."
                 Logs.warning(msg)
-                self.plugin.send_notification(NotificationTypes.warning, msg)
+                self.plugin.send_notification(NotificationTypes.error, msg)
             else:
-                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp, moving_comps)
+                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices)
         if current_mode == 'chain':
-            fixed_comp = self.chain_align_controller.get_fixed_complex()
-            fixed_chain = self.chain_align_controller.get_fixed_chain()
-            moving_comp_chain_list = self.chain_align_controller.get_moving_complexes_and_chains()
-            # moving_chain = self.chain_align_controller.get_moving_chains()
-            if not all([fixed_comp, fixed_chain, moving_comp_chain_list]):
+            fixed_chain = self.get_fixed_chain()
+            moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
+            if not all([fixed_comp_index, fixed_chain, moving_comp_chain_list]):
                 msg = "Please select all complexes and chains."
                 Logs.warning(msg)
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
-                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp, fixed_chain, moving_comp_chain_list)
-        elif current_mode == 'active_site':
-            target_reference = self.active_site_controller.get_target_reference()
-            ligand_name = self.active_site_controller.get_target_ligand_name()
-            moving_comp_list = self.active_site_controller.get_moving_complexes()
-            site_size = self.active_site_controller.get_site_size()
-
-            if not all([target_reference, ligand_name, moving_comp_list]):
-                msg = "Please select all complexes and chains."
-                Logs.warning(msg)
-                self.plugin.send_notification(NotificationTypes.error, msg)
-            else:
-                rmsd_results = await self.plugin.superimpose_by_active_site(
-                    target_reference, ligand_name, moving_comp_list, site_size)
+                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list)
         if rmsd_results:
             self.render_rmsd_results(rmsd_results)
+            self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
+        self.plugin.update_node(self.ln_btn_rmsd_table)
         self.plugin.update_content(self.btn_submit)
 
     def render_rmsd_results(self, rmsd_results):
         """Render rmsd results in a list of labels."""
         new_menu = ui.Menu()
-        new_menu.index = 100
+        new_menu.index = 200
+
         new_menu.title = "RMSD Values"
         ln = ui.LayoutNode()
         results_list = ui.UIList()
@@ -749,5 +129,173 @@ class RMSDMenu:
             results_list.items.append(item)
         ln.set_content(results_list)
         new_menu.root.add_child(ln)
-        new_menu.enabled = True
-        self.plugin.update_menu(new_menu)
+        new_menu.enabled = False
+        self.rmsd_menu = new_menu
+
+    @property
+    def root(self):
+        return self._menu.root.find_node('Entry Panel')
+
+    @property
+    def ln_moving_comp_list(self):
+        return self.root.find_node('ln_moving_comp_list')
+
+    @property
+    def ln_fixed_struct(self):
+        return self.panel_root.find_node('ln_fixed_struct')
+
+    @property
+    def ln_moving_structs(self):
+        return self.panel_root.find_node('ln_moving_structs')
+
+    @property
+    def ln_fixed_selection(self):
+        return self.panel_root.find_node('ln_fixed_selection')
+
+    @property
+    def ln_moving_selections(self):
+        return self.panel_root.find_node('ln_moving_selection')
+
+    def get_fixed_comp_index(self):
+        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            btn_fixed = item.find_node('btn_fixed').get_content()
+            struct_name = item.find_node('lbl_struct_name').get_content().text_value
+            if btn_fixed.selected:
+                comp = next(comp for comp in self.plugin.complexes if comp.full_name == struct_name)
+                return comp.index
+
+    def get_moving_comp_indices(self):
+        comps = []
+        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            btn_moving = item.find_node('btn_moving').get_content()
+            struct_name = item.find_node('lbl_struct_name').get_content().text_value
+            if btn_moving.selected:
+                comp = next(comp for comp in self.plugin.complexes if comp.full_name == struct_name)
+                comps.append(comp.index)
+        return comps
+
+    def get_fixed_chain(self):
+        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            btn_fixed = item.find_node('btn_fixed').get_content()
+            if btn_fixed.selected:
+                dd_chain = item.find_node('dd_chain').get_content()
+                selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
+                return getattr(selected_ddi, 'name', '')
+
+    def populate_comp_list(self, complexes, mode='global', default_comp=None):
+        comp_list = self.ln_moving_comp_list.get_content()
+        comp_list.items = []
+        for comp in complexes:
+            ln = ui.LayoutNode.io.from_json(MENU_ITEM_PATH_ENTRY)
+            btn_fixed = ln.find_node('btn_fixed').get_content()
+            btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
+            btn_moving = ln.find_node('btn_moving').get_content()
+            lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
+            lbl_struct_name.text_value = comp.full_name
+            btn_fixed.toggle_on_press = True
+            btn_moving.toggle_on_press = True
+
+            ln_dd_chain = ln.find_node('dd_chain')
+            ln_dd_chain.enabled = mode == 'chain'
+            # Set up chain dropdown if in chain mode
+            if mode == 'chain':
+                dd_chain = ln_dd_chain.get_content()
+                comp = next(
+                    cmp for cmp in self.plugin.complexes
+                    if cmp.full_name == lbl_struct_name.text_value)
+                dd_chain.items = create_chain_dropdown_items(comp)
+            comp_list.items.append(ln)
+        self.plugin.update_node(self.ln_moving_comp_list)
+
+    def btn_fixed_clicked(self, btn):
+        """Only one fixed strcuture can be selected at a time."""
+        btns_to_update = [btn]
+        for menu_item in self.ln_moving_comp_list.get_content().items:
+            btn_fixed = menu_item.find_node('btn_fixed').get_content()
+            btn_moving = menu_item.find_node('btn_moving').get_content()
+            if btn_fixed == btn:
+                # Fixed structure cannot also be a moving structure.
+                if not btn.selected:
+                    btn_moving.unusable = False
+                else:
+                    btn_moving.selected = False
+                    btn_moving.unusable = True
+            else:
+                btn_fixed.selected = False
+                btn_moving.unusable = False
+            btns_to_update.append(btn_fixed)
+            btns_to_update.append(btn_moving)
+        self.plugin.update_content(*btns_to_update)
+
+    @property
+    def mode_selection_btn_group(self):
+        return [self.btn_global_align, self.btn_align_by_chain, self.btn_align_by_binding_site]
+
+    @property
+    def btn_global_align(self):
+        return self._menu.root.find_node('ln_btn_global_align').get_content()
+
+    @property
+    def btn_align_by_chain(self):
+        return self._menu.root.find_node('ln_btn_align_by_chain').get_content()
+
+    @property
+    def btn_align_by_binding_site(self):
+        return self._menu.root.find_node('ln_btn_align_by_binding_site').get_content()
+
+    @async_callback
+    async def on_mode_selected(self, btn, update=True, log=True):
+        btn.selected = True
+        btns_to_update = [btn]
+        for group_item in self.mode_selection_btn_group:
+            if btn._content_id != group_item._content_id:
+                group_item.selected = False
+                btns_to_update.append(group_item)
+        if btn.name == 'btn_global_align':
+            if log:
+                Logs.message("Switched to entry mode")
+            self.current_mode = 'global'
+            self.render(complexes=self.plugin.complexes)
+        elif btn.name == 'btn_align_by_chain':
+            if log:
+                Logs.message("Switched to chain mode.")
+            self.current_mode = 'chain'
+            # Get deep complexes if necessary
+            for comp in self.plugin.complexes:
+                if sum(1 for _ in comp.chains) == 0:
+                    self.btn_align_by_chain.unusable = True
+                    self.plugin.update_content(self.btn_align_by_chain)
+                    comp_indices = [cmp.index for cmp in self.plugin.complexes]
+                    self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
+                    self.btn_align_by_chain.unusable = False
+                    break
+        await self.plugin.menu.render(complexes=self.plugin.complexes)
+        if update:
+            self.plugin.update_menu(self._menu)
+
+    def get_moving_comp_indices_and_chains(self):
+        comp_chain_list = []
+        lst = self.ln_moving_comp_list.get_content()
+        for item in lst.items:
+            btn = item.find_node('btn_moving').get_content()
+            chain_dd = item.find_node('dd_chain').get_content()
+            comp_name = item.find_node('lbl_struct_name').get_content().text_value
+            if not btn.selected:
+                continue
+
+            selected_comp = next((
+                comp for comp in self.plugin.complexes
+                if comp.full_name == comp_name
+            ), None)
+            selected_chain = None
+            for chain_ddi in chain_dd.items:
+                if chain_ddi.selected:
+                    selected_chain = chain_ddi.name
+                    break
+                print('here')
+            comp_chain_list.append((selected_comp.index, selected_chain))
+        return comp_chain_list
+
+    def open_rmsd_table(self, btn):
+        self.rmsd_menu.enabled = True
+        self.plugin.update_menu(self.rmsd_menu)
