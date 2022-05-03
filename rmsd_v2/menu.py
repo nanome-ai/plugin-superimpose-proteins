@@ -1,4 +1,3 @@
-from hashlib import new
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback
@@ -25,6 +24,7 @@ BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
 MENU_ITEM_PATH_ENTRY = path.join(BASE_PATH, 'menu_json', 'menu_item_entry.json')
 INFO_ICON_PATH = path.join(BASE_PATH, 'assets', 'info_icon.png')
+GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
 
 class RMSDMenu:
@@ -33,15 +33,14 @@ class RMSDMenu:
         super().__init__()
         self._menu = ui.Menu.io.from_json(MENU_PATH)
         self.plugin = plugin_instance
-        # Make sure Global Align Panel is always default
-        self.btn_color_override.toggle_on_press = True
-        self.btn_color_override.switch.active = True
         self.ln_info_img.add_new_image(INFO_ICON_PATH)
+        self.btn_advanced.icon.value.set_all(GEAR_ICON_PATH)
 
         self.current_mode = 'global'
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
         self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
+        self.btn_docs.register_pressed_callback(self.open_docs_page)
 
     @property
     def btn_submit(self):
@@ -54,18 +53,6 @@ class RMSDMenu:
     @property
     def btn_rmsd_table(self):
         return self.ln_btn_rmsd_table.get_content()
-
-    @property
-    def ln_rmsd_value(self):
-        return self._menu.root.find_node('ln_rmsd_value')
-
-    @property
-    def lst_rmsd_results(self):
-        return self._menu.root.find_node('ln_rmsd_results').get_content()
-
-    @property
-    def btn_color_override(self):
-        return self._menu.root.find_node('ln_color_override').get_content()
 
     @property
     def ln_info_img(self):
@@ -136,26 +123,6 @@ class RMSDMenu:
     def root(self):
         return self._menu.root.find_node('Entry Panel')
 
-    @property
-    def ln_moving_comp_list(self):
-        return self.root.find_node('ln_moving_comp_list')
-
-    @property
-    def ln_fixed_struct(self):
-        return self.panel_root.find_node('ln_fixed_struct')
-
-    @property
-    def ln_moving_structs(self):
-        return self.panel_root.find_node('ln_moving_structs')
-
-    @property
-    def ln_fixed_selection(self):
-        return self.panel_root.find_node('ln_fixed_selection')
-
-    @property
-    def ln_moving_selections(self):
-        return self.panel_root.find_node('ln_moving_selection')
-
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
             btn_fixed = item.find_node('btn_fixed').get_content()
@@ -185,7 +152,8 @@ class RMSDMenu:
     def populate_comp_list(self, complexes, mode='global', default_comp=None):
         comp_list = self.ln_moving_comp_list.get_content()
         comp_list.items = []
-        for comp in complexes:
+        set_default_values = len(complexes) == 2
+        for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(MENU_ITEM_PATH_ENTRY)
             btn_fixed = ln.find_node('btn_fixed').get_content()
             btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
@@ -204,7 +172,19 @@ class RMSDMenu:
                     cmp for cmp in self.plugin.complexes
                     if cmp.full_name == lbl_struct_name.text_value)
                 dd_chain.items = create_chain_dropdown_items(comp)
+            # Set default selections if required.
+            if set_default_values and i == 0:
+                btn_fixed.selected = True
+                btn_moving.selected = False
+                if ln_dd_chain.enabled:
+                    dd_chain.items[0].selected = True
+            elif set_default_values and i == 1:
+                btn_fixed.selected = False
+                btn_moving.selected = True
+                if ln_dd_chain.enabled:
+                    dd_chain.items[0].selected = True
             comp_list.items.append(ln)
+
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def btn_fixed_clicked(self, btn):
@@ -242,6 +222,14 @@ class RMSDMenu:
     @property
     def btn_align_by_binding_site(self):
         return self._menu.root.find_node('ln_btn_align_by_binding_site').get_content()
+
+    @property
+    def btn_docs(self):
+        return self._menu.root.find_node('btn_docs').get_content()
+
+    @property
+    def btn_advanced(self):
+        return self._menu.root.find_node('btn_advanced').get_content()
 
     @async_callback
     async def on_mode_selected(self, btn, update=True, log=True):
@@ -299,3 +287,7 @@ class RMSDMenu:
     def open_rmsd_table(self, btn):
         self.rmsd_menu.enabled = True
         self.plugin.update_menu(self.rmsd_menu)
+
+    def open_docs_page(self, btn):
+        docs_url = 'https://docs.nanome.ai/plugins/cheminteractions.html'
+        self.plugin.open_url(docs_url)
