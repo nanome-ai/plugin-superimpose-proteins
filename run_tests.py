@@ -2,8 +2,8 @@ import os
 import unittest
 import sys
 
-rmsd_dir = f'{os.getcwd()}/plugin/'
-sys.path.append(rmsd_dir)
+plugin_dir = f'{os.getcwd()}/plugin/'
+sys.path.append(plugin_dir)
 
 test_directory = 'tests'
 suite = unittest.TestLoader().discover(test_directory)

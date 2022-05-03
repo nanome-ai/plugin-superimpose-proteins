@@ -11,14 +11,14 @@ from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex
-from .menu import RMSDMenu
+from .menu import MainMenu
 from .fpocket_client import FPocketClient
 
 
 class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     def start(self):
-        self.menu = RMSDMenu(self)
+        self.menu = MainMenu(self)
 
     @async_callback
     async def on_run(self):

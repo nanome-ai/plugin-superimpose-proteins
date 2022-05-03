@@ -11,4 +11,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: cd docker && ./build.sh
-    - run: docker run --rm rmsd-v2 python run_tests.py
+    - run: docker run --rm superimpose python run_tests.py
