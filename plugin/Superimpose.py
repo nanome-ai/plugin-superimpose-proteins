@@ -15,7 +15,7 @@ from .menu import RMSDMenu
 from .fpocket_client import FPocketClient
 
 
-class RMSDV2(nanome.AsyncPluginInstance):
+class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     def start(self):
         self.menu = RMSDMenu(self)
@@ -283,8 +283,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
 
 def main():
-    plugin = nanome.Plugin('RMSD V2', 'Superimpose two structures', 'alignment', False)
-    plugin.set_plugin_class(RMSDV2)
+    plugin = nanome.Plugin('Superimpose', 'Superimpose two or more structures', 'alignment', False)
+    plugin.set_plugin_class(SuperimposePlugin)
     plugin.run()
 
 

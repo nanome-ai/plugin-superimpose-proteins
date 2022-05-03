@@ -2,7 +2,7 @@ import os
 import unittest
 import sys
 
-rmsd_dir = f'{os.getcwd()}/rmsd_v2/'
+rmsd_dir = f'{os.getcwd()}/plugin/'
 sys.path.append(rmsd_dir)
 
 test_directory = 'tests'

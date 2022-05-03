@@ -6,7 +6,7 @@ from random import randint
 
 from unittest.mock import MagicMock
 from nanome.api.structure import Complex
-from rmsd_v2.RMSDV2 import RMSDV2
+from plugin.Superimpose import SuperimposePlugin
 
 
 fixtures_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
@@ -32,7 +32,7 @@ class PluginFunctionTestCase(unittest.TestCase):
             atom.index = randint(1000000000, 9999999999)
         for atom in self.complex_1mbo.atoms:
             atom.index = randint(1000000000, 9999999999)
-        self.plugin_instance = RMSDV2()
+        self.plugin_instance = SuperimposePlugin()
         self.plugin_instance.start()
         self.plugin_instance._network = MagicMock()
 
