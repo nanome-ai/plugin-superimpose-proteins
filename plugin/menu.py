@@ -58,7 +58,7 @@ class MainMenu:
     @property
     def ln_moving_comp_list(self):
         return self._menu.root.find_node('ln_moving_comp_list')
-    
+
     @property
     def lbl_moving_structures(self):
         return self._menu.root.find_node('lbl_moving_structures').get_content()
@@ -178,7 +178,7 @@ class MainMenu:
             btn_moving = ln.find_node('btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_lbl_chain_count = ln.find_node('lbl_chain_count')
-            
+
             lbl_chain_count = ln_lbl_chain_count.get_content()
             btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
             btn_moving.register_pressed_callback(self.btn_moving_clicked)
@@ -236,7 +236,7 @@ class MainMenu:
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.plugin.update_content(*btns_to_update)
-    
+
     def btn_moving_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
