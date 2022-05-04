@@ -26,7 +26,6 @@ COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
 
-INFO_ICON_PATH = path.join(BASE_PATH, 'assets', 'info_icon.png')
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
 
@@ -36,7 +35,6 @@ class MainMenu:
         super().__init__()
         self._menu = ui.Menu.io.from_json(MENU_PATH)
         self.plugin = plugin_instance
-        self.ln_info_img.add_new_image(INFO_ICON_PATH)
         self.btn_advanced.icon.value.set_all(GEAR_ICON_PATH)
 
         self.current_mode = 'global'
@@ -56,10 +54,6 @@ class MainMenu:
     @property
     def btn_rmsd_table(self):
         return self.ln_btn_rmsd_table.get_content()
-
-    @property
-    def ln_info_img(self):
-        return self._menu.root.find_node('ln_info_img')
 
     @property
     def ln_moving_comp_list(self):
@@ -99,11 +93,10 @@ class MainMenu:
             else:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list)
         if rmsd_results:
-            fixed_name_in_header = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
+            fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == 'chain':
-                fixed_name_in_header = f'{fixed_name_in_header} Chain {fixed_chain}'
-
-            self.render_rmsd_results(rmsd_results, fixed_name_in_header)
+                fixed_name = f'{fixed_name} Chain {fixed_chain}'
+            self.render_rmsd_results(rmsd_results, fixed_name)
             self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
         self.plugin.update_node(self.ln_btn_rmsd_table)
