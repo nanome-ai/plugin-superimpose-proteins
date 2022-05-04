@@ -26,7 +26,6 @@ COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
 
-INFO_ICON_PATH = path.join(BASE_PATH, 'assets', 'info_icon.png')
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
 
@@ -36,7 +35,6 @@ class MainMenu:
         super().__init__()
         self._menu = ui.Menu.io.from_json(MENU_PATH)
         self.plugin = plugin_instance
-        self.ln_info_img.add_new_image(INFO_ICON_PATH)
         self.btn_advanced.icon.value.set_all(GEAR_ICON_PATH)
 
         self.current_mode = 'global'
@@ -58,12 +56,12 @@ class MainMenu:
         return self.ln_btn_rmsd_table.get_content()
 
     @property
-    def ln_info_img(self):
-        return self._menu.root.find_node('ln_info_img')
-
-    @property
     def ln_moving_comp_list(self):
         return self._menu.root.find_node('ln_moving_comp_list')
+
+    @property
+    def lbl_moving_structures(self):
+        return self._menu.root.find_node('lbl_moving_structures').get_content()
 
     @async_callback
     async def render(self, complexes=None):
@@ -99,11 +97,10 @@ class MainMenu:
             else:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list)
         if rmsd_results:
-            fixed_name_in_header = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
+            fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == 'chain':
-                fixed_name_in_header = f'{fixed_name_in_header} Chain {fixed_chain}'
-
-            self.render_rmsd_results(rmsd_results, fixed_name_in_header)
+                fixed_name = f'{fixed_name} Chain {fixed_chain}'
+            self.render_rmsd_results(rmsd_results, fixed_name)
             self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
         self.plugin.update_node(self.ln_btn_rmsd_table)
@@ -178,17 +175,28 @@ class MainMenu:
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             btn_fixed = ln.find_node('btn_fixed').get_content()
-            btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
             btn_moving = ln.find_node('btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
+            ln_lbl_chain_count = ln.find_node('lbl_chain_count')
+
+            lbl_chain_count = ln_lbl_chain_count.get_content()
+            btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
+            btn_moving.register_pressed_callback(self.btn_moving_clicked)
+
             lbl_struct_name.text_value = comp.full_name
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
+            chain_count = sum(
+                1 for ch in comp.chains
+                if not ch.name.startswith('H')
+                or len(ch.name) < 2)
+            lbl_chain_count.text_value = f'{chain_count} Chain(s)'
 
             ln_dd_chain = ln.find_node('dd_chain')
             ln_dd_chain.enabled = mode == 'chain'
             # Set up chain dropdown if in chain mode
             if mode == 'chain':
+                ln_lbl_chain_count.enabled = True
                 dd_chain = ln_dd_chain.get_content()
                 comp = next(
                     cmp for cmp in self.plugin.complexes
@@ -228,6 +236,20 @@ class MainMenu:
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.plugin.update_content(*btns_to_update)
+
+    def btn_moving_clicked(self, btn):
+        """Only one fixed strcuture can be selected at a time."""
+        btns_to_update = [btn]
+        selected_count = 0
+        for menu_item in self.ln_moving_comp_list.get_content().items:
+            btn_moving = menu_item.find_node('btn_moving').get_content()
+            if btn_moving.selected:
+                selected_count += 1
+        label_text = 'Moving Structures'
+        if selected_count > 0:
+            label_text += f' ({selected_count})'
+        self.lbl_moving_structures.text_value = label_text
+        self.plugin.update_content(self.lbl_moving_structures, *btns_to_update)
 
     @property
     def mode_selection_btn_group(self):
