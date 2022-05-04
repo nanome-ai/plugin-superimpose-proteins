@@ -23,6 +23,9 @@ def create_chain_dropdown_items(comp, set_default=False):
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
 MENU_ITEM_PATH_ENTRY = path.join(BASE_PATH, 'menu_json', 'menu_item_entry.json')
+RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
+RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+
 INFO_ICON_PATH = path.join(BASE_PATH, 'assets', 'info_icon.png')
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
@@ -104,18 +107,19 @@ class MainMenu:
 
     def render_rmsd_results(self, rmsd_results):
         """Render rmsd results in a list of labels."""
-        new_menu = ui.Menu()
+        new_menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
         new_menu.index = 200
 
-        new_menu.title = "RMSD Values"
-        ln = ui.LayoutNode()
-        results_list = ui.UIList()
-        for name, rms_val in rmsd_results.items():
-            item = ui.LayoutNode()
-            item.add_new_label(f"{name}: {rms_val:.2f}")
-            results_list.items.append(item)
-        ln.set_content(results_list)
-        new_menu.root.add_child(ln)
+        results_list = new_menu.root.find_node('results_list').get_content()
+        list_items = []
+        for i, (name, rms_val) in enumerate(rmsd_results.items()):
+            item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
+            item.get_children()[0].get_content().text_value = f'{i + 1}'
+            item.get_children()[1].get_content().text_value = name
+            item.get_children()[2].get_content().text_value = rms_val
+            list_items.append(item)
+        
+        results_list.items = list_items
         new_menu.enabled = False
         self.rmsd_menu = new_menu
 
