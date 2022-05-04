@@ -22,7 +22,7 @@ def create_chain_dropdown_items(comp, set_default=False):
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
-MENU_ITEM_PATH_ENTRY = path.join(BASE_PATH, 'menu_json', 'menu_item_entry.json')
+COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
 
@@ -158,7 +158,7 @@ class MainMenu:
         comp_list.items = []
         set_default_values = len(complexes) == 2
         for i, comp in enumerate(complexes):
-            ln = ui.LayoutNode.io.from_json(MENU_ITEM_PATH_ENTRY)
+            ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             btn_fixed = ln.find_node('btn_fixed').get_content()
             btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
             btn_moving = ln.find_node('btn_moving').get_content()
