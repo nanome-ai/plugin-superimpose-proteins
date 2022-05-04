@@ -58,8 +58,12 @@ class PluginFunctionTestCase(unittest.TestCase):
             self.complex_4hhb.index, chain_name_4hhb,
             moving_comp_chain_list
         )
-        expected_result = 1.95456
-        expected_output = {self.complex_1mbo.full_name: expected_result}
+        expected_output = {
+            self.complex_1mbo.full_name: {
+                'rmsd': 1.95456,
+                'paired_residues': 138
+            }
+        }
         self.assertEqual(result, expected_output)
 
     @patch('nanome._internal._network.PluginNetwork._instance')
@@ -78,5 +82,5 @@ class PluginFunctionTestCase(unittest.TestCase):
             self.complex_4hhb.index,
             [self.complex_1mbo.index]
         )
-        expected_result = {self.complex_1mbo.full_name: 27.69646}
+        expected_result = {'complex': {'rmsd': 27.69646, 'paired_residues': 552}}
         self.assertEqual(result, expected_result)

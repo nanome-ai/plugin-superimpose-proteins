@@ -112,15 +112,19 @@ class MainMenu:
 
         results_list = new_menu.root.find_node('results_list').get_content()
         list_items = []
-        row_color1 = Color(21, 26, 37)  # 151A25
-        row_color2 = Color(42, 52, 63)  # 2A343F
-        for i, (name, rms_val) in enumerate(rmsd_results.items(), 1):
+        row_color1 = Color(21, 26, 37)
+        row_color2 = Color(42, 52, 63)
+        for i, comp_name in enumerate(rmsd_results, 1):
+            results_data = rmsd_results[comp_name]
+            rmsd_val = results_data['rmsd']
+            paired_residue_count = results_data['paired_residues']
             item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
             item_mesh = item.add_new_mesh()
             item_mesh.mesh_color = row_color1 if i % 2 == 0 else row_color2
-            item.get_children()[0].get_content().text_value = f'{i}'
-            item.get_children()[1].get_content().text_value = name
-            item.get_children()[2].get_content().text_value = rms_val
+            item.get_children()[0].get_content().text_value = i
+            item.get_children()[1].get_content().text_value = comp_name
+            item.get_children()[2].get_content().text_value = rmsd_val
+            item.get_children()[3].get_content().text_value = paired_residue_count
             list_items.append(item)
         
         results_list.items = list_items
