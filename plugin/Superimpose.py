@@ -1,6 +1,7 @@
 import nanome
 import tempfile
 import time
+
 from Bio.PDB.Structure import Structure
 from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
@@ -157,6 +158,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             comp_data = {
                 'rmsd': rms,
                 'paired_residues': paired_residue_count,
+                'chain': moving_chain_name
             }
             results[moving_comp.full_name] = comp_data
             

@@ -61,7 +61,8 @@ class PluginFunctionTestCase(unittest.TestCase):
         expected_output = {
             self.complex_1mbo.full_name: {
                 'rmsd': 1.95456,
-                'paired_residues': 138
+                'paired_residues': 138,
+                'chain': 'A'
             }
         }
         self.assertEqual(result, expected_output)

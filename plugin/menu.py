@@ -99,17 +99,23 @@ class MainMenu:
             else:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list)
         if rmsd_results:
-            self.render_rmsd_results(rmsd_results)
+            fixed_name_in_header = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
+            if current_mode == 'chain':
+                fixed_name_in_header = f'{fixed_name_in_header} Chain {fixed_chain}'
+
+            self.render_rmsd_results(rmsd_results, fixed_name_in_header)
             self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
         self.plugin.update_node(self.ln_btn_rmsd_table)
         self.plugin.update_content(self.btn_submit)
 
-    def render_rmsd_results(self, rmsd_results):
-        """Render rmsd results in a list of labels."""
+    def render_rmsd_results(self, rmsd_results, fixed_comp_name):
+        """Render rmsd results in a list."""
         new_menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
         new_menu.index = 200
 
+        comp_header_lbl = new_menu.root.find_node('comp_name_header').get_content()
+        comp_header_lbl.text_value = comp_header_lbl.text_value.replace('<fixed>', fixed_comp_name)
         results_list = new_menu.root.find_node('results_list').get_content()
         list_items = []
         row_color1 = Color(21, 26, 37)
@@ -118,9 +124,13 @@ class MainMenu:
             results_data = rmsd_results[comp_name]
             rmsd_val = results_data['rmsd']
             paired_residue_count = results_data['paired_residues']
+            if 'chain' in results_data:
+                comp_name = f'{comp_name} Chain {results_data["chain"]}'            
+            
             item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
             item_mesh = item.add_new_mesh()
             item_mesh.mesh_color = row_color1 if i % 2 == 0 else row_color2
+
             item.get_children()[0].get_content().text_value = i
             item.get_children()[1].get_content().text_value = comp_name
             item.get_children()[2].get_content().text_value = rmsd_val
