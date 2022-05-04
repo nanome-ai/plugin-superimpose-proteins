@@ -175,19 +175,28 @@ class MainMenu:
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             btn_fixed = ln.find_node('btn_fixed').get_content()
-            btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
             btn_moving = ln.find_node('btn_moving').get_content()
+            lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
+            ln_lbl_chain_count = ln.find_node('lbl_chain_count')
+            
+            lbl_chain_count = ln_lbl_chain_count.get_content()
+            btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
             btn_moving.register_pressed_callback(self.btn_moving_clicked)
 
-            lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             lbl_struct_name.text_value = comp.full_name
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
+            chain_count = sum(
+                1 for ch in comp.chains
+                if not ch.name.startswith('H')
+                or len(ch.name) < 2)
+            lbl_chain_count.text_value = f'{chain_count} Chain(s)'
 
             ln_dd_chain = ln.find_node('dd_chain')
             ln_dd_chain.enabled = mode == 'chain'
             # Set up chain dropdown if in chain mode
             if mode == 'chain':
+                ln_lbl_chain_count.enabled = True
                 dd_chain = ln_dd_chain.get_content()
                 comp = next(
                     cmp for cmp in self.plugin.complexes
