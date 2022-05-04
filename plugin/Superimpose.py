@@ -1,6 +1,7 @@
 import nanome
 import tempfile
 import time
+
 from Bio.PDB.Structure import Structure
 from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
@@ -58,11 +59,20 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-            transform_matrix, rms = await self.superimpose(fixed_struct, moving_struct)
-            moving_comp.set_surface_needs_redraw()
+            superimposer, paired_residue_count = await self.superimpose(fixed_struct, moving_struct)
+            transform_matrix = self.create_transform_matrix(superimposer)
+
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
-            rmsd_results[moving_comp.full_name] = rms
+            moving_comp.set_surface_needs_redraw()
+
+            # Set up data to return to caller
+            rms = round(superimposer.rms, 5)
+            comp_data = {
+                'rmsd': rms,
+                'paired_residues': paired_residue_count,
+            }
+            rmsd_results[moving_comp.full_name] = comp_data
             moving_comp.locked = True
             comps_to_update.append(moving_comp)
         await self.update_structures_deep(comps_to_update)
@@ -111,9 +121,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
         rms = round(superimposer.rms, 5)
-        transform_matrix = self.create_transform_matrix(superimposer)
         Logs.message(f"RMSD: {rms}")
-        return transform_matrix, rms
+        paired_residue_count = len(fixed_atoms)
+        return superimposer, paired_residue_count
 
     async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list):
         start_time = time.time()
@@ -141,13 +151,22 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
             moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
-            transform_matrix, rms = await self.superimpose(fixed_chain, moving_chain)
-            results[moving_comp.full_name] = rms
+            superimposer, paired_residue_count = await self.superimpose(fixed_chain, moving_chain)
+            transform_matrix = self.create_transform_matrix(superimposer)
+
+            rms = round(superimposer.rms, 5)
+            comp_data = {
+                'rmsd': rms,
+                'paired_residues': paired_residue_count,
+                'chain': moving_chain_name
+            }
+            results[moving_comp.full_name] = comp_data
+
             # apply transformation to moving_comp
-            moving_comp.set_surface_needs_redraw()
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
             moving_comp.locked = True
+            moving_comp.set_surface_needs_redraw()
             comps_to_update.append(moving_comp)
 
         await self.update_structures_deep(comps_to_update)
