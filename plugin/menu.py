@@ -125,8 +125,8 @@ class MainMenu:
             rmsd_val = results_data['rmsd']
             paired_residue_count = results_data['paired_residues']
             if 'chain' in results_data:
-                comp_name = f'{comp_name} Chain {results_data["chain"]}'            
-            
+                comp_name = f'{comp_name} Chain {results_data["chain"]}'
+
             item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
             item_mesh = item.add_new_mesh()
             item_mesh.mesh_color = row_color1 if i % 2 == 0 else row_color2
@@ -136,7 +136,7 @@ class MainMenu:
             item.get_children()[2].get_content().text_value = rmsd_val
             item.get_children()[3].get_content().text_value = paired_residue_count
             list_items.append(item)
-        
+
         results_list.items = list_items
         new_menu.enabled = False
         self.rmsd_menu = new_menu

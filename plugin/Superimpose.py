@@ -161,7 +161,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 'chain': moving_chain_name
             }
             results[moving_comp.full_name] = comp_data
-            
+
             # apply transformation to moving_comp
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
