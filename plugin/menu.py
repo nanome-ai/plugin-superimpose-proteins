@@ -58,6 +58,10 @@ class MainMenu:
     @property
     def ln_moving_comp_list(self):
         return self._menu.root.find_node('ln_moving_comp_list')
+    
+    @property
+    def lbl_moving_structures(self):
+        return self._menu.root.find_node('lbl_moving_structures').get_content()
 
     @async_callback
     async def render(self, complexes=None):
@@ -173,6 +177,8 @@ class MainMenu:
             btn_fixed = ln.find_node('btn_fixed').get_content()
             btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
             btn_moving = ln.find_node('btn_moving').get_content()
+            btn_moving.register_pressed_callback(self.btn_moving_clicked)
+
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             lbl_struct_name.text_value = comp.full_name
             btn_fixed.toggle_on_press = True
@@ -221,6 +227,20 @@ class MainMenu:
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.plugin.update_content(*btns_to_update)
+    
+    def btn_moving_clicked(self, btn):
+        """Only one fixed strcuture can be selected at a time."""
+        btns_to_update = [btn]
+        selected_count = 0
+        for menu_item in self.ln_moving_comp_list.get_content().items:
+            btn_moving = menu_item.find_node('btn_moving').get_content()
+            if btn_moving.selected:
+                selected_count += 1
+        label_text = 'Moving Structures'
+        if selected_count > 0:
+            label_text += f' ({selected_count})'
+        self.lbl_moving_structures.text_value = label_text
+        self.plugin.update_content(self.lbl_moving_structures, *btns_to_update)
 
     @property
     def mode_selection_btn_group(self):
