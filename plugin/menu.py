@@ -21,7 +21,7 @@ def create_chain_dropdown_items(comp, set_default=False):
 
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
+MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
 COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
