@@ -27,7 +27,7 @@ INFO_ICON_PATH = path.join(BASE_PATH, 'assets', 'info_icon.png')
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
 
-class RMSDMenu:
+class MainMenu:
 
     def __init__(self, plugin_instance):
         super().__init__()

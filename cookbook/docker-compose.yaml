@@ -36,7 +36,7 @@ services:
     ports:
       - 8888:8888
     volumes:
-      - /home/mike/workspace/rmsd-2/rmsd_v2:/app/rmsd_v2
+      - /home/mike/workspace/rmsd-2/plugin:/app/plugin
       - /home/mike/workspace/rmsd-2/cookbook/notebooks:/app/cookbook/notebooks
       - /home/mike/workspace/rmsd-2/cookbook/temp:/tmp
 

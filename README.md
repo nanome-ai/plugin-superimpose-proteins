@@ -1,4 +1,4 @@
-# Nanome - RMSD V2
+# Nanome - Superimpose / RMSD
 
 Superimpose two structures
 
@@ -12,7 +12,7 @@ Superimpose two structures
 
 ## Usage
 
-To run RMSD V2 in a Docker container:
+To run Superimpose in a Docker container:
 
 ```sh
 $ cd docker
@@ -51,7 +51,7 @@ optional arguments:
 ```
 
 ## Development
-To run RMSD V2 with autoreload:
+To run Superimpose with autoreload:
 
 ```sh
 $ python3 -m pip install -r requirements.txt

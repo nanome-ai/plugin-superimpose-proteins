@@ -3,14 +3,15 @@
 echo "./deploy.sh $*" > redeploy.sh
 chmod +x redeploy.sh
 
-existing=$(docker ps -aqf name=rmsd-v2)
+container_name=superimpose
+existing=$(docker ps -aqf name=$container_name)
 if [ -n "$existing" ]; then
     echo "removing existing container"
     docker rm -f $existing
 fi
 
 docker run -d \
---name rmsd-v2 \
+--name $container_name \
 --restart unless-stopped \
 -e ARGS="$*" \
-rmsd-v2
+$container_name

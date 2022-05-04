@@ -8,7 +8,7 @@ ARG FPOCKET_VERSION=4.0.1
 RUN git clone -b ${FPOCKET_VERSION} https://github.com/Discngine/fpocket.git
 RUN cd fpocket && make && make install
 
-COPY rmsd_v2 /app/rmsd_v2
+COPY plugin /app/plugin
 
 ARG CACHEBUST
 COPY requirements.txt .
@@ -25,8 +25,8 @@ COPY cookbook/cookbook_environ.yaml .
 RUN conda env update --file cookbook_environ.yaml
 
 COPY cookbook /app/cookbook
-RUN ln -s /app/rmsd_v2 /app/cookbook/rmsd_v2
-RUN ln -s /app/rmsd_v2 /opt/conda/lib/python3.9/site-packages/rmsd_v2
+RUN ln -s /app/plugin /app/cookbook/plugin
+RUN ln -s /app/plugin /opt/conda/lib/python3.9/site-packages/plugin
 
 RUN ln -s /app/cookbook /opt/conda/lib/python3.9/site-packages/cookbook
 

@@ -5,7 +5,7 @@ from random import randint
 
 
 from nanome.api.structure import Complex
-from rmsd_v2.fpocket_client import FPocketClient
+from plugin.fpocket_client import FPocketClient
 
 
 fixtures_dir = os.path.join(os.path.dirname(__file__), 'fixtures')

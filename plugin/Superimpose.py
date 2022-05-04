@@ -11,14 +11,14 @@ from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex
-from .menu import RMSDMenu
+from .menu import MainMenu
 from .fpocket_client import FPocketClient
 
 
-class RMSDV2(nanome.AsyncPluginInstance):
+class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     def start(self):
-        self.menu = RMSDMenu(self)
+        self.menu = MainMenu(self)
 
     @async_callback
     async def on_run(self):
@@ -283,8 +283,8 @@ class RMSDV2(nanome.AsyncPluginInstance):
 
 
 def main():
-    plugin = nanome.Plugin('RMSD V2', 'Superimpose two structures', 'alignment', False)
-    plugin.set_plugin_class(RMSDV2)
+    plugin = nanome.Plugin('Superimpose', 'Superimpose two or more structures', 'alignment', False)
+    plugin.set_plugin_class(SuperimposePlugin)
     plugin.run()
 
 
