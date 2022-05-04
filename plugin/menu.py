@@ -1,6 +1,6 @@
 from os import path
 from nanome.api import ui
-from nanome.util import Logs, async_callback
+from nanome.util import Logs, async_callback, Color
 from nanome.util.enums import NotificationTypes
 
 
@@ -112,9 +112,13 @@ class MainMenu:
 
         results_list = new_menu.root.find_node('results_list').get_content()
         list_items = []
-        for i, (name, rms_val) in enumerate(rmsd_results.items()):
+        row_color1 = Color(21, 26, 37)  # 151A25
+        row_color2 = Color(42, 52, 63)  # 2A343F
+        for i, (name, rms_val) in enumerate(rmsd_results.items(), 1):
             item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
-            item.get_children()[0].get_content().text_value = f'{i + 1}'
+            item_mesh = item.add_new_mesh()
+            item_mesh.mesh_color = row_color1 if i % 2 == 0 else row_color2
+            item.get_children()[0].get_content().text_value = f'{i}'
             item.get_children()[1].get_content().text_value = name
             item.get_children()[2].get_content().text_value = rms_val
             list_items.append(item)
