@@ -86,7 +86,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             extra=extra)
         return rmsd_results
 
-    def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count, chain_name=''):
+    def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count: int, chain_name=''):
         # Set up data to return to caller
         rms = round(superimposer.rms, 5)
         comp_data = {
