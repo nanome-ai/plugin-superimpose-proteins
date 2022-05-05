@@ -77,8 +77,6 @@ class MainMenu:
     @async_callback
     async def submit(self, btn):
         current_mode = self.current_mode
-        log_extra = {'superimpose_mode': current_mode}
-        Logs.message("Submit button Pressed.", extra=log_extra)
         self.btn_submit.unusable = True
         self.plugin.update_content(self.btn_submit)
         rmsd_results = None
@@ -90,11 +88,14 @@ class MainMenu:
         selected_alignment_method = next((
             item.name for item in self.dd_align_using.items
             if item.selected), None)
+
         if selected_alignment_method == heavy_atoms_method:
             alignment_method = AlignmentMethodEnum.HEAVY_ATOMS_ONLY
         else:
             alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
 
+        log_extra = {'superimpose_mode': current_mode, 'alignment_method': selected_alignment_method}
+        Logs.message("Submit button Pressed.", extra=log_extra)
         if current_mode == 'entry':
             moving_comp_indices = self.get_moving_comp_indices()
             if not all([fixed_comp_index, moving_comp_indices]):
