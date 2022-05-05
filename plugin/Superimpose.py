@@ -12,6 +12,7 @@ from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex
+from .enums import AlignmentMethodEnum
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
 
@@ -41,7 +42,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         self.complexes = await self.request_complex_list()
         await self.menu.render(complexes=self.complexes)
 
-    async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_type='global'):
+    async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_method):
         start_time = time.time()
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
@@ -59,22 +60,23 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-            superimposer, paired_residue_count = await self.superimpose(fixed_struct, moving_struct)
-            transform_matrix = self.create_transform_matrix(superimposer)
 
+            try:
+                superimposer, paired_atom_count = await self.superimpose(
+                    fixed_struct, moving_struct, alignment_method)
+            except Exception:
+                Logs.error(f"Superimposition failed for {moving_comp.full_name}")
+                continue
+            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_atom_count)
+            # Use matrix to transform moving atoms to new position
+            transform_matrix = self.create_transform_matrix(superimposer)
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
             moving_comp.set_surface_needs_redraw()
-
-            # Set up data to return to caller
-            rms = round(superimposer.rms, 5)
-            comp_data = {
-                'rmsd': rms,
-                'paired_residues': paired_residue_count,
-            }
-            rmsd_results[moving_comp.full_name] = comp_data
             moving_comp.locked = True
-            comps_to_update.append(moving_comp)
+
+            updated_comp = self.format_superimposer_data(superimposer, paired_atom_count)
+            comps_to_update.append(updated_comp)
         await self.update_structures_deep(comps_to_update)
         end_time = time.time()
         process_time = end_time - start_time
@@ -84,48 +86,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             extra=extra)
         return rmsd_results
 
-    @staticmethod
-    def create_transform_matrix(superimposer: Superimposer) -> Matrix:
-        """Convert rotation and transform matrix from superimposer into Nanome Matrix."""
-        rot, tran = superimposer.rotran
-        rot = rot.tolist()
-        tran = tran.tolist()
-        m = Matrix(4, 4)
-        m[0][0:3] = rot[0]
-        m[1][0:3] = rot[1]
-        m[2][0:3] = rot[2]
-        m[3][0:3] = tran
-        m[3][3] = 1
-        # transpose necessary because numpy and nanome matrices are opposite row/col
-        m.transpose()
-        return m
-
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global'):
-        # Collect aligned residues
-        # Align Residues based on Alpha Carbon
-        mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
-        fixed_atoms = []
-        moving_atoms = []
-        alpha_carbon = 'CA'
-        for fixed_residue in fixed_struct.get_residues():
-            fixed_id = fixed_residue.id[1]
-            if fixed_id in mapping:
-                fixed_atoms.append(fixed_residue[alpha_carbon])
-                moving_residue_serial = mapping[fixed_id]
-                moving_residue = next(
-                    rez for rez in moving_struct.get_residues()
-                    if rez.id[1] == moving_residue_serial)
-                moving_atoms.append(moving_residue[alpha_carbon])
-        assert len(moving_atoms) == len(fixed_atoms)
-        Logs.message("Superimposing Structures.")
-        superimposer = Superimposer()
-        superimposer.set_atoms(fixed_atoms, moving_atoms)
-        rms = round(superimposer.rms, 5)
-        Logs.message(f"RMSD: {rms}")
-        paired_residue_count = len(fixed_atoms)
-        return superimposer, paired_residue_count
-
-    async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list):
+    async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, alignment_method):
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
         moving_comp_indices = [item[0] for item in moving_comp_chain_list]
@@ -150,16 +111,21 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
-            moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
-            superimposer, paired_residue_count = await self.superimpose(fixed_chain, moving_chain)
+            moving_chain = next(
+                ch for ch in moving_struct.get_chains()
+                if ch.id == moving_chain_name)
+
+            try:
+                superimposer, paired_atom_count = await self.superimpose(
+                    fixed_chain, moving_chain, alignment_method)
+            except Exception:
+                Logs.error(f"Superimposition failed for {moving_comp.full_name}")
+                continue
+
             transform_matrix = self.create_transform_matrix(superimposer)
 
-            rms = round(superimposer.rms, 5)
-            comp_data = {
-                'rmsd': rms,
-                'paired_residues': paired_residue_count,
-                'chain': moving_chain_name
-            }
+            comp_data = self.format_superimposer_data(
+                superimposer, paired_atom_count, moving_chain_name)
             results[moving_comp.full_name] = comp_data
 
             # apply transformation to moving_comp
@@ -201,6 +167,92 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                     atom.selected = atom in pocket_sets[i]
                 await self.update_structures_deep([moving_comp])
 
+    @staticmethod
+    def create_transform_matrix(superimposer: Superimposer) -> Matrix:
+        """Convert rotation and transform matrix from superimposer into Nanome Matrix."""
+        rot, tran = superimposer.rotran
+        rot = rot.tolist()
+        tran = tran.tolist()
+        m = Matrix(4, 4)
+        m[0][0:3] = rot[0]
+        m[1][0:3] = rot[1]
+        m[2][0:3] = rot[2]
+        m[3][0:3] = tran
+        m[3][3] = 1
+        # transpose necessary because numpy and nanome matrices are opposite row/col
+        m.transpose()
+        return m
+
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_method):
+        # Collect aligned residues
+        # Align Residues based on Alpha Carbon
+        mapping = self.align_structures(fixed_struct, moving_struct)
+        fixed_atoms = []
+        moving_atoms = []
+        alpha_carbon = 'CA'
+        skip_count = 0
+        for fixed_residue in fixed_struct.get_residues():
+            fixed_id = fixed_residue.id[1]
+            if fixed_id not in mapping:
+                continue
+
+            new_fixed_atoms = []
+            new_moving_atoms = []
+            if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
+                # Add alpha carbons.
+                new_fixed_atoms.append(fixed_residue[alpha_carbon])
+            else:
+                # Add all heavy atoms (Non hydrogens)
+                for atom in fixed_residue.get_atoms():
+                    if not atom.name.startswith('H'):
+                        new_fixed_atoms.append(atom)
+
+            # Get matching atoms from moving structure.
+            moving_residue_serial = mapping[fixed_id]
+            moving_residue = next(
+                rez for rez in moving_struct.get_residues()
+                if rez.id[1] == moving_residue_serial)
+            if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
+                new_moving_atoms.append(moving_residue[alpha_carbon])
+            else:
+                for atom in moving_residue.get_atoms():
+                    if not atom.name.startswith('H'):
+                        new_moving_atoms.append(atom)
+
+            if len(new_moving_atoms) != len(new_fixed_atoms):
+                # I think we can just skip residues with differing atom counts.
+                # This is an issue with Heavy atom alignment methods.
+                skip_count += 1
+                continue
+            fixed_atoms.extend(new_fixed_atoms)
+            moving_atoms.extend(new_moving_atoms)
+
+        assert len(moving_atoms) == len(fixed_atoms), f"{len(moving_atoms)} != {len(fixed_atoms)}"
+        if skip_count > 0:
+            residue_count = sum(1 for _ in fixed_struct.get_residues())
+            Logs.warning(
+                f"Not including {skip_count}/{residue_count} residue pairs "
+                "in RMSD calculation due to differing atom counts.")
+
+        Logs.message("Superimposing Structures.")
+        superimposer = Superimposer()
+        superimposer.set_atoms(fixed_atoms, moving_atoms)
+        rms = round(superimposer.rms, 5)
+        Logs.message(f"RMSD: {rms}")
+        paired_atom_count = len(fixed_atoms)
+        return superimposer, paired_atom_count
+
+    def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count: int, chain_name=''):
+        # Set up data to return to caller
+        rms = round(superimposer.rms, 5)
+        comp_data = {
+            'rmsd': rms,
+            'paired_atoms': paired_atom_count,
+        }
+        if chain_name:
+            comp_data['chain'] = chain_name
+        return comp_data
+
     async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
         """Identify atoms in the active site around a ligand."""
         mol = next(
@@ -234,7 +286,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         Logs.message(f"{len(binding_site_atoms)} atoms identified in binding site.")
         return binding_site_atoms
 
-    def align_structures(self, structA, structB, alignment_type='global'):
+    def align_structures(self, structA, structB):
         """
         Performs a global pairwise alignment between two sequences
         using the BLOSUM62 matrix and the Needleman-Wunsch algorithm
@@ -252,31 +304,20 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             seq = [_aainfo(r) for r in structure.get_residues() if is_aa(r)]
             return seq
 
-        Logs.message(f"Running {alignment_type} alignment.")
         resseq_A = _get_pdb_sequence(structA)
         resseq_B = _get_pdb_sequence(structB)
 
         sequence_A = "".join([i[1] for i in resseq_A])
         sequence_B = "".join([i[1] for i in resseq_B])
 
-        if alignment_type == 'global':
-            alignment_fn = pairwise2.align.globalds
-            alignment_fn_args = (
-                sequence_A,
-                sequence_B,
-                substitution_matrices.load("BLOSUM62")
-            )
-            alignment_fn_kwargs = dict(
-                one_alignment_only=True,
-                open=-10.0,
-                extend=-0.5,
-                penalize_end_gaps=(False, False)
-            )
-        elif alignment_type == 'local':
-            alignment_fn = pairwise2.align.localxx
-            alignment_fn_args = (sequence_A, sequence_B)
-            alignment_fn_kwargs = dict()
-        alns = alignment_fn(*alignment_fn_args, **alignment_fn_kwargs)
+        alns = pairwise2.align.globalds(
+            sequence_A,
+            sequence_B,
+            substitution_matrices.load("BLOSUM62"),
+            one_alignment_only=True,
+            open=-10.0,
+            extend=-0.5,
+            penalize_end_gaps=(False, False))
         best_aln = alns[0]
         aligned_A, aligned_B, score, begin, end = best_aln
 
@@ -297,7 +338,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 mapping[resseq_A[aa_i_A][0]] = resseq_B[aa_i_B][0]
                 aa_i_A += 1
                 aa_i_B += 1
-
         return mapping
 
 
