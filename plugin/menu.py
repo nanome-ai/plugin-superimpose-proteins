@@ -36,7 +36,7 @@ class MainMenu:
         self.plugin = plugin_instance
         self.btn_advanced.icon.value.set_all(GEAR_ICON_PATH)
 
-        self.current_mode = 'global'
+        self.current_mode = 'entry'
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
         self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
@@ -76,10 +76,11 @@ class MainMenu:
 
     @async_callback
     async def submit(self, btn):
-        Logs.message("Submit button Pressed.")
+        current_mode = self.current_mode
+        log_extra = {'superimpose_mode': current_mode}
+        Logs.message("Submit button Pressed.", extra=log_extra)
         self.btn_submit.unusable = True
         self.plugin.update_content(self.btn_submit)
-        current_mode = self.current_mode
         rmsd_results = None
         fixed_comp_index = self.get_fixed_comp_index() or 0
 
@@ -94,7 +95,7 @@ class MainMenu:
         else:
             alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
 
-        if current_mode == 'global':
+        if current_mode == 'entry':
             moving_comp_indices = self.get_moving_comp_indices()
             if not all([fixed_comp_index, moving_comp_indices]):
                 msg = "Please select all complexes."
@@ -185,7 +186,7 @@ class MainMenu:
                 selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
                 return getattr(selected_ddi, 'name', '')
 
-    def populate_comp_list(self, complexes, mode='global', default_comp=None):
+    def populate_comp_list(self, complexes, mode='entry', default_comp=None):
         comp_list = self.ln_moving_comp_list.get_content()
         comp_list.items = []
         set_default_values = len(complexes) == 2
@@ -270,11 +271,11 @@ class MainMenu:
 
     @property
     def mode_selection_btn_group(self):
-        return [self.btn_global_align, self.btn_align_by_chain, self.btn_align_by_binding_site]
+        return [self.btn_entry_align, self.btn_align_by_chain, self.btn_align_by_binding_site]
 
     @property
-    def btn_global_align(self):
-        return self._menu.root.find_node('ln_btn_global_align').get_content()
+    def btn_entry_align(self):
+        return self._menu.root.find_node('ln_btn_entry_align').get_content()
 
     @property
     def btn_align_by_chain(self):
@@ -300,10 +301,10 @@ class MainMenu:
             if btn._content_id != group_item._content_id:
                 group_item.selected = False
                 btns_to_update.append(group_item)
-        if btn.name == 'btn_global_align':
+        if btn.name == 'btn_entry_align':
             if log:
                 Logs.message("Switched to entry mode")
-            self.current_mode = 'global'
+            self.current_mode = 'entry'
             self.render(complexes=self.plugin.complexes)
         elif btn.name == 'btn_align_by_chain':
             if log:
