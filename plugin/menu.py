@@ -138,17 +138,15 @@ class MainMenu:
         new_menu.enabled = False
         self.rmsd_menu = new_menu
 
-    @property
-    def root(self):
-        return self._menu.root.find_node('Entry Panel')
-
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
             btn_fixed = item.find_node('btn_fixed').get_content()
             struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_fixed.selected:
-                comp = next(comp for comp in self.plugin.complexes if comp.full_name == struct_name)
-                return comp.index
+                comp = next((
+                    comp for comp in self.plugin.complexes
+                    if comp.full_name == struct_name), None)
+                return getattr(comp, 'index', None)
 
     def get_moving_comp_indices(self):
         comps = []
@@ -156,8 +154,11 @@ class MainMenu:
             btn_moving = item.find_node('btn_moving').get_content()
             struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_moving.selected:
-                comp = next(comp for comp in self.plugin.complexes if comp.full_name == struct_name)
-                comps.append(comp.index)
+                comp = next((
+                    comp for comp in self.plugin.complexes
+                    if comp.full_name == struct_name), None)
+                if comp:
+                    comps.append(comp.index)
         return comps
 
     def get_fixed_chain(self):
