@@ -176,10 +176,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global'):
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure):
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
-        mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
+        mapping = self.align_structures(fixed_struct, moving_struct)
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon = 'CA'
@@ -234,7 +234,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         Logs.message(f"{len(binding_site_atoms)} atoms identified in binding site.")
         return binding_site_atoms
 
-    def align_structures(self, structA, structB, alignment_type='global'):
+    def align_structures(self, structA, structB):
         """
         Performs a global pairwise alignment between two sequences
         using the BLOSUM62 matrix and the Needleman-Wunsch algorithm
@@ -252,31 +252,21 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             seq = [_aainfo(r) for r in structure.get_residues() if is_aa(r)]
             return seq
 
-        Logs.message(f"Running {alignment_type} alignment.")
         resseq_A = _get_pdb_sequence(structA)
         resseq_B = _get_pdb_sequence(structB)
 
         sequence_A = "".join([i[1] for i in resseq_A])
         sequence_B = "".join([i[1] for i in resseq_B])
 
-        if alignment_type == 'global':
-            alignment_fn = pairwise2.align.globalds
-            alignment_fn_args = (
-                sequence_A,
-                sequence_B,
-                substitution_matrices.load("BLOSUM62")
-            )
-            alignment_fn_kwargs = dict(
-                one_alignment_only=True,
-                open=-10.0,
-                extend=-0.5,
-                penalize_end_gaps=(False, False)
-            )
-        elif alignment_type == 'local':
-            alignment_fn = pairwise2.align.localxx
-            alignment_fn_args = (sequence_A, sequence_B)
-            alignment_fn_kwargs = dict()
-        alns = alignment_fn(*alignment_fn_args, **alignment_fn_kwargs)
+
+        alns = pairwise2.align.globalds(
+            sequence_A,
+            sequence_B,
+            substitution_matrices.load("BLOSUM62"),
+            one_alignment_only=True,
+            open=-10.0,
+            extend=-0.5,
+            penalize_end_gaps=(False, False))
         best_aln = alns[0]
         aligned_A, aligned_B, score, begin, end = best_aln
 
