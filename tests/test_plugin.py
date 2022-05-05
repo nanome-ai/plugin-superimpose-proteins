@@ -88,3 +88,56 @@ class PluginFunctionTestCase(unittest.TestCase):
         )
         expected_result = {'complex': {'rmsd': 27.69646, 'paired_atoms': 552}}
         self.assertEqual(result, expected_result)
+
+    @patch('nanome._internal._network.PluginNetwork._instance')
+    @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
+    @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
+    def test_superimpose_by_entry_heavy_atoms(self, request_complexes_mock, update_structures_mock, *mocks):
+        fut = asyncio.Future()
+        fut.set_result([self.complex_4hhb, self.complex_1mbo])
+        request_complexes_mock.return_value = fut
+        update_fut = asyncio.Future()
+        update_fut.set_result([self.complex_1mbo])
+        update_structures_mock.return_value = update_fut
+        alignment_method = AlignmentMethodEnum.HEAVY_ATOMS_ONLY
+        result = run_awaitable(
+            self.plugin_instance.superimpose_by_entry,
+            self.complex_4hhb.index,
+            [self.complex_1mbo.index],
+            alignment_method
+        )
+        expected_result = {'complex': {'paired_atoms': 1098, 'rmsd': 25.87232}}
+        self.assertEqual(result, expected_result)
+    
+    @patch('nanome._internal._network.PluginNetwork._instance')
+    @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
+    @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
+    def test_superimpose_by_chain_heavy_atoms(self, request_complexes_mock, update_structures_mock, *mocks):
+        # Make sure clean_complex function returns valid pdb can be parsed into a Complex structure.
+        chain_name_4hhb = 'A'
+        chain_name_1mbo = 'A'
+
+        fut = asyncio.Future()
+        fut.set_result([self.complex_4hhb, self.complex_1mbo])
+        request_complexes_mock.return_value = fut
+
+        update_fut = asyncio.Future()
+        update_fut.set_result([self.complex_1mbo])
+        update_structures_mock.return_value = update_fut
+
+        alignment_method = AlignmentMethodEnum.HEAVY_ATOMS_ONLY
+        moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
+        result = run_awaitable(
+            self.plugin_instance.superimpose_by_chain,
+            self.complex_4hhb.index, chain_name_4hhb,
+            moving_comp_chain_list,
+            alignment_method
+        )
+        expected_output = {
+            self.complex_1mbo.full_name: {
+                'chain': 'A',
+                'paired_atoms': 395,
+                'rmsd': 2.69576
+            }
+        }
+        self.assertEqual(result, expected_output)    

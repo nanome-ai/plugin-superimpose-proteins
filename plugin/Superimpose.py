@@ -190,29 +190,50 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon = 'CA'
+        skip_count = 0
         for fixed_residue in fixed_struct.get_residues():
             fixed_id = fixed_residue.id[1]
-            if fixed_id in mapping:
-                if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
-                    fixed_atoms.append(fixed_residue[alpha_carbon])
-                else:
-                    # Add all heavy atoms (Non hydrogens)
-                    for atom in fixed_residue.get_atoms():
-                        if not atom.name.startswith('H'):
-                            fixed_atoms.append(atom)
-                moving_residue_serial = mapping[fixed_id]
-                moving_residue = next(
-                    rez for rez in moving_struct.get_residues()
-                    if rez.id[1] == moving_residue_serial)
+            if fixed_id not in mapping:
+                continue
+            
+            new_fixed_atoms = []
+            new_moving_atoms = []
+            if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
+                # Add alpha carbons.
+                new_fixed_atoms.append(fixed_residue[alpha_carbon])
+            else:
+                # Add all heavy atoms (Non hydrogens)
+                for atom in fixed_residue.get_atoms():
+                    if not atom.name.startswith('H'):
+                        new_fixed_atoms.append(atom)
+            
+            # Get matching atoms from moving structure.
+            moving_residue_serial = mapping[fixed_id]
+            moving_residue = next(
+                rez for rez in moving_struct.get_residues()
+                if rez.id[1] == moving_residue_serial)
+            if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
+                new_moving_atoms.append(moving_residue[alpha_carbon])
+            else:
+                for atom in moving_residue.get_atoms():
+                    if not atom.name.startswith('H'):
+                        new_moving_atoms.append(atom)
+            
+            if len(new_moving_atoms) != len(new_fixed_atoms):
+                # I think we can just skip residues with differing atom counts.
+                # This is an issue with Heavy atom alignment methods.
+                skip_count += 1
+                continue
+            fixed_atoms.extend(new_fixed_atoms)
+            moving_atoms.extend(new_moving_atoms)
 
-                if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
-                    moving_atoms.append(moving_residue[alpha_carbon])
-                else:
-                    # Add all heavy atoms (Non hydrogens)
-                    for atom in moving_residue.get_atoms():
-                        if not atom.name.startswith('H'):
-                            moving_atoms.append(atom)
         assert len(moving_atoms) == len(fixed_atoms), f"{len(moving_atoms)} != {len(fixed_atoms)}"
+        if skip_count > 0:
+            residue_count = sum(1 for _ in fixed_struct.get_residues())
+            Logs.warning(
+                f"Not including {skip_count}/{residue_count} residue pairs "
+                "in RMSD calculation due to differing atom counts.")
+
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
@@ -317,7 +338,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 mapping[resseq_A[aa_i_A][0]] = resseq_B[aa_i_B][0]
                 aa_i_A += 1
                 aa_i_B += 1
-
         return mapping
 
 
