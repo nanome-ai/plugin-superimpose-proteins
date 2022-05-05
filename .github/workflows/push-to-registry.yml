@@ -7,8 +7,8 @@ on:
         type: string
         description: tag to use for the image
         default: latest
-  push:
-    branches: [ master ]
+  # push:
+  #   branches: [ master ]
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
