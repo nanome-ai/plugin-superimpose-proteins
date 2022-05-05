@@ -2,6 +2,14 @@ from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
 from nanome.util.enums import NotificationTypes
+from .enums import AlignmentMethodEnum
+
+BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
+MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
+COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
+RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
+RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
 
 def create_chain_dropdown_items(comp, set_default=False):
@@ -18,15 +26,6 @@ def create_chain_dropdown_items(comp, set_default=False):
     if set_default and dropdown_items:
         dropdown_items[0].selected = True
     return dropdown_items
-
-
-BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
-COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
-RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
-RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
-
-GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
 
 class MainMenu:
@@ -63,6 +62,10 @@ class MainMenu:
     def lbl_moving_structures(self):
         return self._menu.root.find_node('lbl_moving_structures').get_content()
 
+    @property
+    def dd_align_using(self):
+        return self._menu.root.find_node('ln_align_using').get_content()
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
@@ -79,6 +82,18 @@ class MainMenu:
         current_mode = self.current_mode
         rmsd_results = None
         fixed_comp_index = self.get_fixed_comp_index() or 0
+        
+        # Get alignment method based on dropdown selection
+        heavy_atoms_method = 'Heavy atoms only'
+        alignment_method = None
+        selected_alignment_method = next((
+            item.name for item in self.dd_align_using.items
+            if item.selected), None)
+        if selected_alignment_method == heavy_atoms_method:
+            alignment_method = AlignmentMethodEnum.HEAVY_ATOMS_ONLY
+        else:
+            alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
+
         if current_mode == 'global':
             moving_comp_indices = self.get_moving_comp_indices()
             if not all([fixed_comp_index, moving_comp_indices]):
@@ -86,7 +101,7 @@ class MainMenu:
                 Logs.warning(msg)
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
-                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices)
+                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
         if current_mode == 'chain':
             fixed_chain = self.get_fixed_chain()
             moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
@@ -95,7 +110,8 @@ class MainMenu:
                 Logs.warning(msg)
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
-                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list)
+                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
+        
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == 'chain':

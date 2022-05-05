@@ -12,6 +12,7 @@ from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex
+from .enums import AlignmentMethodEnum
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
 
@@ -41,7 +42,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         self.complexes = await self.request_complex_list()
         await self.menu.render(complexes=self.complexes)
 
-    async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_type='global'):
+    async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_method):
         start_time = time.time()
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
@@ -59,7 +60,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-            superimposer, paired_residue_count = await self.superimpose(fixed_struct, moving_struct)
+
+            try:
+                superimposer, paired_residue_count = await self.superimpose(
+                    fixed_struct, moving_struct, alignment_method)
+            except Exception:
+                Logs.error(f"Superimposition failed for {moving_comp.full_name}")
+                continue
+
             transform_matrix = self.create_transform_matrix(superimposer)
 
             for comp_atom in moving_comp.atoms:
@@ -84,7 +92,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             extra=extra)
         return rmsd_results
 
-    async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list):
+    async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, alignment_method):
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
         moving_comp_indices = [item[0] for item in moving_comp_chain_list]
@@ -110,7 +118,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
             moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
-            superimposer, paired_residue_count = await self.superimpose(fixed_chain, moving_chain)
+
+            try:
+                superimposer, paired_residue_count = await self.superimpose(
+                    fixed_chain, moving_chain, alignment_method)
+            except Exception:
+                Logs.error(f"Superimposition failed for {moving_comp.full_name}")
+                continue
+
             transform_matrix = self.create_transform_matrix(superimposer)
 
             rms = round(superimposer.rms, 5)
@@ -176,7 +191,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure):
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_method):
         # Collect aligned residues
         # Align Residues based on Alpha Carbon
         mapping = self.align_structures(fixed_struct, moving_struct)
@@ -186,13 +201,26 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         for fixed_residue in fixed_struct.get_residues():
             fixed_id = fixed_residue.id[1]
             if fixed_id in mapping:
-                fixed_atoms.append(fixed_residue[alpha_carbon])
+                if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
+                    fixed_atoms.append(fixed_residue[alpha_carbon])
+                else:
+                    # Add all heavy atoms (Non hydrogens)
+                    for atom in fixed_residue.get_atoms():
+                        if not atom.name.startswith('H'):
+                            fixed_atoms.append(atom)
                 moving_residue_serial = mapping[fixed_id]
                 moving_residue = next(
                     rez for rez in moving_struct.get_residues()
                     if rez.id[1] == moving_residue_serial)
-                moving_atoms.append(moving_residue[alpha_carbon])
-        assert len(moving_atoms) == len(fixed_atoms)
+
+                if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
+                    moving_atoms.append(moving_residue[alpha_carbon])
+                else:
+                    # Add all heavy atoms (Non hydrogens)
+                    for atom in moving_residue.get_atoms():
+                        if not atom.name.startswith('H'):
+                            moving_atoms.append(atom)
+        assert len(moving_atoms) == len(fixed_atoms), f"{len(moving_atoms)} != {len(fixed_atoms)}"
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
@@ -257,7 +285,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
         sequence_A = "".join([i[1] for i in resseq_A])
         sequence_B = "".join([i[1] for i in resseq_B])
-
 
         alns = pairwise2.align.globalds(
             sequence_A,
