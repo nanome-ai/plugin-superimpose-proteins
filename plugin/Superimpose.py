@@ -86,17 +86,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             extra=extra)
         return rmsd_results
 
-    def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count: int, chain_name=''):
-        # Set up data to return to caller
-        rms = round(superimposer.rms, 5)
-        comp_data = {
-            'rmsd': rms,
-            'paired_atoms': paired_atom_count,
-        }
-        if chain_name:
-            comp_data['chain'] = chain_name
-        return comp_data
-
     async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, alignment_method):
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
@@ -231,6 +220,17 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         Logs.message(f"RMSD: {rms}")
         paired_atom_count = len(fixed_atoms)
         return superimposer, paired_atom_count
+
+    def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count: int, chain_name=''):
+        # Set up data to return to caller
+        rms = round(superimposer.rms, 5)
+        comp_data = {
+            'rmsd': rms,
+            'paired_atoms': paired_atom_count,
+        }
+        if chain_name:
+            comp_data['chain'] = chain_name
+        return comp_data
 
     async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
         """Identify atoms in the active site around a ligand."""
