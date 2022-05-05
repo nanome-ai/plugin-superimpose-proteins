@@ -108,7 +108,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         )
         expected_result = {'complex': {'paired_atoms': 1098, 'rmsd': 25.87232}}
         self.assertEqual(result, expected_result)
-    
+
     @patch('nanome._internal._network.PluginNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
@@ -140,4 +140,4 @@ class PluginFunctionTestCase(unittest.TestCase):
                 'rmsd': 2.69576
             }
         }
-        self.assertEqual(result, expected_output)    
+        self.assertEqual(result, expected_output)

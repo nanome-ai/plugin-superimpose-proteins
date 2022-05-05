@@ -166,7 +166,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 for atom in moving_comp.atoms:
                     atom.selected = atom in pocket_sets[i]
                 await self.update_structures_deep([moving_comp])
-    
+
     @staticmethod
     def create_transform_matrix(superimposer: Superimposer) -> Matrix:
         """Convert rotation and transform matrix from superimposer into Nanome Matrix."""
@@ -195,7 +195,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             fixed_id = fixed_residue.id[1]
             if fixed_id not in mapping:
                 continue
-            
+
             new_fixed_atoms = []
             new_moving_atoms = []
             if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
@@ -206,7 +206,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 for atom in fixed_residue.get_atoms():
                     if not atom.name.startswith('H'):
                         new_fixed_atoms.append(atom)
-            
+
             # Get matching atoms from moving structure.
             moving_residue_serial = mapping[fixed_id]
             moving_residue = next(
@@ -218,7 +218,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 for atom in moving_residue.get_atoms():
                     if not atom.name.startswith('H'):
                         new_moving_atoms.append(atom)
-            
+
             if len(new_moving_atoms) != len(new_fixed_atoms):
                 # I think we can just skip residues with differing atom counts.
                 # This is an issue with Heavy atom alignment methods.

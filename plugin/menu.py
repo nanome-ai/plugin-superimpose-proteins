@@ -82,7 +82,7 @@ class MainMenu:
         current_mode = self.current_mode
         rmsd_results = None
         fixed_comp_index = self.get_fixed_comp_index() or 0
-        
+
         # Get alignment method based on dropdown selection
         heavy_atoms_method = 'Heavy atoms only'
         alignment_method = None
@@ -111,7 +111,7 @@ class MainMenu:
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
-        
+
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == 'chain':
