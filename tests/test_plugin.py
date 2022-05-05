@@ -7,7 +7,7 @@ from random import randint
 from unittest.mock import MagicMock
 from nanome.api.structure import Complex
 from plugin.Superimpose import SuperimposePlugin
-
+from plugin.enums import AlignmentMethodEnum
 
 fixtures_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
 
@@ -52,16 +52,18 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
 
+        alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
         moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
         result = run_awaitable(
             self.plugin_instance.superimpose_by_chain,
             self.complex_4hhb.index, chain_name_4hhb,
-            moving_comp_chain_list
+            moving_comp_chain_list,
+            alignment_method
         )
         expected_output = {
             self.complex_1mbo.full_name: {
                 'rmsd': 1.95456,
-                'paired_residues': 138,
+                'paired_atoms': 138,
                 'chain': 'A'
             }
         }
@@ -77,11 +79,12 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
-
+        alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
         result = run_awaitable(
             self.plugin_instance.superimpose_by_entry,
             self.complex_4hhb.index,
-            [self.complex_1mbo.index]
+            [self.complex_1mbo.index],
+            alignment_method
         )
-        expected_result = {'complex': {'rmsd': 27.69646, 'paired_residues': 552}}
+        expected_result = {'complex': {'rmsd': 27.69646, 'paired_atoms': 552}}
         self.assertEqual(result, expected_result)

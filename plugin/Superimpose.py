@@ -62,27 +62,21 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
             try:
-                superimposer, paired_residue_count = await self.superimpose(
+                superimposer, paired_atom_count = await self.superimpose(
                     fixed_struct, moving_struct, alignment_method)
             except Exception:
                 Logs.error(f"Superimposition failed for {moving_comp.full_name}")
                 continue
-
+            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_atom_count)
+            # Use matrix to transform moving atoms to new position
             transform_matrix = self.create_transform_matrix(superimposer)
-
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
             moving_comp.set_surface_needs_redraw()
-
-            # Set up data to return to caller
-            rms = round(superimposer.rms, 5)
-            comp_data = {
-                'rmsd': rms,
-                'paired_residues': paired_residue_count,
-            }
-            rmsd_results[moving_comp.full_name] = comp_data
             moving_comp.locked = True
-            comps_to_update.append(moving_comp)
+
+            updated_comp = self.format_superimposer_data(superimposer, paired_atom_count)
+            comps_to_update.append(updated_comp)
         await self.update_structures_deep(comps_to_update)
         end_time = time.time()
         process_time = end_time - start_time
@@ -91,6 +85,17 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             f"Superposition completed in {round(end_time - start_time, 2)} seconds.",
             extra=extra)
         return rmsd_results
+
+    def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count, chain_name=''):
+        # Set up data to return to caller
+        rms = round(superimposer.rms, 5)
+        comp_data = {
+            'rmsd': rms,
+            'paired_atoms': paired_atom_count,
+        }
+        if chain_name:
+            comp_data['chain'] = chain_name
+        return comp_data
 
     async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, alignment_method):
         start_time = time.time()
@@ -117,10 +122,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
-            moving_chain = next(ch for ch in moving_struct.get_chains() if ch.id == moving_chain_name)
+            moving_chain = next(
+                ch for ch in moving_struct.get_chains()
+                if ch.id == moving_chain_name)
 
             try:
-                superimposer, paired_residue_count = await self.superimpose(
+                superimposer, paired_atom_count = await self.superimpose(
                     fixed_chain, moving_chain, alignment_method)
             except Exception:
                 Logs.error(f"Superimposition failed for {moving_comp.full_name}")
@@ -128,12 +135,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
             transform_matrix = self.create_transform_matrix(superimposer)
 
-            rms = round(superimposer.rms, 5)
-            comp_data = {
-                'rmsd': rms,
-                'paired_residues': paired_residue_count,
-                'chain': moving_chain_name
-            }
+            comp_data = self.format_superimposer_data(
+                superimposer, paired_atom_count, moving_chain_name)
             results[moving_comp.full_name] = comp_data
 
             # apply transformation to moving_comp
@@ -226,8 +229,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         superimposer.set_atoms(fixed_atoms, moving_atoms)
         rms = round(superimposer.rms, 5)
         Logs.message(f"RMSD: {rms}")
-        paired_residue_count = len(fixed_atoms)
-        return superimposer, paired_residue_count
+        paired_atom_count = len(fixed_atoms)
+        return superimposer, paired_atom_count
 
     async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
         """Identify atoms in the active site around a ligand."""

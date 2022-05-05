@@ -136,7 +136,7 @@ class MainMenu:
         for i, comp_name in enumerate(rmsd_results, 1):
             results_data = rmsd_results[comp_name]
             rmsd_val = results_data['rmsd']
-            paired_residue_count = results_data['paired_residues']
+            paired_atom_count = results_data['paired_atoms']
             if 'chain' in results_data:
                 comp_name = f'{comp_name} Chain {results_data["chain"]}'
 
@@ -147,7 +147,7 @@ class MainMenu:
             item.get_children()[0].get_content().text_value = i
             item.get_children()[1].get_content().text_value = comp_name
             item.get_children()[2].get_content().text_value = rmsd_val
-            item.get_children()[3].get_content().text_value = paired_residue_count
+            item.get_children()[3].get_content().text_value = paired_atom_count
             list_items.append(item)
 
         results_list.items = list_items
