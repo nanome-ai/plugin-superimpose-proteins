@@ -84,47 +84,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             extra=extra)
         return rmsd_results
 
-    @staticmethod
-    def create_transform_matrix(superimposer: Superimposer) -> Matrix:
-        """Convert rotation and transform matrix from superimposer into Nanome Matrix."""
-        rot, tran = superimposer.rotran
-        rot = rot.tolist()
-        tran = tran.tolist()
-        m = Matrix(4, 4)
-        m[0][0:3] = rot[0]
-        m[1][0:3] = rot[1]
-        m[2][0:3] = rot[2]
-        m[3][0:3] = tran
-        m[3][3] = 1
-        # transpose necessary because numpy and nanome matrices are opposite row/col
-        m.transpose()
-        return m
-
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global'):
-        # Collect aligned residues
-        # Align Residues based on Alpha Carbon
-        mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
-        fixed_atoms = []
-        moving_atoms = []
-        alpha_carbon = 'CA'
-        for fixed_residue in fixed_struct.get_residues():
-            fixed_id = fixed_residue.id[1]
-            if fixed_id in mapping:
-                fixed_atoms.append(fixed_residue[alpha_carbon])
-                moving_residue_serial = mapping[fixed_id]
-                moving_residue = next(
-                    rez for rez in moving_struct.get_residues()
-                    if rez.id[1] == moving_residue_serial)
-                moving_atoms.append(moving_residue[alpha_carbon])
-        assert len(moving_atoms) == len(fixed_atoms)
-        Logs.message("Superimposing Structures.")
-        superimposer = Superimposer()
-        superimposer.set_atoms(fixed_atoms, moving_atoms)
-        rms = round(superimposer.rms, 5)
-        Logs.message(f"RMSD: {rms}")
-        paired_residue_count = len(fixed_atoms)
-        return superimposer, paired_residue_count
-
     async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list):
         start_time = time.time()
         Logs.message("Superimposing by Chain.")
@@ -200,6 +159,47 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 for atom in moving_comp.atoms:
                     atom.selected = atom in pocket_sets[i]
                 await self.update_structures_deep([moving_comp])
+    
+    @staticmethod
+    def create_transform_matrix(superimposer: Superimposer) -> Matrix:
+        """Convert rotation and transform matrix from superimposer into Nanome Matrix."""
+        rot, tran = superimposer.rotran
+        rot = rot.tolist()
+        tran = tran.tolist()
+        m = Matrix(4, 4)
+        m[0][0:3] = rot[0]
+        m[1][0:3] = rot[1]
+        m[2][0:3] = rot[2]
+        m[3][0:3] = tran
+        m[3][3] = 1
+        # transpose necessary because numpy and nanome matrices are opposite row/col
+        m.transpose()
+        return m
+
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_type='global'):
+        # Collect aligned residues
+        # Align Residues based on Alpha Carbon
+        mapping = self.align_structures(fixed_struct, moving_struct, alignment_type)
+        fixed_atoms = []
+        moving_atoms = []
+        alpha_carbon = 'CA'
+        for fixed_residue in fixed_struct.get_residues():
+            fixed_id = fixed_residue.id[1]
+            if fixed_id in mapping:
+                fixed_atoms.append(fixed_residue[alpha_carbon])
+                moving_residue_serial = mapping[fixed_id]
+                moving_residue = next(
+                    rez for rez in moving_struct.get_residues()
+                    if rez.id[1] == moving_residue_serial)
+                moving_atoms.append(moving_residue[alpha_carbon])
+        assert len(moving_atoms) == len(fixed_atoms)
+        Logs.message("Superimposing Structures.")
+        superimposer = Superimposer()
+        superimposer.set_atoms(fixed_atoms, moving_atoms)
+        rms = round(superimposer.rms, 5)
+        Logs.message(f"RMSD: {rms}")
+        paired_residue_count = len(fixed_atoms)
+        return superimposer, paired_residue_count
 
     async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
         """Identify atoms in the active site around a ligand."""
