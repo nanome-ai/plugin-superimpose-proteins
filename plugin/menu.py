@@ -77,6 +77,7 @@ class MainMenu:
     @property
     def ln_btn_rmsd_table(self):
         return self._menu.root.find_node('btn_rmsd_table')
+
     @property
     def btn_rmsd_table(self):
         return self.ln_btn_rmsd_table.get_content()
@@ -283,7 +284,8 @@ class MainMenu:
             comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
 
-    def btn_fixed_clicked(self, btn):
+    @async_callback
+    async def btn_fixed_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
         for menu_item in self.ln_moving_comp_list.get_content().items:
@@ -308,11 +310,22 @@ class MainMenu:
                 btn_moving.unusable = False
                 if self.current_mode == 'binding_site':
                     ln_dd_chain.enabled = False
+                    dd_ligand = ln_dd_chain.get_content()
+                    dd_ligand.items = await self.create_ligand_dropdown_items()
+
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.update_selection_counter()
         self.check_if_ready_to_submit()
         self.plugin.update_content(*btns_to_update, self.btn_submit)
+
+    async def create_ligand_dropdown_items(self):
+        # TODO
+        return []
+        mol = next(mo for mo in comp.molecules)
+        # Get ligands for binding site dropdown
+        ligands = await mol.get_ligands()
+        print(ligands)
 
     def btn_moving_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
@@ -399,7 +412,7 @@ class MainMenu:
                     break
         elif btn.name == 'btn_align_by_binding_site':
             self.current_mode = 'binding_site'
-            pass
+
         await self.plugin.menu.render(complexes=self.plugin.complexes)
         if update:
             self.plugin.update_menu(self._menu)
