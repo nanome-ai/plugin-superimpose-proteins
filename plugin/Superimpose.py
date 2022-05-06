@@ -61,7 +61,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-            self.update_loading_bar(i + 1, comp_count)
 
             try:
                 superimposer, paired_atom_count = await self.superimpose(
@@ -77,6 +76,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.set_surface_needs_redraw()
             moving_comp.locked = True
             comps_to_update.append(moving_comp)
+            self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
         end_time = time.time()
@@ -238,7 +238,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        rms = round(superimposer.rms, 2)
+        rms = round(superimposer.rms, 3)
         Logs.debug(f"RMSD: {rms}")
         paired_atom_count = len(fixed_atoms)
         return superimposer, paired_atom_count
