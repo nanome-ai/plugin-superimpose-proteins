@@ -66,6 +66,14 @@ class MainMenu:
     def dd_align_using(self):
         return self._menu.root.find_node('ln_align_using').get_content()
 
+    @property
+    def ln_loading_bar(self):
+        return self._menu.root.find_node('ln_loading_bar')
+
+    @property
+    def loading_bar(self):
+        return self.ln_loading_bar.get_content()
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
@@ -96,6 +104,11 @@ class MainMenu:
 
         log_extra = {'superimpose_mode': current_mode, 'alignment_method': selected_alignment_method}
         Logs.message("Submit button Pressed.", extra=log_extra)
+
+        self.ln_loading_bar.enabled = True
+        self.loading_bar.percentage = 0
+        self.plugin.update_node(self.ln_loading_bar)
+
         if current_mode == 'entry':
             moving_comp_indices = self.get_moving_comp_indices()
             if not all([fixed_comp_index, moving_comp_indices]):
@@ -121,7 +134,8 @@ class MainMenu:
             self.render_rmsd_results(rmsd_results, fixed_name)
             self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
-        self.plugin.update_node(self.ln_btn_rmsd_table)
+        self.ln_loading_bar.enabled = False
+        self.plugin.update_node(self.ln_btn_rmsd_table, self.ln_loading_bar)
         self.plugin.update_content(self.btn_submit)
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
@@ -169,6 +183,8 @@ class MainMenu:
     def get_moving_comp_indices(self):
         comps = []
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            if not item.find_node('btn_moving'):
+                continue
             btn_moving = item.find_node('btn_moving').get_content()
             struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_moving.selected:
@@ -241,10 +257,11 @@ class MainMenu:
                 continue
 
         comp_list.items = visible_items
-        hidden_item_header = ui.LayoutNode()
-        hidden_item_header.add_new_label(f"Hidden Items ({len(hidden_items)})")
-        comp_list.items.append(hidden_item_header)
-        comp_list.items.extend(hidden_items)
+        if hidden_items:
+            hidden_item_header = ui.LayoutNode()
+            hidden_item_header.add_new_label(f"Hidden Items ({len(hidden_items)})")
+            comp_list.items.append(hidden_item_header)
+            comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def btn_fixed_clicked(self, btn):
@@ -301,8 +318,9 @@ class MainMenu:
             new_text = f'Superimpose ({counter})'
 
         self.btn_submit.text.value.idle = new_text
+        self.btn_submit.text.value.highlighted = new_text
 
-        
+
     @property
     def mode_selection_btn_group(self):
         return [self.btn_entry_align, self.btn_align_by_chain, self.btn_align_by_binding_site]
@@ -387,3 +405,7 @@ class MainMenu:
     def open_docs_page(self, btn):
         docs_url = 'https://docs.nanome.ai/plugins/cheminteractions.html'
         self.plugin.open_url(docs_url)
+
+    def update_loading_bar(self, current, total):
+        self.loading_bar.percentage = current / total
+        self.plugin.update_content(self.loading_bar)

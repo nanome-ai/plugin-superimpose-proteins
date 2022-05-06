@@ -51,7 +51,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_comp.locked = True
         comps_to_update = [fixed_comp]
         rmsd_results = {}
-        for moving_comp in moving_comps:
+        comp_count = len(moving_comps)
+        for i, moving_comp in enumerate(moving_comps):
             ComplexUtils.align_to(moving_comp, fixed_comp)
             parser = PDBParser(QUIET=True)
             fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -60,6 +61,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.io.to_pdb(moving_pdb.name)
             fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
+            self.update_loading_bar(i + 1, comp_count)
 
             try:
                 superimposer, paired_atom_count = await self.superimpose(
@@ -74,9 +76,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 comp_atom.position = transform_matrix * comp_atom.position
             moving_comp.set_surface_needs_redraw()
             moving_comp.locked = True
+            comps_to_update.append(moving_comp)
 
-            updated_comp = self.format_superimposer_data(superimposer, paired_atom_count)
-            comps_to_update.append(updated_comp)
         await self.update_structures_deep(comps_to_update)
         end_time = time.time()
         process_time = end_time - start_time
@@ -340,6 +341,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 aa_i_B += 1
         return mapping
 
+    def update_loading_bar(self, current, total):
+        self.menu.update_loading_bar(current, total)
 
 def main():
     plugin = nanome.Plugin('Superimpose', 'Superimpose two or more structures', 'alignment', False)
