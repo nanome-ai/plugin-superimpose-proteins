@@ -1,4 +1,5 @@
 import nanome
+import os
 import tempfile
 import time
 
@@ -51,7 +52,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_comp.locked = True
         comps_to_update = [fixed_comp]
         rmsd_results = {}
-        for moving_comp in moving_comps:
+        comp_count = len(moving_comps)
+        for i, moving_comp in enumerate(moving_comps):
             ComplexUtils.align_to(moving_comp, fixed_comp)
             parser = PDBParser(QUIET=True)
             fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -74,9 +76,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 comp_atom.position = transform_matrix * comp_atom.position
             moving_comp.set_surface_needs_redraw()
             moving_comp.locked = True
+            comps_to_update.append(moving_comp)
+            self.update_loading_bar(i + 1, comp_count)
 
-            updated_comp = self.format_superimposer_data(superimposer, paired_atom_count)
-            comps_to_update.append(updated_comp)
         await self.update_structures_deep(comps_to_update)
         end_time = time.time()
         process_time = end_time - start_time
@@ -237,14 +239,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        rms = round(superimposer.rms, 5)
-        Logs.message(f"RMSD: {rms}")
+        rms = round(superimposer.rms, 3)
+        Logs.debug(f"RMSD: {rms}")
         paired_atom_count = len(fixed_atoms)
         return superimposer, paired_atom_count
 
     def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count: int, chain_name=''):
         # Set up data to return to caller
-        rms = round(superimposer.rms, 5)
+        rms = round(superimposer.rms, 2)
         comp_data = {
             'rmsd': rms,
             'paired_atoms': paired_atom_count,
@@ -340,9 +342,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 aa_i_B += 1
         return mapping
 
+    def update_loading_bar(self, current, total):
+        self.menu.update_loading_bar(current, total)
+
 
 def main():
-    plugin = nanome.Plugin('Superimpose', 'Superimpose two or more structures', 'alignment', False)
+    default_description = 'Superimpose two or more structures'
+    description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
+    plugin = nanome.Plugin('Superimpose', description, 'alignment', False)
     plugin.set_plugin_class(SuperimposePlugin)
     plugin.run()
 

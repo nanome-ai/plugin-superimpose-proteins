@@ -1,3 +1,4 @@
+import enum
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
@@ -28,6 +29,12 @@ def create_chain_dropdown_items(comp, set_default=False):
     return dropdown_items
 
 
+class AlignmentModeEnum(enum.Enum):
+    ENTRY = 'entry'
+    CHAIN = 'chain'
+    BINDING_SITE = 'binding_site'
+
+
 class MainMenu:
 
     def __init__(self, plugin_instance):
@@ -36,7 +43,7 @@ class MainMenu:
         self.plugin = plugin_instance
         self.btn_advanced.icon.value.set_all(GEAR_ICON_PATH)
 
-        self.current_mode = 'entry'
+        self.current_mode = AlignmentModeEnum.ENTRY
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
         self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
@@ -66,11 +73,19 @@ class MainMenu:
     def dd_align_using(self):
         return self._menu.root.find_node('ln_align_using').get_content()
 
+    @property
+    def ln_loading_bar(self):
+        return self._menu.root.find_node('ln_loading_bar')
+
+    @property
+    def loading_bar(self):
+        return self.ln_loading_bar.get_content()
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
-        current_mode = self.current_mode
-        self.populate_comp_list(complexes, current_mode)
+        self.populate_comp_list(complexes, self.current_mode)
+        self.set_submit_button_enabled()
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -78,8 +93,8 @@ class MainMenu:
     async def submit(self, btn):
         current_mode = self.current_mode
         self.btn_submit.unusable = True
+        self.btn_submit.text.value.unusable = "Calculating..."
         self.plugin.update_content(self.btn_submit)
-        rmsd_results = None
         fixed_comp_index = self.get_fixed_comp_index() or 0
 
         # Get alignment method based on dropdown selection
@@ -96,32 +111,30 @@ class MainMenu:
 
         log_extra = {'superimpose_mode': current_mode, 'alignment_method': selected_alignment_method}
         Logs.message("Submit button Pressed.", extra=log_extra)
-        if current_mode == 'entry':
+
+        self.ln_loading_bar.enabled = True
+        self.loading_bar.percentage = 0
+        self.plugin.update_node(self.ln_loading_bar)
+
+        rmsd_results = None
+        if current_mode == AlignmentModeEnum.ENTRY:
             moving_comp_indices = self.get_moving_comp_indices()
-            if not all([fixed_comp_index, moving_comp_indices]):
-                msg = "Please select all complexes."
-                Logs.warning(msg)
-                self.plugin.send_notification(NotificationTypes.error, msg)
-            else:
-                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
-        if current_mode == 'chain':
+            rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
+        if current_mode == AlignmentModeEnum.CHAIN:
             fixed_chain = self.get_fixed_chain()
             moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
-            if not all([fixed_comp_index, fixed_chain, moving_comp_chain_list]):
-                msg = "Please select all complexes and chains."
-                Logs.warning(msg)
-                self.plugin.send_notification(NotificationTypes.error, msg)
-            else:
-                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
+            rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
 
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
-            if current_mode == 'chain':
+            if current_mode == AlignmentModeEnum.CHAIN:
                 fixed_name = f'{fixed_name} Chain {fixed_chain}'
             self.render_rmsd_results(rmsd_results, fixed_name)
             self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
-        self.plugin.update_node(self.ln_btn_rmsd_table)
+        self.btn_submit.text.value.unusuable = "Superimpose"
+        self.ln_loading_bar.enabled = False
+        self.plugin.update_node(self.ln_btn_rmsd_table, self.ln_loading_bar)
         self.plugin.update_content(self.btn_submit)
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
@@ -169,6 +182,8 @@ class MainMenu:
     def get_moving_comp_indices(self):
         comps = []
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            if not item.find_node('btn_moving'):
+                continue
             btn_moving = item.find_node('btn_moving').get_content()
             struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_moving.selected:
@@ -187,10 +202,11 @@ class MainMenu:
                 selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
                 return getattr(selected_ddi, 'name', '')
 
-    def populate_comp_list(self, complexes, mode='entry', default_comp=None):
+    def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY, default_comp=None):
         comp_list = self.ln_moving_comp_list.get_content()
-        comp_list.items = []
         set_default_values = len(complexes) == 2
+        visible_items = []
+        hidden_items = []
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             btn_fixed = ln.find_node('btn_fixed').get_content()
@@ -212,11 +228,12 @@ class MainMenu:
             lbl_chain_count.text_value = f'{chain_count} Chain(s)'
 
             ln_dd_chain = ln.find_node('dd_chain')
-            ln_dd_chain.enabled = mode == 'chain'
+            ln_dd_chain.enabled = mode == AlignmentModeEnum.CHAIN
             # Set up chain dropdown if in chain mode
-            if mode == 'chain':
+            if mode == AlignmentModeEnum.CHAIN:
                 ln_lbl_chain_count.enabled = True
                 dd_chain = ln_dd_chain.get_content()
+                dd_chain.register_item_clicked_callback(self.set_submit_button_enabled)
                 comp = next(
                     cmp for cmp in self.plugin.complexes
                     if cmp.full_name == lbl_struct_name.text_value)
@@ -232,14 +249,27 @@ class MainMenu:
                 btn_moving.selected = True
                 if ln_dd_chain.enabled:
                     dd_chain.items[0].selected = True
-            comp_list.items.append(ln)
 
+            if comp.visible:
+                visible_items.append(ln)
+            else:
+                hidden_items.append(ln)
+                continue
+
+        comp_list.items = visible_items
+        if hidden_items:
+            hidden_item_header = ui.LayoutNode()
+            hidden_item_header.add_new_label(f"Hidden Items ({len(hidden_items)})")
+            comp_list.items.append(hidden_item_header)
+            comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def btn_fixed_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
         for menu_item in self.ln_moving_comp_list.get_content().items:
+            if not menu_item.find_node('btn_fixed'):
+                continue
             btn_fixed = menu_item.find_node('btn_fixed').get_content()
             btn_moving = menu_item.find_node('btn_moving').get_content()
             if btn_fixed == btn:
@@ -254,21 +284,43 @@ class MainMenu:
                 btn_moving.unusable = False
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
-        self.plugin.update_content(*btns_to_update)
+        self.update_selection_counter()
+        self.set_submit_button_enabled()
+        self.plugin.update_content(*btns_to_update, self.btn_submit)
 
     def btn_moving_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
         selected_count = 0
         for menu_item in self.ln_moving_comp_list.get_content().items:
-            btn_moving = menu_item.find_node('btn_moving').get_content()
+            ln = menu_item.find_node('btn_moving')
+            if not ln:
+                continue
+            btn_moving = ln.get_content()
             if btn_moving.selected:
                 selected_count += 1
-        label_text = 'Moving Structures'
-        if selected_count > 0:
-            label_text += f' ({selected_count})'
-        self.lbl_moving_structures.text_value = label_text
-        self.plugin.update_content(self.lbl_moving_structures, *btns_to_update)
+        self.update_selection_counter()
+        self.set_submit_button_enabled()
+        self.plugin.update_content(self.lbl_moving_structures, self.btn_submit, *btns_to_update)
+
+    def update_selection_counter(self):
+        counter = 0
+        for menu_item in self.ln_moving_comp_list.get_content().items:
+            if not menu_item.find_node('btn_fixed'):
+                continue
+            btn_fixed = menu_item.find_node('btn_fixed').get_content()
+            btn_moving = menu_item.find_node('btn_moving').get_content()
+            if btn_fixed.selected:
+                counter += 1
+            if btn_moving.selected:
+                counter += 1
+        if counter == 0:
+            new_text = f'Superimpose'
+        else:
+            new_text = f'Superimpose ({counter})'
+
+        self.btn_submit.text.value.idle = new_text
+        self.btn_submit.text.value.highlighted = new_text
 
     @property
     def mode_selection_btn_group(self):
@@ -305,12 +357,11 @@ class MainMenu:
         if btn.name == 'btn_entry_align':
             if log:
                 Logs.message("Switched to entry mode")
-            self.current_mode = 'entry'
+            self.current_mode = AlignmentModeEnum.ENTRY
             self.render(complexes=self.plugin.complexes)
         elif btn.name == 'btn_align_by_chain':
-            if log:
-                Logs.message("Switched to chain mode.")
-            self.current_mode = 'chain'
+            Logs.message("Switched to chain mode.")
+            self.current_mode = AlignmentModeEnum.CHAIN
             # Get deep complexes if necessary
             for comp in self.plugin.complexes:
                 if sum(1 for _ in comp.chains) == 0:
@@ -343,7 +394,6 @@ class MainMenu:
                 if chain_ddi.selected:
                     selected_chain = chain_ddi.name
                     break
-                print('here')
             comp_chain_list.append((selected_comp.index, selected_chain))
         return comp_chain_list
 
@@ -354,3 +404,26 @@ class MainMenu:
     def open_docs_page(self, btn):
         docs_url = 'https://docs.nanome.ai/plugins/cheminteractions.html'
         self.plugin.open_url(docs_url)
+
+    def update_loading_bar(self, current, total):
+        self.loading_bar.percentage = current / total
+        self.plugin.update_content(self.loading_bar)
+
+    def set_submit_button_enabled(self, *args, **kwargs):
+        """Enable or disable submit button based on if required fields are selected."""
+        fixed_comp_index = self.get_fixed_comp_index()
+        ready_to_submit = False
+        if self.current_mode == AlignmentModeEnum.ENTRY:
+            moving_comp_indices = self.get_moving_comp_indices()
+            ready_to_submit = all([fixed_comp_index, moving_comp_indices])
+        elif self.current_mode == AlignmentModeEnum.CHAIN:
+            fixed_chain = self.get_fixed_chain()
+            moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
+            moving_comps_selected = moving_comp_chain_list and all([
+                bool(comp_index and chain) for comp_index, chain in moving_comp_chain_list
+            ])
+            if fixed_comp_index and fixed_chain and moving_comps_selected:
+                ready_to_submit = True
+
+        self.btn_submit.unusable = not ready_to_submit
+        self.plugin.update_content(self.btn_submit)
