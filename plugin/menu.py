@@ -28,10 +28,12 @@ def create_chain_dropdown_items(comp, set_default=False):
         dropdown_items[0].selected = True
     return dropdown_items
 
+
 class AlignmentModeEnum(enum.Enum):
     ENTRY = 'entry'
     CHAIN = 'chain'
     BINDING_SITE = 'binding_site'
+
 
 class MainMenu:
 
@@ -247,7 +249,7 @@ class MainMenu:
                 btn_moving.selected = True
                 if ln_dd_chain.enabled:
                     dd_chain.items[0].selected = True
-            
+
             if comp.visible:
                 visible_items.append(ln)
             else:
@@ -319,7 +321,6 @@ class MainMenu:
 
         self.btn_submit.text.value.idle = new_text
         self.btn_submit.text.value.highlighted = new_text
-
 
     @property
     def mode_selection_btn_group(self):

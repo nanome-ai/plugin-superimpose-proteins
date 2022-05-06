@@ -345,6 +345,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     def update_loading_bar(self, current, total):
         self.menu.update_loading_bar(current, total)
 
+
 def main():
     default_description = 'Superimpose two or more structures'
     description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
