@@ -267,7 +267,8 @@ class MainMenu:
                 btn_moving.unusable = False
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
-        self.plugin.update_content(*btns_to_update)
+        self.update_selection_counter()
+        self.plugin.update_content(*btns_to_update, self.btn_submit)
 
     def btn_moving_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
@@ -280,12 +281,28 @@ class MainMenu:
             btn_moving = ln.get_content()
             if btn_moving.selected:
                 selected_count += 1
-        label_text = 'Moving Structures'
-        if selected_count > 0:
-            label_text += f' ({selected_count})'
-        self.lbl_moving_structures.text_value = label_text
-        self.plugin.update_content(self.lbl_moving_structures, *btns_to_update)
+        self.update_selection_counter()
+        self.plugin.update_content(self.lbl_moving_structures, self.btn_submit, *btns_to_update)
 
+    def update_selection_counter(self):
+        counter = 0
+        for menu_item in self.ln_moving_comp_list.get_content().items:
+            if not menu_item.find_node('btn_fixed'):
+                continue
+            btn_fixed = menu_item.find_node('btn_fixed').get_content()
+            btn_moving = menu_item.find_node('btn_moving').get_content()
+            if btn_fixed.selected:
+                counter += 1
+            if btn_moving.selected:
+                counter += 1
+        if counter == 0:
+            new_text = f'Superimpose'
+        else:
+            new_text = f'Superimpose ({counter})'
+
+        self.btn_submit.text.value.idle = new_text
+
+        
     @property
     def mode_selection_btn_group(self):
         return [self.btn_entry_align, self.btn_align_by_chain, self.btn_align_by_binding_site]
