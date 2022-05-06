@@ -17,6 +17,7 @@ from nanome.api.structure import Complex
 from .enums import AlignmentMethodEnum
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
+from .site_motif_client import SiteMotifClient
 import sys
 
 # Increase the recursion limit in order to properly serialize Complexes
@@ -191,9 +192,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
 
         fpocket_client = FPocketClient()
+        sitemotif_client = SiteMotifClient()
         for moving_comp in moving_comp_list:
-            output_dir = fpocket_client.run(moving_comp, self.temp_dir.name)
-            pocket_pdbs = fpocket_client.get_pocket_pdb_files(output_dir)
+            fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
+            pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
+            matching_pocket = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_pdbs)
 
 
     @staticmethod
