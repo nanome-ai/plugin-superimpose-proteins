@@ -237,14 +237,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        rms = round(superimposer.rms, 5)
-        Logs.message(f"RMSD: {rms}")
+        rms = round(superimposer.rms, 2)
+        Logs.debug(f"RMSD: {rms}")
         paired_atom_count = len(fixed_atoms)
         return superimposer, paired_atom_count
 
     def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count: int, chain_name=''):
         # Set up data to return to caller
-        rms = round(superimposer.rms, 5)
+        rms = round(superimposer.rms, 2)
         comp_data = {
             'rmsd': rms,
             'paired_atoms': paired_atom_count,
