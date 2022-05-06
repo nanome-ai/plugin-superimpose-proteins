@@ -302,6 +302,10 @@ class MainMenu:
                     btn_moving.unusable = True
                     if self.current_mode == 'binding_site':
                         ln_dd_chain.enabled = True
+                        dd_ligand = ln_dd_chain.get_content()
+                        comp_name = menu_item.find_node('lbl_struct_name').get_content().text_value
+                        comp = next(cmp for cmp in self.plugin.complexes if cmp.full_name == comp_name)
+                        dd_ligand.items = await self.create_ligand_dropdown_items(comp)
                 else:
                     btn_moving.unusable = False
                     ln_dd_chain.enabled = False
@@ -310,8 +314,6 @@ class MainMenu:
                 btn_moving.unusable = False
                 if self.current_mode == 'binding_site':
                     ln_dd_chain.enabled = False
-                    dd_ligand = ln_dd_chain.get_content()
-                    dd_ligand.items = await self.create_ligand_dropdown_items()
 
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
@@ -319,13 +321,15 @@ class MainMenu:
         self.check_if_ready_to_submit()
         self.plugin.update_content(*btns_to_update, self.btn_submit)
 
-    async def create_ligand_dropdown_items(self):
-        # TODO
-        return []
-        mol = next(mo for mo in comp.molecules)
+    async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
+        mol = next(mo for mo in comp.molecules)
         ligands = await mol.get_ligands()
-        print(ligands)
+        dropdown_items = []
+        for lig in ligands:
+            dropdown_items.append(ui.DropdownItem(lig.name))
+        return dropdown_items
+
 
     def btn_moving_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
@@ -404,14 +408,12 @@ class MainMenu:
             # Get deep complexes if necessary
             for comp in self.plugin.complexes:
                 if sum(1 for _ in comp.chains) == 0:
-                    self.btn_align_by_chain.unusable = True
-                    self.plugin.update_content(self.btn_align_by_chain)
+                    btn.unusable = True
+                    self.plugin.update_content(btn)
                     comp_indices = [cmp.index for cmp in self.plugin.complexes]
                     self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
-                    self.btn_align_by_chain.unusable = False
+                    btn.unusable = False
                     break
-        elif btn.name == 'btn_align_by_binding_site':
-            self.current_mode = 'binding_site'
 
         await self.plugin.menu.render(complexes=self.plugin.complexes)
         if update:

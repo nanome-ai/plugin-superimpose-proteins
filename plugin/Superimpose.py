@@ -151,11 +151,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return results
 
     async def superimpose_by_active_site(
-            self, target_reference: Complex, ligand_name: str, moving_comp_list, site_size=5):
+            self, target_reference: int, ligand_name: str, moving_indices: list, site_size=4.5):
         # Select the binding site on the target_reference.
-        moving_indices = [comp.index for comp in moving_comp_list]
-        updated_complexes = await self.request_complexes([target_reference.index, *moving_indices])
+        updated_complexes = await self.request_complexes([target_reference, *moving_indices])
         target_reference = updated_complexes[0]
+        moving_comp_list = updated_complexes[1:]
         binding_site_atoms = await self.get_binding_site_atoms(target_reference, ligand_name, site_size)
         for atom in binding_site_atoms:
             atom.selected = True
