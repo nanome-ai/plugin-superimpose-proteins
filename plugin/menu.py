@@ -67,8 +67,12 @@ class MainMenu:
         return self._menu.root.find_node('btn_rmsd_table')
 
     @property
-    def btn_rmsd_table(self):
-        return self._menu.root.find_node('ln_btn_align_by_binding_site').get_content()
+    def ln_btn_align_by_binding_site(self):
+        return self._menu.root.find_node('ln_btn_align_by_binding_site')
+
+    @property
+    def btn_align_by_binding_site(self):
+        return self.ln_btn_align_by_binding_site.get_content()
 
     @property
     def ln_btn_rmsd_table(self):
@@ -287,13 +291,17 @@ class MainMenu:
                 continue
             btn_fixed = menu_item.find_node('btn_fixed').get_content()
             btn_moving = menu_item.find_node('btn_moving').get_content()
+            ln_dd_chain = menu_item.find_node('dd_chain')
+
             if btn_fixed == btn:
-                # Fixed structure cannot also be a moving structure.
-                if not btn.selected:
-                    btn_moving.unusable = False
-                else:
+                if btn_fixed.selected:
+                    # Make sure the other button is not selected
                     btn_moving.selected = False
                     btn_moving.unusable = True
+                    ln_dd_chain.enabled = self.current_mode == 'binding_site'
+                else:
+                    btn_moving.unusable = False
+                    ln_dd_chain.enabled = False
             else:
                 btn_fixed.selected = False
                 btn_moving.unusable = False
