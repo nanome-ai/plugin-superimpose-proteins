@@ -274,7 +274,10 @@ class MainMenu:
         btns_to_update = [btn]
         selected_count = 0
         for menu_item in self.ln_moving_comp_list.get_content().items:
-            btn_moving = menu_item.find_node('btn_moving').get_content()
+            ln = menu_item.find_node('btn_moving')
+            if not ln:
+                continue
+            btn_moving = ln.get_content()
             if btn_moving.selected:
                 selected_count += 1
         label_text = 'Moving Structures'
