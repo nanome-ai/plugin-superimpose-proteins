@@ -298,13 +298,16 @@ class MainMenu:
                     # Make sure the other button is not selected
                     btn_moving.selected = False
                     btn_moving.unusable = True
-                    ln_dd_chain.enabled = self.current_mode == 'binding_site'
+                    if self.current_mode == 'binding_site':
+                        ln_dd_chain.enabled = True
                 else:
                     btn_moving.unusable = False
                     ln_dd_chain.enabled = False
             else:
                 btn_fixed.selected = False
                 btn_moving.unusable = False
+                if self.current_mode == 'binding_site':
+                    ln_dd_chain.enabled = False
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.update_selection_counter()
