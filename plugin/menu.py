@@ -51,7 +51,7 @@ class MainMenu:
         self.current_mode = AlignmentModeEnum.ENTRY
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
-        self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
+        self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_menu)
         self.btn_docs.register_pressed_callback(self.open_docs_page)
         self.btn_select_all.register_pressed_callback(
             functools.partial(self.toggle_all_moving_complexes, True))
@@ -66,6 +66,13 @@ class MainMenu:
     def ln_btn_rmsd_table(self):
         return self._menu.root.find_node('btn_rmsd_table')
 
+    @property
+    def btn_rmsd_table(self):
+        return self._menu.root.find_node('ln_btn_align_by_binding_site').get_content()
+
+    @property
+    def ln_btn_rmsd_table(self):
+        return self._menu.root.find_node('btn_rmsd_table')
     @property
     def btn_rmsd_table(self):
         return self.ln_btn_rmsd_table.get_content()
@@ -138,13 +145,23 @@ class MainMenu:
             if current_mode == AlignmentModeEnum.ENTRY:
                 moving_comp_indices = self.get_moving_comp_indices()
                 rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
-            if current_mode == AlignmentModeEnum.CHAIN:
+            elif current_mode == AlignmentModeEnum.CHAIN:
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
-        except Exception:
+            elif current_mode == 'binding_site':
+                fixed_chain = self.get_binding_site_ligand()
+                moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
+                if not all([fixed_comp_index, fixed_chain, moving_comp_chain_list]):
+                    msg = "Please select all complexes and chains."
+                    Logs.warning(msg)
+                    self.plugin.send_notification(NotificationTypes.error, msg)
+                else:
+                    rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
+        except Exception as e:
             rmsd_results = {}
             Logs.error("Error calculating Superposition.")
+
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == AlignmentModeEnum.CHAIN:
@@ -369,6 +386,9 @@ class MainMenu:
                     self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
                     self.btn_align_by_chain.unusable = False
                     break
+        elif btn.name == 'btn_align_by_binding_site':
+            self.current_mode = 'binding_site'
+            pass
         await self.plugin.menu.render(complexes=self.plugin.complexes)
         if update:
             self.plugin.update_menu(self._menu)
@@ -395,7 +415,7 @@ class MainMenu:
             comp_chain_list.append((selected_comp.index, selected_chain))
         return comp_chain_list
 
-    def open_rmsd_table(self, btn):
+    def open_rmsd_menu(self, btn):
         self.rmsd_menu.enabled = True
         self.rmsd_menu.update()
 
