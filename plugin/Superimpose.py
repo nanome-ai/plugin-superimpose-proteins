@@ -1,4 +1,5 @@
 import nanome
+import os
 import tempfile
 import time
 
@@ -345,7 +346,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         self.menu.update_loading_bar(current, total)
 
 def main():
-    plugin = nanome.Plugin('Superimpose', 'Superimpose two or more structures', 'alignment', False)
+    default_description = 'Superimpose two or more structures'
+    description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
+    plugin = nanome.Plugin('Superimpose', description, 'alignment', False)
     plugin.set_plugin_class(SuperimposePlugin)
     plugin.run()
 
