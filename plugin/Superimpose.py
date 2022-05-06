@@ -1,3 +1,4 @@
+import copy
 import nanome
 import os
 import tempfile
@@ -16,12 +17,39 @@ from nanome.api.structure import Complex
 from .enums import AlignmentMethodEnum
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
+import sys
+
+# Increase the recursion limit in order to properly serialize Complexes
+
+def extract_binding_site(comp, binding_site_atoms):
+    # Copy comp, and remove all residues that are not part of the binding site
+    orig_recursion_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(100000)
+    new_comp = copy.deepcopy(comp)
+    sys.setrecursionlimit(orig_recursion_limit)
+    new_comp.name = f'{comp.name} binding site'
+    new_comp.index = -1
+    new_comp.set_surface_needs_redraw()
+
+    binding_site_atom_indices = iter(a.index for a in binding_site_atoms)
+    comp_residues = list(new_comp.residues)
+    for i in range(len(comp_residues) - 1, -1, -1):
+        res = comp_residues[i]
+        binding_atoms_in_res = [a for a in res.atoms if a.index in binding_site_atom_indices]
+        if not binding_atoms_in_res:
+            res.chain.remove_residue(res)
+        else:
+            for atom in binding_atoms_in_res:
+                atom.index = -1        
+    print(f"new comp atom count: {len(list(new_comp.atoms))}")
+    return new_comp
 
 
 class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     def start(self):
         self.menu = MainMenu(self)
+        self.temp_dir = tempfile.TemporaryDirectory()
 
     @async_callback
     async def on_run(self):
@@ -151,27 +179,22 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return results
 
     async def superimpose_by_binding_site(
-            self, target_reference: int, ligand_name: str, moving_indices: list, site_size=4.5):
-        # Select the binding site on the target_reference.
-        updated_complexes = await self.request_complexes([target_reference, *moving_indices])
-        target_reference = updated_complexes[0]
+            self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=4.5):
+        # Select the binding site on the fixed_index.
+        updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
+        fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
-        binding_site_atoms = await self.get_binding_site_atoms(target_reference, ligand_name, site_size)
-        for atom in binding_site_atoms:
-            atom.selected = True
-        await self.update_structures_deep([target_reference])
+        fixed_binding_site_atoms = await self.get_binding_site_atoms(fixed_comp, ligand_name, site_size)
+        fixed_binding_site_comp = extract_binding_site(fixed_comp, fixed_binding_site_atoms)
+        
+        fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
+        fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
 
-        # For each moving comp, select the potential binding sites.
         fpocket_client = FPocketClient()
         for moving_comp in moving_comp_list:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                output_dir = fpocket_client.run(moving_comp, tmpdir)
-                pocket_sets = fpocket_client.parse_results(moving_comp, output_dir)
-            for i in range(len(pocket_sets) - 1, -1, -1):
-                Logs.debug(f"Highlighting pocket {i + 1}")
-                for atom in moving_comp.atoms:
-                    atom.selected = atom in pocket_sets[i]
-                await self.update_structures_deep([moving_comp])
+            output_dir = fpocket_client.run(moving_comp, self.temp_dir.name)
+            pocket_pdbs = fpocket_client.get_pocket_pdb_files(output_dir)
+
 
     @staticmethod
     def create_transform_matrix(superimposer: Superimposer) -> Matrix:
