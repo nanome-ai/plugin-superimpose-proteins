@@ -1,3 +1,4 @@
+import enum
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
@@ -27,6 +28,10 @@ def create_chain_dropdown_items(comp, set_default=False):
         dropdown_items[0].selected = True
     return dropdown_items
 
+class AlignmentModeEnum(enum.Enum):
+    ENTRY = 'entry'
+    CHAIN = 'chain'
+    BINDING_SITE = 'binding_site'
 
 class MainMenu:
 
@@ -36,7 +41,7 @@ class MainMenu:
         self.plugin = plugin_instance
         self.btn_advanced.icon.value.set_all(GEAR_ICON_PATH)
 
-        self.current_mode = 'entry'
+        self.current_mode = AlignmentModeEnum.ENTRY
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
         self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
@@ -77,8 +82,7 @@ class MainMenu:
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
-        current_mode = self.current_mode
-        self.populate_comp_list(complexes, current_mode)
+        self.populate_comp_list(complexes, self.current_mode)
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -109,7 +113,7 @@ class MainMenu:
         self.loading_bar.percentage = 0
         self.plugin.update_node(self.ln_loading_bar)
 
-        if current_mode == 'entry':
+        if current_mode == AlignmentModeEnum.ENTRY:
             moving_comp_indices = self.get_moving_comp_indices()
             if not all([fixed_comp_index, moving_comp_indices]):
                 msg = "Please select all complexes."
@@ -117,7 +121,7 @@ class MainMenu:
                 self.plugin.send_notification(NotificationTypes.error, msg)
             else:
                 rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
-        if current_mode == 'chain':
+        if current_mode == AlignmentModeEnum.CHAIN:
             fixed_chain = self.get_fixed_chain()
             moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
             if not all([fixed_comp_index, fixed_chain, moving_comp_chain_list]):
@@ -129,7 +133,7 @@ class MainMenu:
 
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
-            if current_mode == 'chain':
+            if current_mode == AlignmentModeEnum.CHAIN:
                 fixed_name = f'{fixed_name} Chain {fixed_chain}'
             self.render_rmsd_results(rmsd_results, fixed_name)
             self.ln_btn_rmsd_table.enabled = True
@@ -203,7 +207,7 @@ class MainMenu:
                 selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
                 return getattr(selected_ddi, 'name', '')
 
-    def populate_comp_list(self, complexes, mode='entry', default_comp=None):
+    def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY, default_comp=None):
         comp_list = self.ln_moving_comp_list.get_content()
         set_default_values = len(complexes) == 2
         visible_items = []
@@ -229,9 +233,9 @@ class MainMenu:
             lbl_chain_count.text_value = f'{chain_count} Chain(s)'
 
             ln_dd_chain = ln.find_node('dd_chain')
-            ln_dd_chain.enabled = mode == 'chain'
+            ln_dd_chain.enabled = mode == AlignmentModeEnum.CHAIN
             # Set up chain dropdown if in chain mode
-            if mode == 'chain':
+            if mode == AlignmentModeEnum.CHAIN:
                 ln_lbl_chain_count.enabled = True
                 dd_chain = ln_dd_chain.get_content()
                 comp = next(
@@ -356,12 +360,11 @@ class MainMenu:
         if btn.name == 'btn_entry_align':
             if log:
                 Logs.message("Switched to entry mode")
-            self.current_mode = 'entry'
+            self.current_mode = AlignmentModeEnum.ENTRY
             self.render(complexes=self.plugin.complexes)
         elif btn.name == 'btn_align_by_chain':
-            if log:
-                Logs.message("Switched to chain mode.")
-            self.current_mode = 'chain'
+            Logs.message("Switched to chain mode.")
+            self.current_mode = AlignmentModeEnum.CHAIN
             # Get deep complexes if necessary
             for comp in self.plugin.complexes:
                 if sum(1 for _ in comp.chains) == 0:
