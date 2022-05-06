@@ -393,7 +393,6 @@ class MainMenu:
                 if chain_ddi.selected:
                     selected_chain = chain_ddi.name
                     break
-                print('here')
             comp_chain_list.append((selected_comp.index, selected_chain))
         return comp_chain_list
 
@@ -412,21 +411,18 @@ class MainMenu:
     def set_submit_button_enabled(self, *args, **kwargs):
         """Enable or disable submit button based on if required fields are selected."""
         fixed_comp_index = self.get_fixed_comp_index()
-        ready_to_submit = True
+        ready_to_submit = False
         if self.current_mode == AlignmentModeEnum.ENTRY:
             moving_comp_indices = self.get_moving_comp_indices()
             ready_to_submit = all([fixed_comp_index, moving_comp_indices])
         elif self.current_mode == AlignmentModeEnum.CHAIN:
             fixed_chain = self.get_fixed_chain()
             moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
-            if not fixed_comp_index or not fixed_chain or not moving_comp_chain_list:
-                ready_to_submit = False
-            else:
-                # Make sure each moving comp has a chain selected
-                for comp_index, chain in moving_comp_chain_list:
-                    if not comp_index or not chain:
-                        ready_to_submit = False
-                        break
+            moving_comps_selected = moving_comp_chain_list and all([
+                bool(comp_index and chain) for comp_index, chain in moving_comp_chain_list
+            ])
+            if fixed_comp_index and fixed_chain and moving_comps_selected:
+                ready_to_submit = True
 
         self.btn_submit.unusable = not ready_to_submit
         self.plugin.update_content(self.btn_submit)
