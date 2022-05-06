@@ -189,8 +189,9 @@ class MainMenu:
 
     def populate_comp_list(self, complexes, mode='entry', default_comp=None):
         comp_list = self.ln_moving_comp_list.get_content()
-        comp_list.items = []
         set_default_values = len(complexes) == 2
+        visible_items = []
+        hidden_items = []
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             btn_fixed = ln.find_node('btn_fixed').get_content()
@@ -232,14 +233,26 @@ class MainMenu:
                 btn_moving.selected = True
                 if ln_dd_chain.enabled:
                     dd_chain.items[0].selected = True
-            comp_list.items.append(ln)
+            
+            if comp.visible:
+                visible_items.append(ln)
+            else:
+                hidden_items.append(ln)
+                continue
 
+        comp_list.items = visible_items
+        hidden_item_header = ui.LayoutNode()
+        hidden_item_header.add_new_label(f"Hidden Items ({len(hidden_items)})")
+        comp_list.items.append(hidden_item_header)
+        comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def btn_fixed_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
         for menu_item in self.ln_moving_comp_list.get_content().items:
+            if not menu_item.find_node('btn_fixed'):
+                continue
             btn_fixed = menu_item.find_node('btn_fixed').get_content()
             btn_moving = menu_item.find_node('btn_moving').get_content()
             if btn_fixed == btn:
