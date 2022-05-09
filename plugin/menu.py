@@ -99,7 +99,7 @@ class MainMenu:
     async def render(self, complexes=None):
         complexes = complexes or []
         self.populate_comp_list(complexes, self.current_mode)
-        self.set_submit_button_enabled()
+        self.check_if_ready_to_submit()
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -224,7 +224,7 @@ class MainMenu:
             if mode == AlignmentModeEnum.CHAIN:
                 ln_lbl_chain_count.enabled = True
                 dd_chain = ln_dd_chain.get_content()
-                dd_chain.register_item_clicked_callback(self.set_submit_button_enabled)
+                dd_chain.register_item_clicked_callback(self.check_if_ready_to_submit)
                 comp = next(
                     cmp for cmp in self.plugin.complexes
                     if cmp.full_name == lbl_struct_name.text_value)
@@ -276,7 +276,7 @@ class MainMenu:
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.update_selection_counter()
-        self.set_submit_button_enabled()
+        self.check_if_ready_to_submit()
         self.plugin.update_content(*btns_to_update, self.btn_submit)
 
     def btn_moving_clicked(self, btn):
@@ -291,7 +291,7 @@ class MainMenu:
             if btn_moving.selected:
                 selected_count += 1
         self.update_selection_counter()
-        self.set_submit_button_enabled()
+        self.check_if_ready_to_submit()
         self.plugin.update_content(self.lbl_moving_structures, self.btn_submit, *btns_to_update)
 
     def update_selection_counter(self):
@@ -399,7 +399,7 @@ class MainMenu:
         self.loading_bar.percentage = current / total
         self.plugin.update_content(self.loading_bar)
 
-    def set_submit_button_enabled(self, *args, **kwargs):
+    def check_if_ready_to_submit(self, *args, **kwargs):
         """Enable or disable submit button based on if required fields are selected."""
         fixed_comp_index = self.get_fixed_comp_index()
         ready_to_submit = False
@@ -428,7 +428,7 @@ class MainMenu:
             if dd_chain.items:
                 dd_chain.items[0].selected = value
         self.plugin.update_node(self.ln_moving_comp_list)
-        self.set_submit_button_enabled()
+        self.check_if_ready_to_submit()
 
 
 class RMSDMenu(ui.Menu):
