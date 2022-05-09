@@ -124,7 +124,7 @@ class MainMenu:
         else:
             alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
 
-        log_extra = {'superimpose_mode': current_mode, 'alignment_method': selected_alignment_method}
+        log_extra = {'superimpose_mode': current_mode.value, 'alignment_method': selected_alignment_method}
         Logs.message("Submit button Pressed.", extra=log_extra)
 
         self.ln_loading_bar.enabled = True
