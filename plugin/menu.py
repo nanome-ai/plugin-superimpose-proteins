@@ -12,6 +12,7 @@ RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
+DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
 
 def create_chain_dropdown_items(comp, set_default=False):
     """Update chain dropdown to reflect changes in complex."""
@@ -142,37 +143,9 @@ class MainMenu:
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
         """Render rmsd results in a list."""
-        new_menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
-        new_menu.index = 200
-
-        comp_header_lbl = new_menu.root.find_node('comp_name_header').get_content()
-        comp_header_lbl.text_value = comp_header_lbl.text_value.replace('<fixed>', fixed_comp_name)
-        results_list = new_menu.root.find_node('results_list').get_content()
-        list_items = []
-        row_color1 = Color(21, 26, 37)
-        row_color2 = Color(42, 52, 63)
-        for i, comp_name in enumerate(rmsd_results, 1):
-            results_data = rmsd_results[comp_name]
-            rmsd_val = results_data['rmsd']
-            paired_atom_count = results_data['paired_atoms']
-            paired_residue_count = results_data['paired_residues']
-            if 'chain' in results_data:
-                comp_name = f'{comp_name} Chain {results_data["chain"]}'
-
-            item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
-            item_mesh = item.add_new_mesh()
-            item_mesh.mesh_color = row_color1 if i % 2 == 0 else row_color2
-
-            item.get_children()[0].get_content().text_value = i
-            item.get_children()[1].get_content().text_value = comp_name
-            item.get_children()[2].get_content().text_value = rmsd_val
-            item.get_children()[3].get_content().text_value = paired_residue_count
-            item.get_children()[4].get_content().text_value = paired_atom_count
-            list_items.append(item)
-
-        results_list.items = list_items
-        new_menu.enabled = False
-        self.rmsd_menu = new_menu
+        self.rmsd_menu = RMSDMenu(self.plugin)
+        self.rmsd_menu.render(rmsd_results, fixed_comp_name)
+        
 
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
@@ -404,11 +377,10 @@ class MainMenu:
 
     def open_rmsd_table(self, btn):
         self.rmsd_menu.enabled = True
-        self.plugin.update_menu(self.rmsd_menu)
+        self.rmsd_menu.update()
 
     def open_docs_page(self, btn):
-        docs_url = 'https://docs.nanome.ai/plugins/cheminteractions.html'
-        self.plugin.open_url(docs_url)
+        self.plugin.open_url(DOCS_URL)
 
     def update_loading_bar(self, current, total):
         self.loading_bar.percentage = current / total
@@ -432,3 +404,58 @@ class MainMenu:
 
         self.btn_submit.unusable = not ready_to_submit
         self.plugin.update_content(self.btn_submit)
+
+class RMSDMenu(ui.Menu):
+
+    def __init__(self, plugin_instance):
+        super().__init__()
+        self._menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
+        self.plugin = plugin_instance
+        self._menu.enabled = False
+        self._menu.index = 200
+        self.btn_docs.register_pressed_callback(self.open_docs_page)
+
+    @property
+    def btn_docs(self):
+        return self._menu.root.find_node('btn_docs').get_content()
+
+    def render(self, rmsd_results, fixed_comp_name):
+        comp_header_lbl = self._menu.root.find_node('comp_name_header').get_content()
+        comp_header_lbl.text_value = comp_header_lbl.text_value.replace('<fixed>', fixed_comp_name)
+        results_list = self._menu.root.find_node('results_list').get_content()
+        list_items = []
+        row_color1 = Color(21, 26, 37)
+        row_color2 = Color(42, 52, 63)
+        for i, comp_name in enumerate(rmsd_results, 1):
+            results_data = rmsd_results[comp_name]
+            rmsd_val = results_data['rmsd']
+            paired_atom_count = results_data['paired_atoms']
+            paired_residue_count = results_data['paired_residues']
+            if 'chain' in results_data:
+                comp_name = f'{comp_name} Chain {results_data["chain"]}'
+
+            item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
+            item_mesh = item.add_new_mesh()
+            item_mesh.mesh_color = row_color1 if i % 2 == 0 else row_color2
+
+            item.get_children()[0].get_content().text_value = i
+            item.get_children()[1].get_content().text_value = comp_name
+            item.get_children()[2].get_content().text_value = rmsd_val
+            item.get_children()[3].get_content().text_value = paired_residue_count
+            item.get_children()[4].get_content().text_value = paired_atom_count
+            list_items.append(item)
+        results_list.items = list_items
+
+    def open_docs_page(self, btn):
+        self.plugin.open_url(DOCS_URL)
+
+    def update(self):
+        self.plugin.update_menu(self._menu)
+
+    @property
+    def enabled(self):
+        return self._menu._enabled
+    
+    @enabled.setter
+    def enabled(self, value):
+        self._menu._enabled = value
