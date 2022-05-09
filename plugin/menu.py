@@ -139,6 +139,7 @@ class MainMenu:
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
         """Render rmsd results in a list."""
+        breakpoint()
         new_menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
         new_menu.index = 200
 
@@ -152,6 +153,7 @@ class MainMenu:
             results_data = rmsd_results[comp_name]
             rmsd_val = results_data['rmsd']
             paired_atom_count = results_data['paired_atoms']
+            paired_residue_count = results_data['paired_residues']
             if 'chain' in results_data:
                 comp_name = f'{comp_name} Chain {results_data["chain"]}'
 
@@ -162,7 +164,8 @@ class MainMenu:
             item.get_children()[0].get_content().text_value = i
             item.get_children()[1].get_content().text_value = comp_name
             item.get_children()[2].get_content().text_value = rmsd_val
-            item.get_children()[3].get_content().text_value = paired_atom_count
+            item.get_children()[3].get_content().text_value = paired_residue_count
+            item.get_children()[4].get_content().text_value = paired_atom_count
             list_items.append(item)
 
         results_list.items = list_items

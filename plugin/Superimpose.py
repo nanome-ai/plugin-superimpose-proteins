@@ -64,12 +64,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
             try:
-                superimposer, paired_atom_count = await self.superimpose(
+                superimposer, paired_residue_count, paired_atom_count = await self.superimpose(
                     fixed_struct, moving_struct, alignment_method)
             except Exception:
                 Logs.error(f"Superimposition failed for {moving_comp.full_name}")
                 continue
-            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_atom_count)
+            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)
             # Use matrix to transform moving atoms to new position
             transform_matrix = self.create_transform_matrix(superimposer)
             for comp_atom in moving_comp.atoms:
@@ -118,7 +118,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 if ch.id == moving_chain_name)
 
             try:
-                superimposer, paired_atom_count = await self.superimpose(
+                superimposer, paired_residue_count, paired_atom_count = await self.superimpose(
                     fixed_chain, moving_chain, alignment_method)
             except Exception:
                 Logs.error(f"Superimposition failed for {moving_comp.full_name}")
@@ -127,7 +127,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             transform_matrix = self.create_transform_matrix(superimposer)
 
             comp_data = self.format_superimposer_data(
-                superimposer, paired_atom_count, moving_chain_name)
+                superimposer, paired_residue_count, paired_atom_count, moving_chain_name)
             results[moving_comp.full_name] = comp_data
 
             # apply transformation to moving_comp
@@ -228,12 +228,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 continue
             fixed_atoms.extend(new_fixed_atoms)
             moving_atoms.extend(new_moving_atoms)
-
         assert len(moving_atoms) == len(fixed_atoms), f"{len(moving_atoms)} != {len(fixed_atoms)}"
+        total_residue_count = sum(1 for _ in fixed_struct.get_residues())
+        paired_residue_count = len(set([atom.get_parent() for atom in fixed_atoms]))
         if skip_count > 0:
-            residue_count = sum(1 for _ in fixed_struct.get_residues())
             Logs.warning(
-                f"Not including {skip_count}/{residue_count} residue pairs "
+                f"Not including {skip_count}/{total_residue_count} residue pairs "
                 "in RMSD calculation due to differing atom counts.")
 
         Logs.message("Superimposing Structures.")
@@ -242,14 +242,15 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         rms = round(superimposer.rms, 3)
         Logs.debug(f"RMSD: {rms}")
         paired_atom_count = len(fixed_atoms)
-        return superimposer, paired_atom_count
+        return superimposer, paired_residue_count, paired_atom_count
 
-    def format_superimposer_data(self, superimposer: Superimposer, paired_atom_count: int, chain_name=''):
+    def format_superimposer_data(self, superimposer: Superimposer, paired_residue_count: int, paired_atom_count: int, chain_name=''):
         # Set up data to return to caller
         rms = round(superimposer.rms, 2)
         comp_data = {
             'rmsd': rms,
             'paired_atoms': paired_atom_count,
+            'paired_residues': paired_residue_count
         }
         if chain_name:
             comp_data['chain'] = chain_name
@@ -311,7 +312,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
         sequence_A = "".join([i[1] for i in resseq_A])
         sequence_B = "".join([i[1] for i in resseq_B])
-
         alns = pairwise2.align.globalds(
             sequence_A,
             sequence_B,
