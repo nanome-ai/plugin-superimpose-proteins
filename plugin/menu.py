@@ -128,7 +128,7 @@ class MainMenu:
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
         except Exception:
             rmsd_results = {}
-            Logs.error("Error calculating Superposition.", exc_info=True)
+            Logs.error("Error calculating Superposition.")
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == AlignmentModeEnum.CHAIN:

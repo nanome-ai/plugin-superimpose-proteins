@@ -54,6 +54,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         rmsd_results = {}
         comp_count = len(moving_comps)
         for i, moving_comp in enumerate(moving_comps):
+            Logs.debug(f"Superimposing Moving Complex {i}")
             ComplexUtils.align_to(moving_comp, fixed_comp)
             parser = PDBParser(QUIET=True)
             fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -104,8 +105,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_comp.io.to_pdb(fixed_pdb.name)
         fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
         fixed_chain = next(ch for ch in fixed_struct.get_chains() if ch.id == fixed_chain_name)
+        comp_count = len(moving_comps)
         results = {}
         for i, moving_comp in enumerate(moving_comps):
+            Logs.debug(f"Superimposing Moving Complex {i}")
             moving_chain_name = moving_comp_chain_list[i][1]
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
@@ -136,6 +139,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.locked = True
             moving_comp.set_surface_needs_redraw()
             comps_to_update.append(moving_comp)
+            self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
         end_time = time.time()
@@ -239,7 +243,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         Logs.message("Superimposing Structures.")
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
-        rms = round(superimposer.rms, 3)
+        rms = round(superimposer.rms, 2)
         Logs.debug(f"RMSD: {rms}")
         paired_atom_count = len(fixed_atoms)
         return superimposer, paired_residue_count, paired_atom_count
