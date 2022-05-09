@@ -117,14 +117,17 @@ class MainMenu:
         self.plugin.update_node(self.ln_loading_bar)
 
         rmsd_results = None
-        if current_mode == AlignmentModeEnum.ENTRY:
-            moving_comp_indices = self.get_moving_comp_indices()
-            rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
-        if current_mode == AlignmentModeEnum.CHAIN:
-            fixed_chain = self.get_fixed_chain()
-            moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
-            rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
-
+        try:
+            if current_mode == AlignmentModeEnum.ENTRY:
+                moving_comp_indices = self.get_moving_comp_indices()
+                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
+            if current_mode == AlignmentModeEnum.CHAIN:
+                fixed_chain = self.get_fixed_chain()
+                moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
+                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
+        except Exception:
+            rmsd_results = {}
+            Logs.error("Error calculating Superposition.", exc_info=True)
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == AlignmentModeEnum.CHAIN:
@@ -139,7 +142,6 @@ class MainMenu:
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
         """Render rmsd results in a list."""
-        breakpoint()
         new_menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
         new_menu.index = 200
 
