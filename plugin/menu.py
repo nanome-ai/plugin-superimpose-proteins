@@ -1,4 +1,5 @@
 import enum
+import functools
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
@@ -49,8 +50,10 @@ class MainMenu:
             btn.register_pressed_callback(self.on_mode_selected)
         self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
         self.btn_docs.register_pressed_callback(self.open_docs_page)
-        self.btn_select_all.register_pressed_callback(self.select_all_complexes)
-        self.btn_deselect_all.register_pressed_callback(self.deselect_all_complexes)
+        self.btn_select_all.register_pressed_callback(
+            functools.partial(self.toggle_all_moving_complexes, True))
+        self.btn_deselect_all.register_pressed_callback(
+            functools.partial(self.toggle_all_moving_complexes, False))
 
     @property
     def btn_submit(self):
@@ -415,22 +418,17 @@ class MainMenu:
         self.btn_submit.unusable = not ready_to_submit
         self.plugin.update_content(self.btn_submit)
 
-    def select_all_complexes(self, btn):
-        btns_to_update = []
+    def toggle_all_moving_complexes(self, value: bool, btn: ui.Button):
+        """Select or deselect all complexes as moving complexes"""
         for item in self.ln_moving_comp_list.get_content().items:
             btn_moving = item.find_node('btn_moving').get_content()
-            btn_moving.selected = True
-            btns_to_update.append(btn_moving)
-        self.plugin.update_content(*btns_to_update)
-
-    
-    def deselect_all_complexes(self, btn):
-        btns_to_update = []
-        for item in self.ln_moving_comp_list.get_content().items:
-            btn_moving = item.find_node('btn_moving').get_content()
-            btn_moving.selected = False
-            btns_to_update.append(btn_moving)
-        self.plugin.update_content(*btns_to_update)
+            if not btn_moving.unusable:
+                btn_moving.selected = value
+            dd_chain = item.find_node('dd_chain').get_content()
+            if dd_chain.items:
+                dd_chain.items[0].selected = value
+        self.plugin.update_node(self.ln_moving_comp_list)
+        self.set_submit_button_enabled()
 
 
 class RMSDMenu(ui.Menu):
