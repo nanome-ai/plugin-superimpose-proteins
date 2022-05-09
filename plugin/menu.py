@@ -420,12 +420,22 @@ class RMSDMenu(ui.Menu):
         return self._menu.root.find_node('btn_docs').get_content()
 
     def render(self, rmsd_results, fixed_comp_name):
-        comp_header_lbl = self._menu.root.find_node('comp_name_header').get_content()
-        comp_header_lbl.text_value = comp_header_lbl.text_value.replace('<fixed>', fixed_comp_name)
         results_list = self._menu.root.find_node('results_list').get_content()
         list_items = []
-        row_color1 = Color(21, 26, 37)
-        row_color2 = Color(42, 52, 63)
+        row_color_dark = Color(21, 26, 37)
+        row_color_light = Color(42, 52, 63)
+
+        # Fixed comp is the first row.
+        item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
+        item_mesh = item.add_new_mesh()
+        item_mesh.mesh_color = row_color_light
+        item.get_children()[0].get_content().text_value = 'PIN'
+        item.get_children()[1].get_content().text_value = fixed_comp_name
+        item.get_children()[2].get_content().text_value = '--'
+        item.get_children()[3].get_content().text_value = '--'
+        item.get_children()[4].get_content().text_value = '--'
+        list_items.append(item)
+        # Add moving comps and results to the table.
         for i, comp_name in enumerate(rmsd_results, 1):
             results_data = rmsd_results[comp_name]
             rmsd_val = results_data['rmsd']
@@ -436,7 +446,7 @@ class RMSDMenu(ui.Menu):
 
             item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
             item_mesh = item.add_new_mesh()
-            item_mesh.mesh_color = row_color1 if i % 2 == 0 else row_color2
+            item_mesh.mesh_color = row_color_light if i % 2 == 0 else row_color_dark
 
             item.get_children()[0].get_content().text_value = i
             item.get_children()[1].get_content().text_value = comp_name
