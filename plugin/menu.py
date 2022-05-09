@@ -1,4 +1,5 @@
 import enum
+import functools
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
@@ -11,6 +12,8 @@ COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
+
+DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
 
 
 def create_chain_dropdown_items(comp, set_default=False):
@@ -48,6 +51,10 @@ class MainMenu:
             btn.register_pressed_callback(self.on_mode_selected)
         self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_table)
         self.btn_docs.register_pressed_callback(self.open_docs_page)
+        self.btn_select_all.register_pressed_callback(
+            functools.partial(self.toggle_all_moving_complexes, True))
+        self.btn_deselect_all.register_pressed_callback(
+            functools.partial(self.toggle_all_moving_complexes, False))
 
     @property
     def btn_submit(self):
@@ -81,11 +88,19 @@ class MainMenu:
     def loading_bar(self):
         return self.ln_loading_bar.get_content()
 
+    @property
+    def btn_select_all(self):
+        return self._menu.root.find_node('ln_btn_select_all').get_content()
+
+    @property
+    def btn_deselect_all(self):
+        return self._menu.root.find_node('ln_btn_deselect_all').get_content()
+
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
         self.populate_comp_list(complexes, self.current_mode)
-        self.set_submit_button_enabled()
+        self.check_if_ready_to_submit()
         self.btn_submit.register_pressed_callback(self.submit)
         self.plugin.update_menu(self._menu)
 
@@ -117,14 +132,17 @@ class MainMenu:
         self.plugin.update_node(self.ln_loading_bar)
 
         rmsd_results = None
-        if current_mode == AlignmentModeEnum.ENTRY:
-            moving_comp_indices = self.get_moving_comp_indices()
-            rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
-        if current_mode == AlignmentModeEnum.CHAIN:
-            fixed_chain = self.get_fixed_chain()
-            moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
-            rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
-
+        try:
+            if current_mode == AlignmentModeEnum.ENTRY:
+                moving_comp_indices = self.get_moving_comp_indices()
+                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
+            if current_mode == AlignmentModeEnum.CHAIN:
+                fixed_chain = self.get_fixed_chain()
+                moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
+                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
+        except Exception:
+            rmsd_results = {}
+            Logs.error("Error calculating Superposition.")
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == AlignmentModeEnum.CHAIN:
@@ -139,35 +157,8 @@ class MainMenu:
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
         """Render rmsd results in a list."""
-        new_menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
-        new_menu.index = 200
-
-        comp_header_lbl = new_menu.root.find_node('comp_name_header').get_content()
-        comp_header_lbl.text_value = comp_header_lbl.text_value.replace('<fixed>', fixed_comp_name)
-        results_list = new_menu.root.find_node('results_list').get_content()
-        list_items = []
-        row_color1 = Color(21, 26, 37)
-        row_color2 = Color(42, 52, 63)
-        for i, comp_name in enumerate(rmsd_results, 1):
-            results_data = rmsd_results[comp_name]
-            rmsd_val = results_data['rmsd']
-            paired_atom_count = results_data['paired_atoms']
-            if 'chain' in results_data:
-                comp_name = f'{comp_name} Chain {results_data["chain"]}'
-
-            item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
-            item_mesh = item.add_new_mesh()
-            item_mesh.mesh_color = row_color1 if i % 2 == 0 else row_color2
-
-            item.get_children()[0].get_content().text_value = i
-            item.get_children()[1].get_content().text_value = comp_name
-            item.get_children()[2].get_content().text_value = rmsd_val
-            item.get_children()[3].get_content().text_value = paired_atom_count
-            list_items.append(item)
-
-        results_list.items = list_items
-        new_menu.enabled = False
-        self.rmsd_menu = new_menu
+        self.rmsd_menu = RMSDMenu(self.plugin)
+        self.rmsd_menu.render(rmsd_results, fixed_comp_name)
 
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
@@ -233,7 +224,7 @@ class MainMenu:
             if mode == AlignmentModeEnum.CHAIN:
                 ln_lbl_chain_count.enabled = True
                 dd_chain = ln_dd_chain.get_content()
-                dd_chain.register_item_clicked_callback(self.set_submit_button_enabled)
+                dd_chain.register_item_clicked_callback(self.check_if_ready_to_submit)
                 comp = next(
                     cmp for cmp in self.plugin.complexes
                     if cmp.full_name == lbl_struct_name.text_value)
@@ -285,7 +276,7 @@ class MainMenu:
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.update_selection_counter()
-        self.set_submit_button_enabled()
+        self.check_if_ready_to_submit()
         self.plugin.update_content(*btns_to_update, self.btn_submit)
 
     def btn_moving_clicked(self, btn):
@@ -300,7 +291,7 @@ class MainMenu:
             if btn_moving.selected:
                 selected_count += 1
         self.update_selection_counter()
-        self.set_submit_button_enabled()
+        self.check_if_ready_to_submit()
         self.plugin.update_content(self.lbl_moving_structures, self.btn_submit, *btns_to_update)
 
     def update_selection_counter(self):
@@ -399,17 +390,16 @@ class MainMenu:
 
     def open_rmsd_table(self, btn):
         self.rmsd_menu.enabled = True
-        self.plugin.update_menu(self.rmsd_menu)
+        self.rmsd_menu.update()
 
     def open_docs_page(self, btn):
-        docs_url = 'https://docs.nanome.ai/plugins/cheminteractions.html'
-        self.plugin.open_url(docs_url)
+        self.plugin.open_url(DOCS_URL)
 
     def update_loading_bar(self, current, total):
         self.loading_bar.percentage = current / total
         self.plugin.update_content(self.loading_bar)
 
-    def set_submit_button_enabled(self, *args, **kwargs):
+    def check_if_ready_to_submit(self, *args, **kwargs):
         """Enable or disable submit button based on if required fields are selected."""
         fixed_comp_index = self.get_fixed_comp_index()
         ready_to_submit = False
@@ -427,3 +417,81 @@ class MainMenu:
 
         self.btn_submit.unusable = not ready_to_submit
         self.plugin.update_content(self.btn_submit)
+
+    def toggle_all_moving_complexes(self, value: bool, btn: ui.Button):
+        """Select or deselect all complexes as moving complexes"""
+        for item in self.ln_moving_comp_list.get_content().items:
+            btn_moving = item.find_node('btn_moving').get_content()
+            if not btn_moving.unusable:
+                btn_moving.selected = value
+            dd_chain = item.find_node('dd_chain').get_content()
+            if dd_chain.items:
+                dd_chain.items[0].selected = value
+        self.plugin.update_node(self.ln_moving_comp_list)
+        self.check_if_ready_to_submit()
+
+
+class RMSDMenu(ui.Menu):
+
+    def __init__(self, plugin_instance):
+        super().__init__()
+        self._menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
+        self.plugin = plugin_instance
+        self._menu.enabled = False
+        self._menu.index = 200
+        self.btn_docs.register_pressed_callback(self.open_docs_page)
+
+    @property
+    def btn_docs(self):
+        return self._menu.root.find_node('btn_docs').get_content()
+
+    def render(self, rmsd_results, fixed_comp_name):
+        results_list = self._menu.root.find_node('results_list').get_content()
+        list_items = []
+        row_color_dark = Color(21, 26, 37)
+        row_color_light = Color(42, 52, 63)
+
+        # Fixed comp is the first row.
+        item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
+        item_mesh = item.add_new_mesh()
+        item_mesh.mesh_color = row_color_light
+        item.get_children()[0].get_content().text_value = 'PIN'
+        item.get_children()[1].get_content().text_value = fixed_comp_name
+        item.get_children()[2].get_content().text_value = '--'
+        item.get_children()[3].get_content().text_value = '--'
+        item.get_children()[4].get_content().text_value = '--'
+        list_items.append(item)
+        # Add moving comps and results to the table.
+        for i, comp_name in enumerate(rmsd_results, 1):
+            results_data = rmsd_results[comp_name]
+            rmsd_val = results_data['rmsd']
+            paired_atom_count = results_data['paired_atoms']
+            paired_residue_count = results_data['paired_residues']
+            if 'chain' in results_data:
+                comp_name = f'{comp_name} Chain {results_data["chain"]}'
+
+            item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
+            item_mesh = item.add_new_mesh()
+            item_mesh.mesh_color = row_color_light if i % 2 == 0 else row_color_dark
+
+            item.get_children()[0].get_content().text_value = i
+            item.get_children()[1].get_content().text_value = comp_name
+            item.get_children()[2].get_content().text_value = rmsd_val
+            item.get_children()[3].get_content().text_value = paired_residue_count
+            item.get_children()[4].get_content().text_value = paired_atom_count
+            list_items.append(item)
+        results_list.items = list_items
+
+    def open_docs_page(self, btn):
+        self.plugin.open_url(DOCS_URL)
+
+    def update(self):
+        self.plugin.update_menu(self._menu)
+
+    @property
+    def enabled(self):
+        return self._menu._enabled
+
+    @enabled.setter
+    def enabled(self, value):
+        self._menu._enabled = value
