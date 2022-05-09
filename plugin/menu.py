@@ -15,6 +15,7 @@ GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
 
 DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
 
+
 def create_chain_dropdown_items(comp, set_default=False):
     """Update chain dropdown to reflect changes in complex."""
     dropdown_items = []
@@ -90,7 +91,7 @@ class MainMenu:
     @property
     def btn_select_all(self):
         return self._menu.root.find_node('ln_btn_select_all').get_content()
-    
+
     @property
     def btn_deselect_all(self):
         return self._menu.root.find_node('ln_btn_deselect_all').get_content()
@@ -158,7 +159,6 @@ class MainMenu:
         """Render rmsd results in a list."""
         self.rmsd_menu = RMSDMenu(self.plugin)
         self.rmsd_menu.render(rmsd_results, fixed_comp_name)
-        
 
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
@@ -491,7 +491,7 @@ class RMSDMenu(ui.Menu):
     @property
     def enabled(self):
         return self._menu._enabled
-    
+
     @enabled.setter
     def enabled(self, value):
         self._menu._enabled = value
