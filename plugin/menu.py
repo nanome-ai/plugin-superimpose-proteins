@@ -462,7 +462,7 @@ class RMSDMenu(ui.Menu):
         item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
         item_mesh = item.add_new_mesh()
         item_mesh.mesh_color = row_color_light
-        item.get_children()[0].get_content().text_value = 'PIN'
+        item.get_children()[0].add_new_image(GOLD_PIN_ICON_PATH)
         item.get_children()[1].get_content().text_value = fixed_comp_name
         item.get_children()[2].get_content().text_value = '--'
         item.get_children()[3].get_content().text_value = '--'
