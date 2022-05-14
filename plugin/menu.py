@@ -12,6 +12,8 @@ COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
+GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'gold-pin.png')
+DASHED_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'dashed-pin.png')
 
 DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
 
@@ -201,6 +203,11 @@ class MainMenu:
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             btn_fixed = ln.find_node('btn_fixed').get_content()
+            btn_fixed.icon.value.set_each(
+                selected=GOLD_PIN_ICON_PATH,
+                highlighted=GOLD_PIN_ICON_PATH,
+                idle=DASHED_PIN_ICON_PATH,
+                selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_lbl_chain_count = ln.find_node('lbl_chain_count')
