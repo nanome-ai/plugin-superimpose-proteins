@@ -1,4 +1,3 @@
-import enum
 import functools
 from os import path
 from nanome.api import ui
@@ -65,6 +64,10 @@ class MainMenu:
         return self._menu.root.find_node('ln_btn_align_by_binding_site')
 
     @property
+    def ln_binding_site_mode(self):
+        return self._menu.root.find_node('ln_binding_site_mode')
+
+    @property
     def btn_align_by_binding_site(self):
         return self.ln_btn_align_by_binding_site.get_content()
 
@@ -107,6 +110,7 @@ class MainMenu:
     @async_callback
     async def render(self, complexes=None):
         complexes = complexes or []
+        self.ln_binding_site_mode.enabled = False
         self.populate_comp_list(complexes, self.current_mode)
         self.check_if_ready_to_submit()
         self.btn_submit.register_pressed_callback(self.submit)

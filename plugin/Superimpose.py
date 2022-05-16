@@ -20,7 +20,6 @@ from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
 import sys
 
-# Increase the recursion limit in order to properly serialize Complexes
 
 def extract_binding_site(comp, binding_site_atoms):
     # Copy comp, and remove all residues that are not part of the binding site
@@ -42,7 +41,6 @@ def extract_binding_site(comp, binding_site_atoms):
         else:
             for atom in binding_atoms_in_res:
                 atom.index = -1        
-    print(f"new comp atom count: {len(list(new_comp.atoms))}")
     return new_comp
 
 
