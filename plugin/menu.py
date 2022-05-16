@@ -339,7 +339,6 @@ class MainMenu:
             dropdown_items.append(ui.DropdownItem(lig.name))
         return dropdown_items
 
-
     def btn_moving_clicked(self, btn):
         btns_to_update = [btn]
         selected_count = 0
@@ -416,7 +415,7 @@ class MainMenu:
             # Get deep complexes if necessary
         elif btn.name == 'btn_align_by_binding_site':
             self.current_mode = AlignmentModeEnum.BINDING_SITE
-        
+
         if self.current_mode in [AlignmentModeEnum.CHAIN, AlignmentModeEnum.BINDING_SITE]:
             for comp in self.plugin.complexes:
                 if sum(1 for _ in comp.chains) == 0:
