@@ -13,7 +13,7 @@ class SiteMotifClient:
         for pdb in pocket_pdbs:
             shutil.copy(pdb, site_folder)
 
-        site_motif_path = '/home/mike/workspace/rmsd-2/site-motif/bin/site-motif'
+        site_motif_path = 'site-motif/bin/site-motif'
         output = subprocess.run(
             [site_motif_path, site_folder],
             shell=True,

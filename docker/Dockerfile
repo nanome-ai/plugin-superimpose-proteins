@@ -9,9 +9,9 @@ RUN git clone -b ${FPOCKET_VERSION} https://github.com/Discngine/fpocket.git
 RUN cd fpocket && make && make install
 
 # Install Site-Motif
-COPY site-motif /app/site-motif
-RUN chmod +x /app/site-motif/bin/site-motif
-ENV PATH="/app/site-motif/bin/:${PATH}"
+# COPY site-motif /app/site-motif
+# RUN chmod +x /app/site-motif/bin/site-motif
+# ENV PATH="/app/site-motif/bin/:${PATH}"
 
 COPY plugin /app/plugin
 
