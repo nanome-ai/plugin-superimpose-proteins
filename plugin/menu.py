@@ -225,7 +225,7 @@ class MainMenu:
                 selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
                 return getattr(selected_ddi, 'name', '')
 
-    def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY, default_comp=None):
+    def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY):
         comp_list = self.ln_moving_comp_list.get_content()
         set_default_values = len(complexes) == 2
         visible_items = []
@@ -233,6 +233,7 @@ class MainMenu:
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             btn_fixed = ln.find_node('btn_fixed').get_content()
+            btn_fixed.selected = False
             btn_fixed.icon.value.set_each(
                 selected=GOLD_PIN_ICON_PATH,
                 highlighted=DASHED_PIN_ICON_PATH,
@@ -296,14 +297,12 @@ class MainMenu:
     async def btn_fixed_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
-        nodes_to_update = []
         for menu_item in self.ln_moving_comp_list.get_content().items:
             if not menu_item.find_node('btn_fixed'):
                 continue
             btn_fixed = menu_item.find_node('btn_fixed').get_content()
             btn_moving = menu_item.find_node('btn_moving').get_content()
             ln_dd_chain = menu_item.find_node('dd_chain')
-
             if btn_fixed == btn:
                 if btn_fixed.selected:
                     # Make sure the other button is not selected
