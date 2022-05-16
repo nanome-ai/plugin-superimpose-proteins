@@ -4,7 +4,7 @@ from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
 from nanome.util.enums import NotificationTypes
-from .enums import AlignmentMethodEnum
+from .enums import AlignmentModeEnum, AlignmentMethodEnum
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
@@ -32,12 +32,6 @@ def create_chain_dropdown_items(comp, set_default=False):
     if set_default and dropdown_items:
         dropdown_items[0].selected = True
     return dropdown_items
-
-
-class AlignmentModeEnum(enum.Enum):
-    ENTRY = 'entry'
-    CHAIN = 'chain'
-    BINDING_SITE = 'binding_site'
 
 
 class MainMenu:
@@ -154,15 +148,16 @@ class MainMenu:
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
-            elif current_mode == 'binding_site':
-                fixed_chain = self.get_binding_site_ligand()
-                moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
-                if not all([fixed_comp_index, fixed_chain, moving_comp_chain_list]):
+            elif current_mode == AlignmentModeEnum.BINDING_SITE:
+                ligand_name = self.get_binding_site_ligand()
+                moving_comp_indices = self.get_moving_comp_indices()
+                if not all([fixed_comp_index, ligand_name, moving_comp_indices]):
                     msg = "Please select all complexes and chains."
                     Logs.warning(msg)
                     self.plugin.send_notification(NotificationTypes.error, msg)
                 else:
-                    rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
+                    rmsd_results = await self.plugin.superimpose_by_binding_site(
+                        fixed_comp_index, ligand_name, moving_comp_indices)
         except Exception as e:
             rmsd_results = {}
             Logs.error("Error calculating Superposition.")
@@ -209,8 +204,16 @@ class MainMenu:
                     comps.append(comp.index)
         return comps
 
-    def get_fixed_chain(self):
+    def get_binding_site_ligand(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+            btn_fixed = item.find_node('btn_fixed').get_content()
+            if btn_fixed.selected:
+                dd_chain = item.find_node('dd_chain').get_content()
+                selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
+                return getattr(selected_ddi, 'name', '')
+
+    def get_fixed_chain(self):
+        for item in self.ln_moving_comp_list.get_content().items:
             btn_fixed = item.find_node('btn_fixed').get_content()
             if btn_fixed.selected:
                 dd_chain = item.find_node('dd_chain').get_content()
@@ -288,6 +291,7 @@ class MainMenu:
     async def btn_fixed_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
+        nodes_to_update = []
         for menu_item in self.ln_moving_comp_list.get_content().items:
             if not menu_item.find_node('btn_fixed'):
                 continue
@@ -300,9 +304,10 @@ class MainMenu:
                     # Make sure the other button is not selected
                     btn_moving.selected = False
                     btn_moving.unusable = True
-                    if self.current_mode == 'binding_site':
+                    if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                         ln_dd_chain.enabled = True
                         dd_ligand = ln_dd_chain.get_content()
+                        dd_ligand.register_item_clicked_callback(self.check_if_ready_to_submit)
                         comp_name = menu_item.find_node('lbl_struct_name').get_content().text_value
                         comp = next(cmp for cmp in self.plugin.complexes if cmp.full_name == comp_name)
                         dd_ligand.items = await self.create_ligand_dropdown_items(comp)
@@ -312,14 +317,14 @@ class MainMenu:
             else:
                 btn_fixed.selected = False
                 btn_moving.unusable = False
-                if self.current_mode == 'binding_site':
+                if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                     ln_dd_chain.enabled = False
 
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.update_selection_counter()
         self.check_if_ready_to_submit()
-        self.plugin.update_content(*btns_to_update, self.btn_submit)
+        self.plugin.update_node(self.ln_moving_comp_list)
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
@@ -332,7 +337,6 @@ class MainMenu:
 
 
     def btn_moving_clicked(self, btn):
-        """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
         selected_count = 0
         for menu_item in self.ln_moving_comp_list.get_content().items:
@@ -406,6 +410,10 @@ class MainMenu:
             Logs.message("Switched to chain mode.")
             self.current_mode = AlignmentModeEnum.CHAIN
             # Get deep complexes if necessary
+        elif btn.name == 'btn_align_by_binding_site':
+            self.current_mode = AlignmentModeEnum.BINDING_SITE
+        
+        if self.current_mode in [AlignmentModeEnum.CHAIN, AlignmentModeEnum.BINDING_SITE]:
             for comp in self.plugin.complexes:
                 if sum(1 for _ in comp.chains) == 0:
                     btn.unusable = True
@@ -466,6 +474,11 @@ class MainMenu:
                 bool(comp_index and chain) for comp_index, chain in moving_comp_chain_list
             ])
             if fixed_comp_index and fixed_chain and moving_comps_selected:
+                ready_to_submit = True
+        elif self.current_mode == AlignmentModeEnum.BINDING_SITE:
+            fixed_ligand = self.get_fixed_chain()
+            moving_comps_selected = bool(self.get_moving_comp_indices())
+            if fixed_comp_index and fixed_ligand and moving_comps_selected:
                 ready_to_submit = True
 
         self.btn_submit.unusable = not ready_to_submit
