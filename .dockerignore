@@ -8,4 +8,4 @@
 !package.json
 !cookbook*
 !run.py
-!site-motif
+# !site-motif
