@@ -28,6 +28,13 @@ class FPocketClient:
         output_pdb_files = [f'{pocket_folder}/{fi}' for fi in os.listdir(pocket_folder) if fi.endswith('.pdb')]
         return output_pdb_files
 
+    def get_pocket_pdb_files(self, output_dir):
+        pocket_folder = os.path.join(output_dir, 'pockets')
+        # Every pocket returns a .pdb of atoms and a .pqr of vertices
+        # Get atoms that are part of pocket
+        output_pdb_files = [f'{pocket_folder}/{fi}' for fi in os.listdir(pocket_folder) if fi.endswith('.pdb')]
+        return output_pdb_files
+
     def parse_results(self, comp, output_dir):
         # Convert atoms
         pocket_folder = os.path.join(output_dir, 'pockets')
