@@ -10,9 +10,12 @@ MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
 COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
-GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'gold-pin.png')
-DASHED_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'dashed-pin.png')
+GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'TargetReferenceIcon.png')
+DASHED_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'TargetReferenceHoverIcon.png')
+TRANSPARENCY_PATH = path.join(BASE_PATH, 'assets', 'transparent.png')
+LOAD_ICON_PATH = path.join(BASE_PATH, 'assets', 'LoadIcon.png')
 
 DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
 
@@ -41,6 +44,7 @@ class MainMenu:
         self.plugin = plugin_instance
         self.btn_advanced.icon.value.set_all(GEAR_ICON_PATH)
 
+        self.load_icon.file_path = LOAD_ICON_PATH
         self.current_mode = AlignmentModeEnum.ENTRY
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
@@ -82,6 +86,14 @@ class MainMenu:
     @property
     def ln_moving_comp_list(self):
         return self._menu.root.find_node('ln_moving_comp_list')
+
+    @property
+    def ln_empty_list(self):
+        return self._menu.root.find_node('ln_empty_list')
+
+    @property
+    def load_icon(self):
+        return self._menu.root.find_node('ln_load_icon').get_content()
 
     @property
     def lbl_moving_structures(self):
@@ -224,18 +236,27 @@ class MainMenu:
                 selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
                 return getattr(selected_ddi, 'name', '')
 
-    def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY, default_comp=None):
+    def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY):
         comp_list = self.ln_moving_comp_list.get_content()
         set_default_values = len(complexes) == 2
         visible_items = []
         hidden_items = []
+        if len(complexes) == 0:
+            self.ln_moving_comp_list.enabled = False
+            self.ln_empty_list.enabled = True
+            return
+        else:
+            self.ln_moving_comp_list.enabled = True
+            self.ln_empty_list.enabled = False
+
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             btn_fixed = ln.find_node('btn_fixed').get_content()
+            btn_fixed.selected = False
             btn_fixed.icon.value.set_each(
                 selected=GOLD_PIN_ICON_PATH,
-                highlighted=GOLD_PIN_ICON_PATH,
-                idle=DASHED_PIN_ICON_PATH,
+                highlighted=DASHED_PIN_ICON_PATH,
+                idle=TRANSPARENCY_PATH,
                 selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
@@ -295,14 +316,12 @@ class MainMenu:
     async def btn_fixed_clicked(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
-        nodes_to_update = []
         for menu_item in self.ln_moving_comp_list.get_content().items:
             if not menu_item.find_node('btn_fixed'):
                 continue
             btn_fixed = menu_item.find_node('btn_fixed').get_content()
             btn_moving = menu_item.find_node('btn_moving').get_content()
             ln_dd_chain = menu_item.find_node('dd_chain')
-
             if btn_fixed == btn:
                 if btn_fixed.selected:
                     # Make sure the other button is not selected
