@@ -44,6 +44,7 @@ class MainMenu:
         self._menu = ui.Menu.io.from_json(MENU_PATH)
         self.plugin = plugin_instance
         self.btn_advanced.icon.value.set_all(GEAR_ICON_PATH)
+        self.rmsd_menus = []
 
         self.load_icon.file_path = LOAD_ICON_PATH
         self.current_mode = AlignmentModeEnum.ENTRY
@@ -59,10 +60,6 @@ class MainMenu:
     @property
     def btn_submit(self):
         return self._menu.root.find_node('ln_submit').get_content()
-
-    @property
-    def ln_btn_rmsd_table(self):
-        return self._menu.root.find_node('btn_rmsd_table')
 
     @property
     def ln_btn_align_by_binding_site(self):
@@ -193,8 +190,10 @@ class MainMenu:
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
         """Render rmsd results in a list."""
-        self.rmsd_menu = RMSDMenu(self.plugin)
-        self.rmsd_menu.render(rmsd_results, fixed_comp_name)
+        rmsd_menu = RMSDMenu(self.plugin)
+        self.rmsd_menus.append(rmsd_menu)
+        rmsd_menu.index = 255 - len(self.rmsd_menus)
+        rmsd_menu.render(rmsd_results, fixed_comp_name, run_number=len(self.rmsd_menus))
 
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
@@ -473,8 +472,10 @@ class MainMenu:
         return comp_chain_list
 
     def open_rmsd_menu(self, btn):
-        self.rmsd_menu.enabled = True
-        self.rmsd_menu.update()
+        if self.rmsd_menus:
+            self.rmsd_menu = self.rmsd_menus[-1]
+            self.rmsd_menu.enabled = True
+            self.rmsd_menu.update()
 
     def open_docs_page(self, btn):
         self.plugin.open_url(DOCS_URL)
@@ -527,9 +528,7 @@ class RMSDMenu(ui.Menu):
         self._menu = ui.Menu.io.from_json(RMSD_MENU_PATH)
         self.plugin = plugin_instance
         self._menu.enabled = False
-        self._menu.index = 200
         self.img_export.file_path = EXPORT_ICON_PATH
-        self.btn_export.register_hover_callback(self.highlight_button)
         self.btn_docs.register_pressed_callback(self.open_docs_page)
         self.btn_export.register_pressed_callback(self.export_as_csv)
 
@@ -545,7 +544,8 @@ class RMSDMenu(ui.Menu):
     def img_export(self):
         return self._menu.root.find_node('ln_img_export').get_content()
 
-    def render(self, rmsd_results, fixed_comp_name):
+    def render(self, rmsd_results, fixed_comp_name, run_number=0):
+        self.rmsd_results = rmsd_results
         results_list = self._menu.root.find_node('results_list').get_content()
         list_items = []
         row_color_dark = Color(21, 26, 37)
@@ -561,6 +561,7 @@ class RMSDMenu(ui.Menu):
         item.get_children()[3].get_content().text_value = '--'
         item.get_children()[4].get_content().text_value = '--'
         list_items.append(item)
+
         # Add moving comps and results to the table.
         for i, comp_name in enumerate(rmsd_results, 1):
             results_data = rmsd_results[comp_name]
@@ -581,7 +582,8 @@ class RMSDMenu(ui.Menu):
             item.get_children()[4].get_content().text_value = paired_atom_count
             list_items.append(item)
         results_list.items = list_items
-
+        self._menu.title = f"RMSD Run {run_number}"
+    
     def open_docs_page(self, btn):
         self.plugin.open_url(DOCS_URL)
 
@@ -595,6 +597,14 @@ class RMSDMenu(ui.Menu):
     @enabled.setter
     def enabled(self, value):
         self._menu._enabled = value
+    
+    @property
+    def index(self):
+        return self._menu.index
+
+    @index.setter
+    def index(self, value):
+        self._menu.index = value
 
     def export_as_csv(self, btn):
         Logs.message("Exporting RMSD results to CSV...")
