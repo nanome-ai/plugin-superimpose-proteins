@@ -539,11 +539,11 @@ class RMSDMenu(ui.Menu):
     @property
     def btn_docs(self):
         return self._menu.root.find_node('btn_docs').get_content()
-    
+
     @property
     def btn_export(self):
         return self._menu.root.find_node('ln_btn_export').get_content()
-    
+
     @property
     def img_export(self):
         return self._menu.root.find_node('ln_img_export').get_content()
@@ -587,7 +587,7 @@ class RMSDMenu(ui.Menu):
             list_items.append(item)
         results_list.items = list_items
         self._menu.title = f"RMSD Run {run_number}"
-    
+
     def open_docs_page(self, btn):
         self.plugin.open_url(DOCS_URL)
 
@@ -601,7 +601,7 @@ class RMSDMenu(ui.Menu):
     @enabled.setter
     def enabled(self, value):
         self._menu._enabled = value
-    
+
     @property
     def index(self):
         return self._menu.index
