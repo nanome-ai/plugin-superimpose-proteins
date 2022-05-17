@@ -281,7 +281,7 @@ class MainMenu:
             if mode == AlignmentModeEnum.CHAIN:
                 ln_lbl_chain_count.enabled = True
                 dd_chain = ln_dd_chain.get_content()
-                dd_chain.register_item_clicked_callback(self.check_if_ready_to_submit)
+                dd_chain.register_item_clicked_callback(self.chain_selected_callback)
                 comp = next(
                     cmp for cmp in self.plugin.complexes
                     if cmp.full_name == lbl_struct_name.text_value)
@@ -311,6 +311,10 @@ class MainMenu:
             comp_list.items.append(hidden_item_header)
             comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
+
+    def chain_selected_callback(self, dd, ddi):
+        self.plugin.update_content(dd)
+        self.check_if_ready_to_submit()
 
     @async_callback
     async def btn_fixed_clicked(self, btn):
@@ -484,7 +488,7 @@ class MainMenu:
         self.loading_bar.percentage = current / total
         self.plugin.update_content(self.loading_bar)
 
-    def check_if_ready_to_submit(self, *args, **kwargs):
+    def check_if_ready_to_submit(self):
         """Enable or disable submit button based on if required fields are selected."""
         fixed_comp_index = self.get_fixed_comp_index()
         ready_to_submit = False
