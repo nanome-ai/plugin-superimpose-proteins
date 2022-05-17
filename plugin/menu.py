@@ -16,6 +16,7 @@ GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'TargetReferenceIcon.png')
 DASHED_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'TargetReferenceHoverIcon.png')
 TRANSPARENCY_PATH = path.join(BASE_PATH, 'assets', 'transparent.png')
 LOAD_ICON_PATH = path.join(BASE_PATH, 'assets', 'LoadIcon.png')
+EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
 
 DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
 
@@ -527,11 +528,22 @@ class RMSDMenu(ui.Menu):
         self.plugin = plugin_instance
         self._menu.enabled = False
         self._menu.index = 200
+        self.img_export.file_path = EXPORT_ICON_PATH
+        self.btn_export.register_hover_callback(self.highlight_button)
         self.btn_docs.register_pressed_callback(self.open_docs_page)
+        self.btn_export.register_pressed_callback(self.export_as_csv)
 
     @property
     def btn_docs(self):
         return self._menu.root.find_node('btn_docs').get_content()
+    
+    @property
+    def btn_export(self):
+        return self._menu.root.find_node('ln_btn_export').get_content()
+    
+    @property
+    def img_export(self):
+        return self._menu.root.find_node('ln_img_export').get_content()
 
     def render(self, rmsd_results, fixed_comp_name):
         results_list = self._menu.root.find_node('results_list').get_content()
@@ -583,3 +595,6 @@ class RMSDMenu(ui.Menu):
     @enabled.setter
     def enabled(self, value):
         self._menu._enabled = value
+
+    def export_as_csv(self, btn):
+        Logs.message("Exporting RMSD results to CSV...")
