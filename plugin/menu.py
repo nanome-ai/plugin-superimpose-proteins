@@ -86,11 +86,11 @@ class MainMenu:
     @property
     def ln_moving_comp_list(self):
         return self._menu.root.find_node('ln_moving_comp_list')
-    
+
     @property
     def ln_empty_list(self):
         return self._menu.root.find_node('ln_empty_list')
-    
+
     @property
     def load_icon(self):
         return self._menu.root.find_node('ln_load_icon').get_content()
