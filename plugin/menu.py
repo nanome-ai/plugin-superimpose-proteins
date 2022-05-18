@@ -287,7 +287,7 @@ class MainMenu:
             if mode == AlignmentModeEnum.CHAIN:
                 ln_lbl_chain_count.enabled = True
                 dd_chain.register_item_clicked_callback(
-                    functools.partial(self.chain_selected_callback, btn_moving))
+                    functools.partial(self.chain_selected_callback, btn_fixed, btn_moving))
                 comp = next(
                     cmp for cmp in self.plugin.complexes
                     if cmp.index == ln.comp_index)
@@ -318,9 +318,9 @@ class MainMenu:
             comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
 
-    def chain_selected_callback(self, btn_moving, dd, ddi):
+    def chain_selected_callback(self, btn_fixed, btn_moving, dd, ddi):
         content_to_update  = [dd]
-        if not btn_moving.selected:
+        if not btn_fixed.selected and not btn_moving.selected:
             btn_moving.selected = True
             content_to_update.append(btn_moving)
         self.plugin.update_content(*content_to_update)
