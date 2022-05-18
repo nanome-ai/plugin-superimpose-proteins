@@ -350,7 +350,6 @@ class MainMenu:
                         dd_ligand.items = await self.create_ligand_dropdown_items(comp)
                 else:
                     btn_moving.unusable = False
-                    ln_dd_chain.enabled = False
             else:
                 btn_fixed.selected = False
                 btn_moving.unusable = False
