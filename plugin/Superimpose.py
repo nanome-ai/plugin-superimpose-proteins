@@ -222,7 +222,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         mapping = self.align_structures(fixed_struct, moving_struct)
         fixed_atoms = []
         moving_atoms = []
-        alpha_carbon = 'CA'
+        alpha_carbon_name = 'CA'
         skip_count = 0
         for fixed_residue in fixed_struct.get_residues():
             fixed_id = fixed_residue.id[1]
@@ -233,7 +233,13 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             new_moving_atoms = []
             if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
                 # Add alpha carbons.
-                new_fixed_atoms.append(fixed_residue[alpha_carbon])
+                try:
+                    fixed_alpha_carbon = fixed_residue[alpha_carbon_name]
+                except KeyError:
+                    Logs.warning(f"Skipping Residue {fixed_id}, missing alpha carbon.")
+                    continue
+                else:
+                    new_fixed_atoms.append(fixed_alpha_carbon)
             else:
                 # Add all heavy atoms (Non hydrogens)
                 for atom in fixed_residue.get_atoms():
@@ -246,7 +252,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 rez for rez in moving_struct.get_residues()
                 if rez.id[1] == moving_residue_serial)
             if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
-                new_moving_atoms.append(moving_residue[alpha_carbon])
+                try:
+                    moving_alpha_carbon = moving_residue[alpha_carbon_name]
+                except KeyError:
+                    continue
+                else:
+                    new_moving_atoms.append(moving_alpha_carbon)
             else:
                 for atom in moving_residue.get_atoms():
                     if not atom.name.startswith('H'):
