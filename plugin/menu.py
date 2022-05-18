@@ -251,6 +251,7 @@ class MainMenu:
 
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
+            ln.comp_index = comp.index
             btn_fixed = ln.find_node('btn_fixed').get_content()
             btn_fixed.selected = False
             btn_fixed.icon.value.set_each(
@@ -273,7 +274,7 @@ class MainMenu:
             lbl_struct_name.text_value = comp.full_name
             if len(lbl_struct_name.text_value) > 10:
                 lbl_struct_name.text_value = lbl_struct_name.text_value[:7] + '...'
-            lbl_struct_name.comp_index = comp.index
+
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
             chain_count = sum(
@@ -289,7 +290,7 @@ class MainMenu:
                     functools.partial(self.chain_selected_callback, btn_moving))
                 comp = next(
                     cmp for cmp in self.plugin.complexes
-                    if cmp.index == lbl_struct_name.comp_index)
+                    if cmp.index == ln.comp_index)
                 dd_chain.items = create_chain_dropdown_items(comp)
             # Set default selections if required.
             if set_default_values and i == 0:
@@ -473,13 +474,13 @@ class MainMenu:
         for item in lst.items:
             btn = item.find_node('btn_moving').get_content()
             chain_dd = item.find_node('dd_chain').get_content()
-            comp_name = item.find_node('lbl_struct_name').get_content().text_value
+            comp_index = item.comp_index
             if not btn.selected:
                 continue
 
             selected_comp = next((
                 comp for comp in self.plugin.complexes
-                if comp.full_name == comp_name
+                if comp.index == comp_index
             ), None)
             selected_chain = None
             for chain_ddi in chain_dd.items:
