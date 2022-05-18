@@ -319,7 +319,7 @@ class MainMenu:
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def chain_selected_callback(self, btn_fixed, btn_moving, dd, ddi):
-        content_to_update  = [dd]
+        content_to_update = [dd]
         if not btn_fixed.selected and not btn_moving.selected:
             btn_moving.selected = True
             content_to_update.append(btn_moving)
