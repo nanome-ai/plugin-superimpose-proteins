@@ -251,6 +251,7 @@ class MainMenu:
 
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
+            ln.comp_index = comp.index
             btn_fixed = ln.find_node('btn_fixed').get_content()
             btn_fixed.selected = False
             btn_fixed.icon.value.set_each(
@@ -262,11 +263,18 @@ class MainMenu:
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_lbl_chain_count = ln.find_node('lbl_chain_count')
 
+            ln_dd_chain = ln.find_node('dd_chain')
+            ln_dd_chain.enabled = mode == AlignmentModeEnum.CHAIN
+            dd_chain = ln_dd_chain.get_content()
+
             lbl_chain_count = ln_lbl_chain_count.get_content()
             btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
-            btn_moving.register_pressed_callback(self.btn_moving_clicked)
+            btn_moving.register_pressed_callback(functools.partial(self.btn_moving_clicked, dd_chain))
 
             lbl_struct_name.text_value = comp.full_name
+            if len(lbl_struct_name.text_value) > 10:
+                lbl_struct_name.text_value = lbl_struct_name.text_value[:7] + '...'
+
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
             chain_count = sum(
@@ -275,16 +283,14 @@ class MainMenu:
                 or len(ch.name) < 2)
             lbl_chain_count.text_value = f'{chain_count} Chain(s)'
 
-            ln_dd_chain = ln.find_node('dd_chain')
-            ln_dd_chain.enabled = mode == AlignmentModeEnum.CHAIN
             # Set up chain dropdown if in chain mode
             if mode == AlignmentModeEnum.CHAIN:
                 ln_lbl_chain_count.enabled = True
-                dd_chain = ln_dd_chain.get_content()
-                dd_chain.register_item_clicked_callback(self.chain_selected_callback)
+                dd_chain.register_item_clicked_callback(
+                    functools.partial(self.chain_selected_callback, btn_fixed, btn_moving))
                 comp = next(
                     cmp for cmp in self.plugin.complexes
-                    if cmp.full_name == lbl_struct_name.text_value)
+                    if cmp.index == ln.comp_index)
                 dd_chain.items = create_chain_dropdown_items(comp)
             # Set default selections if required.
             if set_default_values and i == 0:
@@ -312,8 +318,12 @@ class MainMenu:
             comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
 
-    def chain_selected_callback(self, dd, ddi):
-        self.plugin.update_content(dd)
+    def chain_selected_callback(self, btn_fixed, btn_moving, dd, ddi):
+        content_to_update = [dd]
+        if not btn_fixed.selected and not btn_moving.selected:
+            btn_moving.selected = True
+            content_to_update.append(btn_moving)
+        self.plugin.update_content(*content_to_update)
         self.check_if_ready_to_submit()
 
     @async_callback
@@ -340,7 +350,6 @@ class MainMenu:
                         dd_ligand.items = await self.create_ligand_dropdown_items(comp)
                 else:
                     btn_moving.unusable = False
-                    ln_dd_chain.enabled = False
             else:
                 btn_fixed.selected = False
                 btn_moving.unusable = False
@@ -362,9 +371,14 @@ class MainMenu:
             dropdown_items.append(ui.DropdownItem(lig.name))
         return dropdown_items
 
-    def btn_moving_clicked(self, btn):
+    def btn_moving_clicked(self, dd_chain, btn):
         btns_to_update = [btn]
         selected_count = 0
+        if not btn.selected and any(ddi.selected for ddi in dd_chain.items):
+            for ddi in dd_chain.items:
+                ddi.selected = False
+            btns_to_update.append(dd_chain)
+
         for menu_item in self.ln_moving_comp_list.get_content().items:
             ln = menu_item.find_node('btn_moving')
             if not ln:
@@ -459,13 +473,13 @@ class MainMenu:
         for item in lst.items:
             btn = item.find_node('btn_moving').get_content()
             chain_dd = item.find_node('dd_chain').get_content()
-            comp_name = item.find_node('lbl_struct_name').get_content().text_value
+            comp_index = item.comp_index
             if not btn.selected:
                 continue
 
             selected_comp = next((
                 comp for comp in self.plugin.complexes
-                if comp.full_name == comp_name
+                if comp.index == comp_index
             ), None)
             selected_chain = None
             for chain_ddi in chain_dd.items:
