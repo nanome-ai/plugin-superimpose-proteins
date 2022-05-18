@@ -238,7 +238,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 except KeyError:
                     Logs.warning(f"Skipping Residue {fixed_id}, missing alpha carbon.")
                     continue
-                new_fixed_atoms.append(fixed_alpha_carbon)
+                else:
+                    new_fixed_atoms.append(fixed_alpha_carbon)
             else:
                 # Add all heavy atoms (Non hydrogens)
                 for atom in fixed_residue.get_atoms():
@@ -254,9 +255,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 try:
                     moving_alpha_carbon = moving_residue[alpha_carbon_name]
                 except KeyError:
-                    Logs.warning(f"Skipping Residue {fixed_id}, missing alpha carbon.")
                     continue
-                new_moving_atoms.append(moving_alpha_carbon)
+                else:
+                    new_moving_atoms.append(moving_alpha_carbon)
             else:
                 for atom in moving_residue.get_atoms():
                     if not atom.name.startswith('H'):
