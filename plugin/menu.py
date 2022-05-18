@@ -271,6 +271,9 @@ class MainMenu:
             btn_moving.register_pressed_callback(functools.partial(self.btn_moving_clicked, dd_chain))
 
             lbl_struct_name.text_value = comp.full_name
+            if len(lbl_struct_name.text_value) > 10:
+                lbl_struct_name.text_value = lbl_struct_name.text_value[:7] + '...'
+            lbl_struct_name.comp_index = comp.index
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
             chain_count = sum(
@@ -286,7 +289,7 @@ class MainMenu:
                     functools.partial(self.chain_selected_callback, btn_moving))
                 comp = next(
                     cmp for cmp in self.plugin.complexes
-                    if cmp.full_name == lbl_struct_name.text_value)
+                    if cmp.index == lbl_struct_name.comp_index)
                 dd_chain.items = create_chain_dropdown_items(comp)
             # Set default selections if required.
             if set_default_values and i == 0:
