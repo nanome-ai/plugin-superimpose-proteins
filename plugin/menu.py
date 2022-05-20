@@ -155,20 +155,18 @@ class MainMenu:
         start_time = time.time()
         rmsd_results = None
         moving_comp_count = 0
+        Logs.message(f"Superimposing by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
         try:
             if current_mode == AlignmentModeEnum.ENTRY:
-                Logs.message(f"Superimposing by {current_mode.value}, using {alignment_method.name}")
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
                 rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
             elif current_mode == AlignmentModeEnum.CHAIN:
-                Logs.message(f"Superimposing by {current_mode.value}, using {alignment_method.name}")
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
                 moving_comp_count = len(moving_comp_chain_list)
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
             elif current_mode == AlignmentModeEnum.BINDING_SITE:
-                Logs.message(f"Superimposing by {current_mode.value}, using {alignment_method.name}")
                 ligand_name = self.get_binding_site_ligand()
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
@@ -198,7 +196,7 @@ class MainMenu:
         # Log data about run
         log_extra = {
             'alignment_method': selected_alignment_method,
-            'alignment_mode': current_mode.value,
+            'alignment_mode': current_mode.name,
             'moving_complexes': moving_comp_count,
             'elapsed_time': round(end_time - start_time, 2)
         }
