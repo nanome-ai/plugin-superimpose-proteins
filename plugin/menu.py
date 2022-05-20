@@ -155,16 +155,17 @@ class MainMenu:
         start_time = time.time()
         rmsd_results = None
         moving_comp_count = 0
-        Logs.message(f"Superimposing by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
         try:
             if current_mode == AlignmentModeEnum.ENTRY:
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
+                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
             elif current_mode == AlignmentModeEnum.CHAIN:
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
                 moving_comp_count = len(moving_comp_chain_list)
+                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
             elif current_mode == AlignmentModeEnum.BINDING_SITE:
                 ligand_name = self.get_binding_site_ligand()
@@ -175,6 +176,7 @@ class MainMenu:
                     Logs.warning(msg)
                     self.plugin.send_notification(NotificationTypes.error, msg)
                 else:
+                    Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
                         fixed_comp_index, ligand_name, moving_comp_indices)
         except Exception as e:
@@ -194,11 +196,12 @@ class MainMenu:
         self.plugin.update_content(self.btn_submit)
         end_time = time.time()
         # Log data about run
+        elapsed_time = round(end_time - start_time, 2)
         log_extra = {
             'alignment_method': selected_alignment_method,
             'alignment_mode': current_mode.name,
             'moving_complexes': moving_comp_count,
-            'elapsed_time': round(end_time - start_time, 2)
+            'elapsed_time': elapsed_time
         }
         Logs.message("Superimposition complete.", extra=log_extra)
 
