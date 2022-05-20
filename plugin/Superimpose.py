@@ -76,18 +76,16 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             await self.menu.render(complexes=self.complexes)
 
     async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_method):
-        start_time = time.time()
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
-        Logs.message(f"Superimposing {len(moving_comps)} structures")
         fixed_comp.locked = True
         fixed_comp.boxed = False
         comps_to_update = [fixed_comp]
         rmsd_results = {}
         comp_count = len(moving_comps)
         for i, moving_comp in enumerate(moving_comps):
-            Logs.debug(f"Superimposing Moving Complex {i}")
+            Logs.debug(f"Starting Structure {i + 1}")
             ComplexUtils.align_to(moving_comp, fixed_comp)
             parser = PDBParser(QUIET=True)
             fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -115,17 +113,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
-        end_time = time.time()
-        process_time = end_time - start_time
-        extra = {"process_time": process_time}
-        Logs.message(
-            f"Superposition completed in {round(end_time - start_time, 2)} seconds.",
-            extra=extra)
         return rmsd_results
 
     async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, alignment_method):
-        start_time = time.time()
-        Logs.message("Superimposing by Chain.")
         moving_comp_indices = [item[0] for item in moving_comp_chain_list]
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
@@ -143,7 +133,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         comp_count = len(moving_comps)
         results = {}
         for i, moving_comp in enumerate(moving_comps):
-            Logs.debug(f"Superimposing Moving Complex {i}")
+            Logs.debug(f"Superimposing Moving Complex {i + 1}")
             moving_chain_name = moving_comp_chain_list[i][1]
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
@@ -178,12 +168,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
-        end_time = time.time()
-        process_time = end_time - start_time
-        extra = {"process_time": process_time}
-        Logs.message(
-            f"Superposition completed in {round(process_time, 2)} seconds.",
-            extra=extra)
         return results
 
     async def superimpose_by_binding_site(
