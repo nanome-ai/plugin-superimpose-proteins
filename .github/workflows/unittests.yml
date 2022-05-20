@@ -2,8 +2,8 @@ name: Unittests
 on:
   pull_request:
     branches: [ master ]
-  push:
-    branches: [ master ]
+  # push:
+  #   branches: [ master ]
 
 jobs:
   unittests:
