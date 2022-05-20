@@ -58,17 +58,22 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
-        self.menu.render(complexes=complexes)
+        if not hasattr(self, 'complexes'):
+            self.complexes = complexes
+        if self.menu.enabled:
+            self.menu.render(complexes=complexes)
 
     @async_callback
     async def on_complex_added(self):
         complexes = await self.request_complex_list()
-        await self.menu.render(complexes=complexes)
+        if self.menu.enabled:
+            await self.menu.render(complexes=complexes)
 
     @async_callback
     async def on_complex_removed(self):
         self.complexes = await self.request_complex_list()
-        await self.menu.render(complexes=self.complexes)
+        if self.menu.enabled:
+            await self.menu.render(complexes=self.complexes)
 
     async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_method):
         start_time = time.time()
@@ -369,7 +374,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         # Relative to reference
         mapping = {}
         aa_i_A, aa_i_B = 0, 0
-        for aln_i, (aa_aln_A, aa_aln_B) in enumerate(zip(aligned_A, aligned_B)):
+        for aa_aln_A, aa_aln_B in zip(aligned_A, aligned_B):
             if aa_aln_A == "-":
                 if aa_aln_B != "-":
                     aa_i_B += 1

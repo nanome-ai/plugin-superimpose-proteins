@@ -197,7 +197,12 @@ class MainMenu:
 
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn_fixed = item.find_node('btn_fixed').get_content()
+            ln_btn_fixed = item.find_node('ln_btn_fixed')
+            if not ln_btn_fixed:
+                # This is usually the row with the label for hidden complexes.
+                # Just skip.
+                continue
+            btn_fixed = ln_btn_fixed.get_content()
             struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_fixed.selected:
                 comp = next((
@@ -222,7 +227,7 @@ class MainMenu:
 
     def get_binding_site_ligand(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn_fixed = item.find_node('btn_fixed').get_content()
+            btn_fixed = item.find_node('ln_btn_fixed').get_content()
             if btn_fixed.selected:
                 dd_chain = item.find_node('dd_chain').get_content()
                 selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
@@ -230,7 +235,7 @@ class MainMenu:
 
     def get_fixed_chain(self):
         for item in self.ln_moving_comp_list.get_content().items:
-            btn_fixed = item.find_node('btn_fixed').get_content()
+            btn_fixed = item.find_node('ln_btn_fixed').get_content()
             if btn_fixed.selected:
                 dd_chain = item.find_node('dd_chain').get_content()
                 selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
@@ -252,7 +257,7 @@ class MainMenu:
         for i, comp in enumerate(complexes):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             ln.comp_index = comp.index
-            btn_fixed = ln.find_node('btn_fixed').get_content()
+            btn_fixed = ln.find_node('ln_btn_fixed').get_content()
             btn_fixed.selected = False
             btn_fixed.icon.value.set_each(
                 selected=GOLD_PIN_ICON_PATH,
@@ -296,12 +301,12 @@ class MainMenu:
             if set_default_values and i == 0:
                 btn_fixed.selected = True
                 btn_moving.selected = False
-                if ln_dd_chain.enabled:
+                if ln_dd_chain.enabled and dd_chain.items:
                     dd_chain.items[0].selected = True
             elif set_default_values and i == 1:
                 btn_fixed.selected = False
                 btn_moving.selected = True
-                if ln_dd_chain.enabled:
+                if ln_dd_chain.enabled and dd_chain.items:
                     dd_chain.items[0].selected = True
 
             if comp.visible:
@@ -331,9 +336,9 @@ class MainMenu:
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
         for menu_item in self.ln_moving_comp_list.get_content().items:
-            if not menu_item.find_node('btn_fixed'):
+            if not menu_item.find_node('ln_btn_fixed'):
                 continue
-            btn_fixed = menu_item.find_node('btn_fixed').get_content()
+            btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
             btn_moving = menu_item.find_node('btn_moving').get_content()
             ln_dd_chain = menu_item.find_node('dd_chain')
             if btn_fixed == btn:
@@ -393,9 +398,9 @@ class MainMenu:
     def update_selection_counter(self):
         counter = 0
         for menu_item in self.ln_moving_comp_list.get_content().items:
-            if not menu_item.find_node('btn_fixed'):
+            if not menu_item.find_node('ln_btn_fixed'):
                 continue
-            btn_fixed = menu_item.find_node('btn_fixed').get_content()
+            btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
             btn_moving = menu_item.find_node('btn_moving').get_content()
             if btn_fixed.selected:
                 counter += 1
