@@ -369,7 +369,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         # Relative to reference
         mapping = {}
         aa_i_A, aa_i_B = 0, 0
-        for aln_i, (aa_aln_A, aa_aln_B) in enumerate(zip(aligned_A, aligned_B)):
+        for aa_aln_A, aa_aln_B in zip(aligned_A, aligned_B):
             if aa_aln_A == "-":
                 if aa_aln_B != "-":
                     aa_i_B += 1

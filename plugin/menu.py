@@ -197,7 +197,12 @@ class MainMenu:
 
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn_fixed = item.find_node('btn_fixed').get_content()
+            ln_btn_fixed = item.find_node('ln_btn_fixed')
+            if not ln_btn_fixed:
+                # This is usually the row with the label for hidden complexes.
+                # Just skip.
+                continue
+            btn_fixed = ln_btn_fixed.get_content()
             struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_fixed.selected:
                 comp = next((
@@ -296,12 +301,12 @@ class MainMenu:
             if set_default_values and i == 0:
                 btn_fixed.selected = True
                 btn_moving.selected = False
-                if ln_dd_chain.enabled:
+                if ln_dd_chain.enabled and dd_chain.items:
                     dd_chain.items[0].selected = True
             elif set_default_values and i == 1:
                 btn_fixed.selected = False
                 btn_moving.selected = True
-                if ln_dd_chain.enabled:
+                if ln_dd_chain.enabled and dd_chain.items:
                     dd_chain.items[0].selected = True
 
             if comp.visible:
