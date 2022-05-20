@@ -1,4 +1,5 @@
 import functools
+import time
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
@@ -145,31 +146,37 @@ class MainMenu:
             alignment_method = AlignmentMethodEnum.HEAVY_ATOMS_ONLY
         else:
             alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
-
-        log_extra = {'superimpose_mode': current_mode.value, 'alignment_method': selected_alignment_method}
-        Logs.message("Submit button Pressed.", extra=log_extra)
+        Logs.message("Submit button Pressed.")
 
         self.ln_loading_bar.enabled = True
         self.loading_bar.percentage = 0
         self.plugin.update_node(self.ln_loading_bar)
 
+        start_time = time.time()
         rmsd_results = None
+        moving_comp_count = 0
         try:
             if current_mode == AlignmentModeEnum.ENTRY:
                 moving_comp_indices = self.get_moving_comp_indices()
+                moving_comp_count = len(moving_comp_indices)
+                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
             elif current_mode == AlignmentModeEnum.CHAIN:
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
+                moving_comp_count = len(moving_comp_chain_list)
+                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
             elif current_mode == AlignmentModeEnum.BINDING_SITE:
                 ligand_name = self.get_binding_site_ligand()
                 moving_comp_indices = self.get_moving_comp_indices()
+                moving_comp_count = len(moving_comp_indices)
                 if not all([fixed_comp_index, ligand_name, moving_comp_indices]):
                     msg = "Please select all complexes and chains."
                     Logs.warning(msg)
                     self.plugin.send_notification(NotificationTypes.error, msg)
                 else:
+                    Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
                         fixed_comp_index, ligand_name, moving_comp_indices)
         except Exception as e:
@@ -187,6 +194,16 @@ class MainMenu:
         self.ln_loading_bar.enabled = False
         self.plugin.update_node(self.ln_btn_rmsd_table, self.ln_loading_bar)
         self.plugin.update_content(self.btn_submit)
+        end_time = time.time()
+        # Log data about run
+        elapsed_time = round(end_time - start_time, 2)
+        log_extra = {
+            'alignment_method': selected_alignment_method,
+            'alignment_mode': current_mode.name,
+            'moving_complexes': moving_comp_count,
+            'elapsed_time': elapsed_time
+        }
+        Logs.message(f"Superimposition completed in {elapsed_time} seconds.", extra=log_extra)
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
         """Render rmsd results in a list."""
@@ -203,24 +220,22 @@ class MainMenu:
                 # Just skip.
                 continue
             btn_fixed = ln_btn_fixed.get_content()
-            struct_name = item.find_node('lbl_struct_name').get_content().text_value
             if btn_fixed.selected:
                 comp = next((
                     comp for comp in self.plugin.complexes
-                    if comp.full_name == struct_name), None)
+                    if comp.index == item.comp_index), None)
                 return getattr(comp, 'index', None)
 
     def get_moving_comp_indices(self):
         comps = []
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            if not item.find_node('btn_moving'):
+            if not item.find_node('ln_btn_moving'):
                 continue
-            btn_moving = item.find_node('btn_moving').get_content()
-            struct_name = item.find_node('lbl_struct_name').get_content().text_value
+            btn_moving = item.find_node('ln_btn_moving').get_content()
             if btn_moving.selected:
                 comp = next((
                     comp for comp in self.plugin.complexes
-                    if comp.full_name == struct_name), None)
+                    if comp.index == item.comp_index), None)
                 if comp:
                     comps.append(comp.index)
         return comps
@@ -264,7 +279,7 @@ class MainMenu:
                 highlighted=DASHED_PIN_ICON_PATH,
                 idle=TRANSPARENCY_PATH,
                 selected_highlighted=GOLD_PIN_ICON_PATH)
-            btn_moving = ln.find_node('btn_moving').get_content()
+            btn_moving = ln.find_node('ln_btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_lbl_chain_count = ln.find_node('lbl_chain_count')
 
@@ -339,7 +354,7 @@ class MainMenu:
             if not menu_item.find_node('ln_btn_fixed'):
                 continue
             btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
-            btn_moving = menu_item.find_node('btn_moving').get_content()
+            btn_moving = menu_item.find_node('ln_btn_moving').get_content()
             ln_dd_chain = menu_item.find_node('dd_chain')
             if btn_fixed == btn:
                 if btn_fixed.selected:
@@ -385,7 +400,7 @@ class MainMenu:
             btns_to_update.append(dd_chain)
 
         for menu_item in self.ln_moving_comp_list.get_content().items:
-            ln = menu_item.find_node('btn_moving')
+            ln = menu_item.find_node('ln_btn_moving')
             if not ln:
                 continue
             btn_moving = ln.get_content()
@@ -401,7 +416,7 @@ class MainMenu:
             if not menu_item.find_node('ln_btn_fixed'):
                 continue
             btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
-            btn_moving = menu_item.find_node('btn_moving').get_content()
+            btn_moving = menu_item.find_node('ln_btn_moving').get_content()
             if btn_fixed.selected:
                 counter += 1
             if btn_moving.selected:
@@ -476,7 +491,10 @@ class MainMenu:
         comp_chain_list = []
         lst = self.ln_moving_comp_list.get_content()
         for item in lst.items:
-            btn = item.find_node('btn_moving').get_content()
+            ln_btn = item.find_node('ln_btn_moving')
+            if not ln_btn:
+                continue
+            btn = ln_btn.get_content()
             chain_dd = item.find_node('dd_chain').get_content()
             comp_index = item.comp_index
             if not btn.selected:
@@ -510,6 +528,8 @@ class MainMenu:
     def check_if_ready_to_submit(self):
         """Enable or disable submit button based on if required fields are selected."""
         fixed_comp_index = self.get_fixed_comp_index()
+        if not fixed_comp_index:
+            return False
         ready_to_submit = False
         if self.current_mode == AlignmentModeEnum.ENTRY:
             moving_comp_indices = self.get_moving_comp_indices()
@@ -534,7 +554,7 @@ class MainMenu:
     def toggle_all_moving_complexes(self, value: bool, btn: ui.Button):
         """Select or deselect all complexes as moving complexes"""
         for item in self.ln_moving_comp_list.get_content().items:
-            btn_moving = item.find_node('btn_moving').get_content()
+            btn_moving = item.find_node('ln_btn_moving').get_content()
             if not btn_moving.unusable:
                 btn_moving.selected = value
             dd_chain = item.find_node('dd_chain').get_content()

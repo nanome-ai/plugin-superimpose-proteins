@@ -76,18 +76,16 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             await self.menu.render(complexes=self.complexes)
 
     async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_method):
-        start_time = time.time()
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
-        Logs.message(f"Superimposing {len(moving_comps)} structures")
         fixed_comp.locked = True
         fixed_comp.boxed = False
         comps_to_update = [fixed_comp]
         rmsd_results = {}
         comp_count = len(moving_comps)
         for i, moving_comp in enumerate(moving_comps):
-            Logs.debug(f"Superimposing Moving Complex {i}")
+            Logs.debug(f"Starting Structure {i + 1}")
             ComplexUtils.align_to(moving_comp, fixed_comp)
             parser = PDBParser(QUIET=True)
             fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
@@ -115,17 +113,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
-        end_time = time.time()
-        process_time = end_time - start_time
-        extra = {"process_time": process_time}
-        Logs.message(
-            f"Superposition completed in {round(end_time - start_time, 2)} seconds.",
-            extra=extra)
         return rmsd_results
 
     async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, alignment_method):
-        start_time = time.time()
-        Logs.message("Superimposing by Chain.")
         moving_comp_indices = [item[0] for item in moving_comp_chain_list]
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
@@ -143,7 +133,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         comp_count = len(moving_comps)
         results = {}
         for i, moving_comp in enumerate(moving_comps):
-            Logs.debug(f"Superimposing Moving Complex {i}")
+            Logs.debug(f"Superimposing Moving Complex {i + 1}")
             moving_chain_name = moving_comp_chain_list[i][1]
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
@@ -178,12 +168,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
-        end_time = time.time()
-        process_time = end_time - start_time
-        extra = {"process_time": process_time}
-        Logs.message(
-            f"Superposition completed in {round(process_time, 2)} seconds.",
-            extra=extra)
         return results
 
     async def superimpose_by_binding_site(
@@ -222,17 +206,19 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return m
 
     async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_method):
-        # Collect aligned residues
-        # Align Residues based on Alpha Carbon
-        mapping = self.align_structures(fixed_struct, moving_struct)
+        """Align residues from each Structure, and calculate RMS"""
+        paired_res_id_mapping = self.align_structures(fixed_struct, moving_struct)
         fixed_atoms = []
         moving_atoms = []
         alpha_carbon_name = 'CA'
-        skip_count = 0
-        for fixed_residue in fixed_struct.get_residues():
-            fixed_id = fixed_residue.id[1]
-            if fixed_id not in mapping:
-                continue
+        skipped = 0
+        for fixed_id, moving_id in paired_res_id_mapping.items():
+            fixed_residue = next(
+                res for res in fixed_struct.get_residues()
+                if res.id[1] == fixed_id)
+            moving_residue = next(
+                res for res in moving_struct.get_residues()
+                if res.id[1] == moving_id)
 
             new_fixed_atoms = []
             new_moving_atoms = []
@@ -240,50 +226,33 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 # Add alpha carbons.
                 try:
                     fixed_alpha_carbon = fixed_residue[alpha_carbon_name]
+                    moving_alpha_carbon = moving_residue[alpha_carbon_name]
                 except KeyError:
-                    Logs.warning(f"Skipping Residue {fixed_id}, missing alpha carbon.")
+                    Logs.debug(f"Skipping Residue {fixed_id}, missing alpha carbon.")
+                    skipped += 1
                     continue
                 else:
                     new_fixed_atoms.append(fixed_alpha_carbon)
+                    new_moving_atoms.append(moving_alpha_carbon)
             else:
                 # Add all heavy atoms (Non hydrogens)
                 for atom in fixed_residue.get_atoms():
                     if not atom.name.startswith('H'):
                         new_fixed_atoms.append(atom)
-
-            # Get matching atoms from moving structure.
-            moving_residue_serial = mapping[fixed_id]
-            moving_residue = next(
-                rez for rez in moving_struct.get_residues()
-                if rez.id[1] == moving_residue_serial)
-            if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
-                try:
-                    moving_alpha_carbon = moving_residue[alpha_carbon_name]
-                except KeyError:
-                    continue
-                else:
-                    new_moving_atoms.append(moving_alpha_carbon)
-            else:
                 for atom in moving_residue.get_atoms():
                     if not atom.name.startswith('H'):
                         new_moving_atoms.append(atom)
 
             if len(new_moving_atoms) != len(new_fixed_atoms):
-                # I think we can just skip residues with differing atom counts.
+                # We can skip residues with differing atom counts.
                 # This is an issue with Heavy atom alignment methods.
-                skip_count += 1
+                skipped += 1
                 continue
             fixed_atoms.extend(new_fixed_atoms)
             moving_atoms.extend(new_moving_atoms)
-        assert len(moving_atoms) == len(fixed_atoms), f"{len(moving_atoms)} != {len(fixed_atoms)}"
-        total_residue_count = sum(1 for _ in fixed_struct.get_residues())
-        paired_residue_count = len(set([atom.get_parent() for atom in fixed_atoms]))
-        if skip_count > 0:
-            Logs.warning(
-                f"Not including {skip_count}/{total_residue_count} residue pairs "
-                "in RMSD calculation due to differing atom counts.")
 
-        Logs.message("Superimposing Structures.")
+        assert len(moving_atoms) == len(fixed_atoms), f"{len(moving_atoms)} != {len(fixed_atoms)}"
+        paired_residue_count = len(paired_res_id_mapping) - skipped
         superimposer = Superimposer()
         superimposer.set_atoms(fixed_atoms, moving_atoms)
         rms = round(superimposer.rms, 2)
@@ -353,7 +322,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             def _aainfo(r): return (r.id[1], aa3to1.get(r.resname, "X"))
             seq = [_aainfo(r) for r in structure.get_residues() if is_aa(r)]
             return seq
-
+        start_time = time.time()
+        Logs.message("Calculating alignment")
         resseq_A = _get_pdb_sequence(structA)
         resseq_B = _get_pdb_sequence(structB)
 
@@ -387,6 +357,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 mapping[resseq_A[aa_i_A][0]] = resseq_B[aa_i_B][0]
                 aa_i_A += 1
                 aa_i_B += 1
+        end_time = time.time()
+        Logs.message(f"Alignment completed in {round(end_time - start_time, 2)} seconds.")
         return mapping
 
     def update_loading_bar(self, current, total):

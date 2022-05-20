@@ -89,9 +89,9 @@ class PluginFunctionTestCase(unittest.TestCase):
         )
         expected_result = {
             'complex': {
-                'rmsd': 27.7,
-                'paired_atoms': 552,
-                'paired_residues': 552
+                'rmsd': 6.17,
+                'paired_atoms': 138,
+                'paired_residues': 138
             }
         }
         self.assertEqual(result, expected_result)
@@ -115,9 +115,9 @@ class PluginFunctionTestCase(unittest.TestCase):
         )
         expected_result = {
             'complex': {
-                'paired_atoms': 1098,
-                'paired_residues': 138,
-                'rmsd': 25.87,
+                'paired_atoms': 391,
+                'paired_residues': 48,
+                'rmsd': 2.7,
             }
         }
         self.assertEqual(result, expected_result)
