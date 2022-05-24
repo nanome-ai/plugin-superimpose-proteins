@@ -203,7 +203,9 @@ class MainMenu:
             'moving_complexes': moving_comp_count,
             'elapsed_time': elapsed_time
         }
-        Logs.message(f"Superimposition completed in {elapsed_time} seconds.", extra=log_extra)
+        msg = f"Superimpose completed in {elapsed_time} seconds."
+        Logs.message(msg, extra=log_extra)
+        self.plugin.send_notification(NotificationTypes.success, msg)
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
         """Render rmsd results in a list."""
