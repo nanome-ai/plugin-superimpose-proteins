@@ -292,7 +292,6 @@ class MainMenu:
             btn_moving.register_pressed_callback(functools.partial(self.btn_moving_clicked, dd_chain))
 
             lbl_struct_name.text_value = comp.full_name
-            # lbl_struct_name.text_auto_size = mode == AlignmentModeEnum.CHAIN
 
             overflow_size = 15
             if len(lbl_struct_name.text_value) > overflow_size:
@@ -564,7 +563,10 @@ class MainMenu:
     def toggle_all_moving_complexes(self, value: bool, btn: ui.Button):
         """Select or deselect all complexes as moving complexes"""
         for item in self.ln_moving_comp_list.get_content().items:
-            btn_moving = item.find_node('ln_btn_moving').get_content()
+            ln_btn_moving = item.find_node('ln_btn_moving')
+            if not ln_btn_moving:
+                continue
+            btn_moving = ln_btn_moving.get_content()
             if not btn_moving.unusable:
                 btn_moving.selected = value
             dd_chain = item.find_node('dd_chain').get_content()
