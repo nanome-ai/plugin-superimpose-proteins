@@ -3,7 +3,7 @@ import time
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
-from nanome.util.enums import NotificationTypes
+from nanome.util.enums import NotificationTypes, VertAlignOptions
 from .enums import AlignmentModeEnum, AlignmentMethodEnum
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
@@ -292,8 +292,12 @@ class MainMenu:
             btn_moving.register_pressed_callback(functools.partial(self.btn_moving_clicked, dd_chain))
 
             lbl_struct_name.text_value = comp.full_name
-            if len(lbl_struct_name.text_value) > 10:
-                lbl_struct_name.text_value = lbl_struct_name.text_value[:7] + '...'
+            # lbl_struct_name.text_auto_size = mode == AlignmentModeEnum.CHAIN
+
+            overflow_size = 15
+            if len(lbl_struct_name.text_value) > overflow_size:
+                letters_to_keep = overflow_size - 3
+                lbl_struct_name.text_value = lbl_struct_name.text_value[:letters_to_keep] + '...'
 
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
@@ -333,9 +337,15 @@ class MainMenu:
         comp_list.items = visible_items
         if hidden_items:
             hidden_item_header = ui.LayoutNode()
-            hidden_item_header.add_new_label(f"Hidden Items ({len(hidden_items)})")
+            hidden_item_header.set_padding(left=0.02)
+            label = hidden_item_header.add_new_label(f"Hidden Items ({len(hidden_items)})")
+            label.text_auto_size = False
+            label.text_size = .3
+            label.text_vertical_align = VertAlignOptions.Middle
             comp_list.items.append(hidden_item_header)
             comp_list.items.extend(hidden_items)
+
+        comp_list.display_rows = min(len(comp_list.items), 6)
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def chain_selected_callback(self, btn_fixed, btn_moving, dd, ddi):
