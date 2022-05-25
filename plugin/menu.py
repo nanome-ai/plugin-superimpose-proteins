@@ -240,7 +240,7 @@ class MainMenu:
             if btn_fixed.selected:
                 # Check if a chain has been selected
                 ln_chain_btns = item.find_node('ln_chain_list').get_children()
-                chain_btns = [ln.get_content() for ln in ln_chain_btns]
+                chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
                 selected_chain = next((
                     chain_btn.text.value.idle
                     for chain_btn in chain_btns
@@ -280,7 +280,11 @@ class MainMenu:
 
             lbl_struct_name.text_value = comp.full_name
 
-            overflow_size = 15
+            overflow_size = 25 if mode == AlignmentModeEnum.CHAIN else 15
+            for chain in comp.chains:
+                ln_chain = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
+                ln_chain.chain_index = chain.index
+
             if len(lbl_struct_name.text_value) > overflow_size:
                 letters_to_keep = overflow_size - 3
                 lbl_struct_name.text_value = lbl_struct_name.text_value[:letters_to_keep] + '...'
@@ -326,7 +330,6 @@ class MainMenu:
             label.text_vertical_align = VertAlignOptions.Middle
             comp_list.items.append(hidden_item_header)
             comp_list.items.extend(hidden_items)
-
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def chain_selected_callback(self, btn_group, btn):
@@ -388,7 +391,7 @@ class MainMenu:
     def btn_moving_clicked(self, ln_chain_list, btn_moving):
         btns_to_update = [btn_moving]
         selected_count = 0
-        chain_btns = self.get_chain_buttons(ln_chain_list)
+        chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
 
         if not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
             for ch_btn in chain_btns:
@@ -495,7 +498,7 @@ class MainMenu:
                 continue
             # Check if a chain has been selected
             ln_chain_btns = item.find_node('ln_chain_list').get_children()
-            chain_btns = [ln.get_content() for ln in ln_chain_btns]
+            chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
             selected_chain_btns = [ch_btn for ch_btn in chain_btns if ch_btn.selected]
             selected_chain = next((
                 chain_btn.text.value.idle
@@ -558,11 +561,6 @@ class MainMenu:
         self.plugin.update_node(self.ln_moving_comp_list)
         self.check_if_ready_to_submit()
 
-    @staticmethod
-    def get_chain_buttons(ln_chain_btns):
-        # Check if a chain has been selected
-        return [ln.get_content() for ln in ln_chain_btns]
-
     def create_chain_buttons(self, comp, set_default=False):
         """Update chain dropdown to reflect changes in complex."""
         list_items = []
@@ -588,6 +586,9 @@ class MainMenu:
                 self.chain_selected_callback, btn_list
             )
             btn.register_pressed_callback(callback_fn)
+        # Add padding when less than 4 chains
+        while len(list_items) < 4:
+            list_items.append(ui.LayoutNode())
         return list_items
 
 
