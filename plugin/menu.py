@@ -22,20 +22,22 @@ EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
 DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
 
 
-def create_chain_dropdown_items(comp, set_default=False):
+def create_chain_buttons(comp, set_default=False):
     """Update chain dropdown to reflect changes in complex."""
-    dropdown_items = []
+    list_items = []
     # Filter out hetatom chains (HA, HB, etc)
     chain_names = [
         ch.name for ch in comp.chains
         if not ch.name.startswith('H') or len(ch.name) < 2
     ]
     for chain_name in chain_names:
-        ddi = ui.DropdownItem(chain_name)
-        dropdown_items.append(ddi)
-    if set_default and dropdown_items:
-        dropdown_items[0].selected = True
-    return dropdown_items
+        btn_ln = ui.LayoutNode()
+        new_btn = btn_ln.add_new_button(chain_name)
+        new_btn.toggle_on_press = True
+        list_items.append(btn_ln)
+    if set_default and list_items:
+        list_items[0].selected = True
+    return list_items
 
 
 class MainMenu:
@@ -283,13 +285,14 @@ class MainMenu:
                 selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('ln_btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
-            ln_lbl_chain_count = ln.find_node('lbl_chain_count')
+            ln_chain_list = ln.find_node('ln_chain_list')
+            list_chain_btns = ln_chain_list.get_content()
+            ln_chain_list.remove_content()
 
             ln_dd_chain = ln.find_node('dd_chain')
-            ln_dd_chain.enabled = mode == AlignmentModeEnum.CHAIN
+            ln_dd_chain.enabled = False
             dd_chain = ln_dd_chain.get_content()
 
-            lbl_chain_count = ln_lbl_chain_count.get_content()
             btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
             btn_moving.register_pressed_callback(functools.partial(self.btn_moving_clicked, dd_chain))
 
@@ -302,21 +305,19 @@ class MainMenu:
 
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
-            chain_count = sum(
-                1 for ch in comp.chains
-                if not ch.name.startswith('H')
-                or len(ch.name) < 2)
-            lbl_chain_count.text_value = f'{chain_count} Chain(s)'
 
             # Set up chain dropdown if in chain mode
             if mode == AlignmentModeEnum.CHAIN:
-                ln_lbl_chain_count.enabled = True
+                ln_chain_list.enabled = True
                 dd_chain.register_item_clicked_callback(
                     functools.partial(self.chain_selected_callback, btn_fixed, btn_moving))
                 comp = next(
                     cmp for cmp in self.plugin.complexes
                     if cmp.index == ln.comp_index)
-                dd_chain.items = create_chain_dropdown_items(comp)
+                ln_btns = create_chain_buttons(comp)
+                for ln_btn in ln_btns:
+                    ln_chain_list.add_child(ln_btn)
+                
             # Set default selections if required.
             if set_default_values and i == 0:
                 btn_fixed.selected = True
@@ -346,7 +347,7 @@ class MainMenu:
             comp_list.items.append(hidden_item_header)
             comp_list.items.extend(hidden_items)
 
-        comp_list.display_rows = min(len(comp_list.items), 6)
+        comp_list.display_rows = min(max(len(comp_list.items), 4), 6)
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def chain_selected_callback(self, btn_fixed, btn_moving, dd, ddi):
