@@ -260,7 +260,7 @@ class MainMenu:
             self.ln_moving_comp_list.enabled = True
             self.ln_empty_list.enabled = False
 
-        for i, comp in enumerate(complexes):
+        for i, comp in enumerate(sorted(complexes, key=lambda cmp: cmp.full_name)):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             ln.comp_index = comp.index
             btn_fixed = ln.find_node('ln_btn_fixed').get_content()
