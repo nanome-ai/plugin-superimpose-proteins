@@ -582,16 +582,27 @@ class MainMenu:
         btn_list = [ln.get_content() for ln in list_items]
         for ln_btn in list_items:
             btn = ln_btn.get_content()
-            callback_fn = functools.partial(
+            selected_callback_fn = functools.partial(
                 self.chain_selected_callback, btn_list
             )
-            btn.register_pressed_callback(callback_fn)
+            btn.register_pressed_callback(selected_callback_fn)
+
+            hover_callback_fn = functools.partial(
+                self.chain_btn_hover_callback, comp
+            )
+            btn.register_hover_callback(hover_callback_fn)
         # Add padding when less than 4 chains
         while len(list_items) < 4:
             list_items.append(ui.LayoutNode())
         return list_items
 
-
+    def chain_btn_hover_callback(self, comp, btn, hovered: bool):
+        chain_name = btn.text.value.idle
+        Logs.message(f"{'Selecting' if hovered else 'Deselecting'} Chain {chain_name}")
+        chain = next(ch for ch in comp.chains if ch.name == chain_name)
+        for atom in chain.atoms:
+            atom.selected = hovered
+        self.plugin.update_structures_deep([chain.atoms])
 
 class RMSDMenu(ui.Menu):
 
