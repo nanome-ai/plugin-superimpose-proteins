@@ -245,7 +245,7 @@ class MainMenu:
                     chain_btn.text.value.idle
                     for chain_btn in chain_btns
                     if chain_btn.selected), '')
-                return selected_chain        
+                return selected_chain
 
     def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY):
         comp_list = self.ln_moving_comp_list.get_content()
@@ -291,7 +291,7 @@ class MainMenu:
 
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
-            
+
             ln.find_node('chain_selection').enabled = mode == AlignmentModeEnum.CHAIN
 
             comp_list.display_rows = min(max(len(comp_list.items), 4), 6)
@@ -304,12 +304,12 @@ class MainMenu:
                 ln_btns = self.create_chain_buttons(comp)
                 for ln_btn in ln_btns:
                     ln_chain_list.add_child(ln_btn)
-                
+
             # Set default selections if required.
             if set_default_values and i == 0:
                 btn_fixed.selected = True
                 btn_moving.selected = False
-                
+
             elif set_default_values and i == 1:
                 btn_fixed.selected = False
                 btn_moving.selected = True
