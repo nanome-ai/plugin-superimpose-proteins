@@ -22,22 +22,6 @@ EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
 DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
 
 
-def create_chain_dropdown_items(comp, set_default=False):
-    """Update chain dropdown to reflect changes in complex."""
-    dropdown_items = []
-    # Filter out hetatom chains (HA, HB, etc)
-    chain_names = [
-        ch.name for ch in comp.chains
-        if not ch.name.startswith('H') or len(ch.name) < 2
-    ]
-    for chain_name in chain_names:
-        ddi = ui.DropdownItem(chain_name)
-        dropdown_items.append(ddi)
-    if set_default and dropdown_items:
-        dropdown_items[0].selected = True
-    return dropdown_items
-
-
 class MainMenu:
 
     def __init__(self, plugin_instance):
@@ -254,9 +238,14 @@ class MainMenu:
         for item in self.ln_moving_comp_list.get_content().items:
             btn_fixed = item.find_node('ln_btn_fixed').get_content()
             if btn_fixed.selected:
-                dd_chain = item.find_node('dd_chain').get_content()
-                selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
-                return getattr(selected_ddi, 'name', '')
+                # Check if a chain has been selected
+                ln_chain_btns = item.find_node('ln_chain_list').get_children()
+                chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
+                selected_chain = next((
+                    chain_btn.text.value.idle
+                    for chain_btn in chain_btns
+                    if chain_btn.selected), '')
+                return selected_chain
 
     def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY):
         comp_list = self.ln_moving_comp_list.get_content()
@@ -271,7 +260,7 @@ class MainMenu:
             self.ln_moving_comp_list.enabled = True
             self.ln_empty_list.enabled = False
 
-        for i, comp in enumerate(complexes):
+        for i, comp in enumerate(sorted(complexes, key=lambda cmp: cmp.full_name)):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             ln.comp_index = comp.index
             btn_fixed = ln.find_node('ln_btn_fixed').get_content()
@@ -283,51 +272,47 @@ class MainMenu:
                 selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('ln_btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
-            ln_lbl_chain_count = ln.find_node('lbl_chain_count')
+            ln_chain_list = ln.find_node('ln_chain_list')
+            ln_chain_list.remove_content()
 
-            ln_dd_chain = ln.find_node('dd_chain')
-            ln_dd_chain.enabled = mode == AlignmentModeEnum.CHAIN
-            dd_chain = ln_dd_chain.get_content()
-
-            lbl_chain_count = ln_lbl_chain_count.get_content()
             btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
-            btn_moving.register_pressed_callback(functools.partial(self.btn_moving_clicked, dd_chain))
+            btn_moving.register_pressed_callback(functools.partial(self.btn_moving_clicked, ln_chain_list))
 
             lbl_struct_name.text_value = comp.full_name
 
-            overflow_size = 15
+            overflow_size = 25 if mode == AlignmentModeEnum.CHAIN else 15
+            for chain in comp.chains:
+                ln_chain = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
+                ln_chain.chain_index = chain.index
+
             if len(lbl_struct_name.text_value) > overflow_size:
                 letters_to_keep = overflow_size - 3
                 lbl_struct_name.text_value = lbl_struct_name.text_value[:letters_to_keep] + '...'
 
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
-            chain_count = sum(
-                1 for ch in comp.chains
-                if not ch.name.startswith('H')
-                or len(ch.name) < 2)
-            lbl_chain_count.text_value = f'{chain_count} Chain(s)'
 
+            ln.find_node('chain_selection').enabled = mode == AlignmentModeEnum.CHAIN
+
+            comp_list.display_rows = min(max(len(comp_list.items), 4), 6)
             # Set up chain dropdown if in chain mode
             if mode == AlignmentModeEnum.CHAIN:
-                ln_lbl_chain_count.enabled = True
-                dd_chain.register_item_clicked_callback(
-                    functools.partial(self.chain_selected_callback, btn_fixed, btn_moving))
+                comp_list.display_rows = 4
                 comp = next(
                     cmp for cmp in self.plugin.complexes
                     if cmp.index == ln.comp_index)
-                dd_chain.items = create_chain_dropdown_items(comp)
+                ln_btns = self.create_chain_buttons(comp)
+                for ln_btn in ln_btns:
+                    ln_chain_list.add_child(ln_btn)
+
             # Set default selections if required.
             if set_default_values and i == 0:
                 btn_fixed.selected = True
                 btn_moving.selected = False
-                if ln_dd_chain.enabled and dd_chain.items:
-                    dd_chain.items[0].selected = True
+
             elif set_default_values and i == 1:
                 btn_fixed.selected = False
                 btn_moving.selected = True
-                if ln_dd_chain.enabled and dd_chain.items:
-                    dd_chain.items[0].selected = True
 
             if comp.visible:
                 visible_items.append(ln)
@@ -345,16 +330,20 @@ class MainMenu:
             label.text_vertical_align = VertAlignOptions.Middle
             comp_list.items.append(hidden_item_header)
             comp_list.items.extend(hidden_items)
-
-        comp_list.display_rows = min(len(comp_list.items), 6)
         self.plugin.update_node(self.ln_moving_comp_list)
 
-    def chain_selected_callback(self, btn_fixed, btn_moving, dd, ddi):
-        content_to_update = [dd]
-        if not btn_fixed.selected and not btn_moving.selected:
-            btn_moving.selected = True
-            content_to_update.append(btn_moving)
-        self.plugin.update_content(*content_to_update)
+    def chain_selected_callback(self, comp, btn_group, btn):
+        # One item in button group selected at a time.
+        Logs.message(f"Chain selected: {btn.text.value.idle}")
+        btns_to_update = [btn]
+        for grp_btn in btn_group:
+            if grp_btn is not btn and grp_btn.selected:
+                grp_btn.selected = False
+                self.toggle_chain_atoms_selected(comp, grp_btn, False)
+                btns_to_update.append(grp_btn)
+        self.plugin.update_content(btns_to_update)
+        chain_name = btn.text.value.idle
+        self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
         self.check_if_ready_to_submit()
 
     @async_callback
@@ -402,13 +391,15 @@ class MainMenu:
             dropdown_items.append(ui.DropdownItem(lig.name))
         return dropdown_items
 
-    def btn_moving_clicked(self, dd_chain, btn):
-        btns_to_update = [btn]
+    def btn_moving_clicked(self, ln_chain_list, btn_moving):
+        btns_to_update = [btn_moving]
         selected_count = 0
-        if not btn.selected and any(ddi.selected for ddi in dd_chain.items):
-            for ddi in dd_chain.items:
-                ddi.selected = False
-            btns_to_update.append(dd_chain)
+        chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
+
+        if not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
+            for ch_btn in chain_btns:
+                ch_btn.selected = False
+                btns_to_update.append(ch_btn)
 
         for menu_item in self.ln_moving_comp_list.get_content().items:
             ln = menu_item.find_node('ln_btn_moving')
@@ -505,22 +496,18 @@ class MainMenu:
             ln_btn = item.find_node('ln_btn_moving')
             if not ln_btn:
                 continue
-            btn = ln_btn.get_content()
-            chain_dd = item.find_node('dd_chain').get_content()
-            comp_index = item.comp_index
-            if not btn.selected:
+            btn_moving = ln_btn.get_content()
+            if not btn_moving.selected:
                 continue
-
-            selected_comp = next((
-                comp for comp in self.plugin.complexes
-                if comp.index == comp_index
-            ), None)
-            selected_chain = None
-            for chain_ddi in chain_dd.items:
-                if chain_ddi.selected:
-                    selected_chain = chain_ddi.name
-                    break
-            comp_chain_list.append((selected_comp.index, selected_chain))
+            # Check if a chain has been selected
+            ln_chain_btns = item.find_node('ln_chain_list').get_children()
+            chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
+            selected_chain_btns = [ch_btn for ch_btn in chain_btns if ch_btn.selected]
+            selected_chain = next((
+                chain_btn.text.value.idle
+                for chain_btn in selected_chain_btns), '')
+            comp_index = item.comp_index
+            comp_chain_list.append((comp_index, selected_chain))
         return comp_chain_list
 
     def open_rmsd_menu(self, btn):
@@ -576,6 +563,55 @@ class MainMenu:
                 dd_chain.items[0].selected = value
         self.plugin.update_node(self.ln_moving_comp_list)
         self.check_if_ready_to_submit()
+
+    def create_chain_buttons(self, comp, set_default=False):
+        """Update chain dropdown to reflect changes in complex."""
+        list_items = []
+        # Filter out hetatom chains (HA, HB, etc)
+        chain_names = sorted([
+            ch.name for ch in comp.chains
+            if not ch.name.startswith('H') or len(ch.name) < 2
+        ])
+        for chain_name in chain_names:
+            btn_ln = ui.LayoutNode()
+            new_btn = btn_ln.add_new_button(chain_name)
+            new_btn.text.min_size = 0.1
+            new_btn.text.max_size = 0.15
+            new_btn.toggle_on_press = True
+            list_items.append(btn_ln)
+        if set_default and list_items:
+            list_items[0].selected = True
+        # Set up button group callback
+        btn_list = [ln.get_content() for ln in list_items]
+        for ln_btn in list_items:
+            btn = ln_btn.get_content()
+            selected_callback_fn = functools.partial(
+                self.chain_selected_callback, comp, btn_list
+            )
+            btn.register_pressed_callback(selected_callback_fn)
+
+            hover_callback_fn = functools.partial(
+                self.chain_btn_hover_callback, comp
+            )
+            btn.register_hover_callback(hover_callback_fn)
+        # Add padding when less than 4 chains
+        while len(list_items) < 4:
+            list_items.append(ui.LayoutNode())
+        return list_items
+
+    @async_callback
+    async def chain_btn_hover_callback(self, comp, btn, hovered: bool):
+        chain_name = btn.text.value.idle
+        if not btn.selected:
+            self.toggle_chain_atoms_selected(comp, chain_name, hovered)
+
+    def toggle_chain_atoms_selected(self, comp, chain_name, value: bool):
+        """Select or deselect all atoms in a chain."""
+        Logs.message(f"{'Selecting' if value else 'Deselecting'} Chain {chain_name}")
+        chain = next(ch for ch in comp.chains if ch.name == chain_name)
+        for atom in chain.atoms:
+            atom.selected = value
+        self.plugin.update_structures_deep(list(chain.atoms))
 
 
 class RMSDMenu(ui.Menu):
