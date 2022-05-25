@@ -339,7 +339,8 @@ class MainMenu:
         for grp_btn in btn_group:
             if grp_btn is not btn and grp_btn.selected:
                 grp_btn.selected = False
-                self.toggle_chain_atoms_selected(comp, grp_btn, False)
+                chain_name = grp_btn.text.value.idle
+                self.toggle_chain_atoms_selected(comp, chain_name, False)
                 btns_to_update.append(grp_btn)
         self.plugin.update_content(btns_to_update)
         chain_name = btn.text.value.idle
