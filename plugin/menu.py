@@ -258,9 +258,15 @@ class MainMenu:
         for item in self.ln_moving_comp_list.get_content().items:
             btn_fixed = item.find_node('ln_btn_fixed').get_content()
             if btn_fixed.selected:
-                dd_chain = item.find_node('dd_chain').get_content()
-                selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
-                return getattr(selected_ddi, 'name', '')
+                # Check if a chain has been selected
+                ln_chain_btns = item.find_node('ln_chain_list').get_children()
+                chain_btns = [ln.get_content() for ln in ln_chain_btns]
+                selected_chain = next((
+                    chain_btn.text.value.idle
+                    for chain_btn in chain_btns
+                    if chain_btn.selected), '')
+                return selected_chain
+                    
 
     def populate_comp_list(self, complexes, mode=AlignmentModeEnum.ENTRY):
         comp_list = self.ln_moving_comp_list.get_content()
@@ -508,21 +514,22 @@ class MainMenu:
             ln_btn = item.find_node('ln_btn_moving')
             if not ln_btn:
                 continue
-            btn = ln_btn.get_content()
-            chain_dd = item.find_node('dd_chain').get_content()
-            comp_index = item.comp_index
-            if not btn.selected:
+            btn_moving = ln_btn.get_content()
+            if not btn_moving.selected:
                 continue
-
+            # Check if a chain has been selected
+            ln_chain_btns = item.find_node('ln_chain_list').get_children()
+            chain_btns = [ln.get_content() for ln in ln_chain_btns]
+            selected_chain = next((
+                chain_btn.text.value.idle
+                for chain_btn in chain_btns
+                if chain_btn.selected), None)
+            comp_index = item.comp_index
             selected_comp = next((
                 comp for comp in self.plugin.complexes
                 if comp.index == comp_index
             ), None)
             selected_chain = None
-            for chain_ddi in chain_dd.items:
-                if chain_ddi.selected:
-                    selected_chain = chain_ddi.name
-                    break
             comp_chain_list.append((selected_comp.index, selected_chain))
         return comp_chain_list
 
