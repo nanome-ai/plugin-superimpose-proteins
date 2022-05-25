@@ -332,15 +332,18 @@ class MainMenu:
             comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
 
-    def chain_selected_callback(self, btn_group, btn):
+    def chain_selected_callback(self, comp, btn_group, btn):
         # One item in button group selected at a time.
         Logs.message(f"Chain selected: {btn.text.value.idle}")
         btns_to_update = [btn]
         for grp_btn in btn_group:
             if grp_btn is not btn and grp_btn.selected:
                 grp_btn.selected = False
+                self.toggle_chain_atoms_selected(comp, grp_btn, False)
                 btns_to_update.append(grp_btn)
         self.plugin.update_content(btns_to_update)
+        chain_name = btn.text.value.idle
+        self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
         self.check_if_ready_to_submit()
 
     @async_callback
@@ -583,7 +586,7 @@ class MainMenu:
         for ln_btn in list_items:
             btn = ln_btn.get_content()
             selected_callback_fn = functools.partial(
-                self.chain_selected_callback, btn_list
+                self.chain_selected_callback, comp, btn_list
             )
             btn.register_pressed_callback(selected_callback_fn)
 
@@ -596,13 +599,20 @@ class MainMenu:
             list_items.append(ui.LayoutNode())
         return list_items
 
-    def chain_btn_hover_callback(self, comp, btn, hovered: bool):
+    @async_callback
+    async def chain_btn_hover_callback(self, comp, btn, hovered: bool):
         chain_name = btn.text.value.idle
-        Logs.message(f"{'Selecting' if hovered else 'Deselecting'} Chain {chain_name}")
+        if not btn.selected:
+            self.toggle_chain_atoms_selected(comp, chain_name, hovered)
+
+    def toggle_chain_atoms_selected(self, comp, chain_name, value: bool):
+        """Select or deselect all atoms in a chain."""
+        Logs.message(f"{'Selecting' if value else 'Deselecting'} Chain {chain_name}")
         chain = next(ch for ch in comp.chains if ch.name == chain_name)
         for atom in chain.atoms:
-            atom.selected = hovered
-        self.plugin.update_structures_deep([chain.atoms])
+            atom.selected = value
+        self.plugin.update_structures_deep(list(chain.atoms))
+
 
 class RMSDMenu(ui.Menu):
 
