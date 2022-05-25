@@ -526,10 +526,8 @@ class MainMenu:
 
     def check_if_ready_to_submit(self):
         """Enable or disable submit button based on if required fields are selected."""
-        fixed_comp_index = self.get_fixed_comp_index()
-        if not fixed_comp_index:
-            return False
         ready_to_submit = False
+        fixed_comp_index = self.get_fixed_comp_index()
         if self.current_mode == AlignmentModeEnum.ENTRY:
             moving_comp_indices = self.get_moving_comp_indices()
             ready_to_submit = all([fixed_comp_index, moving_comp_indices])
