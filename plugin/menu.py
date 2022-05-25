@@ -26,13 +26,15 @@ def create_chain_buttons(comp, set_default=False):
     """Update chain dropdown to reflect changes in complex."""
     list_items = []
     # Filter out hetatom chains (HA, HB, etc)
-    chain_names = [
+    chain_names = sorted([
         ch.name for ch in comp.chains
         if not ch.name.startswith('H') or len(ch.name) < 2
-    ]
+    ])
     for chain_name in chain_names:
         btn_ln = ui.LayoutNode()
         new_btn = btn_ln.add_new_button(chain_name)
+        new_btn.text.min_size = 0.1
+        new_btn.text.max_size = 0.15
         new_btn.toggle_on_press = True
         list_items.append(btn_ln)
     if set_default and list_items:
@@ -286,7 +288,6 @@ class MainMenu:
             btn_moving = ln.find_node('ln_btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_chain_list = ln.find_node('ln_chain_list')
-            list_chain_btns = ln_chain_list.get_content()
             ln_chain_list.remove_content()
 
             ln_dd_chain = ln.find_node('dd_chain')
@@ -305,10 +306,11 @@ class MainMenu:
 
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
+            
+            ln.find_node('chain_selection').enabled = mode == AlignmentModeEnum.CHAIN
 
             # Set up chain dropdown if in chain mode
             if mode == AlignmentModeEnum.CHAIN:
-                ln_chain_list.enabled = True
                 dd_chain.register_item_clicked_callback(
                     functools.partial(self.chain_selected_callback, btn_fixed, btn_moving))
                 comp = next(
