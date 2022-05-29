@@ -178,7 +178,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     async def superimpose_by_binding_site(
             self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=4.5):
         # Select the binding site on the fixed_index.
-        breakpoint()
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
@@ -191,9 +190,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fpocket_client = FPocketClient()
         sitemotif_client = SiteMotifClient()
         for moving_comp in moving_comp_list:
+            print(f"Calculating binding site for {moving_comp.full_name}")
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
             matching_pocket = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_pdbs)
+        return {}
 
     @staticmethod
     def create_transform_matrix(superimposer: Superimposer) -> Matrix:

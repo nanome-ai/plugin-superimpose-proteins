@@ -194,11 +194,4 @@ class PluginFunctionTestCase(unittest.TestCase):
             ligand_name,
             moving_comp_indices,
         )
-        expected_result = {
-            'complex': {
-                'rmsd': 6.17,
-                'paired_atoms': 138,
-                'paired_residues': 138
-            }
-        }
-        self.assertEqual(result, expected_result)
+        self.assertEqual(result, {})

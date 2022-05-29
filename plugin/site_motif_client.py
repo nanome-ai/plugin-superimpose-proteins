@@ -18,4 +18,5 @@ class SiteMotifClient:
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
-        print('done?')
+        if output.returncode != 0:
+            raise Exception(output.stderr.decode('utf-8'))
