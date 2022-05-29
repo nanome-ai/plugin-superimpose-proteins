@@ -48,6 +48,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     def start(self):
         self.menu = MainMenu(self)
+        # comp_list = await self.request_complex_list()
+        # comp = next(cmp for cmp in comp_list if cmp.name == '2OIB')
+        # deep_comp = (await self.request_complexes([comp.index]))[0]
+        # mol = next(deep_comp.molecules)
+        # ligands = await mol.get_ligands()
         self.temp_dir = tempfile.TemporaryDirectory()
 
     @async_callback
@@ -173,6 +178,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     async def superimpose_by_binding_site(
             self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=4.5):
         # Select the binding site on the fixed_index.
+        breakpoint()
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]

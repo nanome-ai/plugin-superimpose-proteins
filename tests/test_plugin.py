@@ -5,7 +5,7 @@ from unittest.mock import patch
 from random import randint
 
 from unittest.mock import MagicMock
-from nanome.api.structure import Complex
+from nanome.api.structure import Complex, Substructure
 from plugin.Superimpose import SuperimposePlugin
 from plugin.enums import AlignmentMethodEnum
 
@@ -155,3 +155,50 @@ class PluginFunctionTestCase(unittest.TestCase):
             }
         }
         self.assertEqual(result, expected_output)
+
+    @patch('nanome._internal._network.PluginNetwork._instance')
+    @patch('nanome.api.structure.Molecule.get_ligands')
+    @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
+    def test_superimpose_by_binding_site(self, request_complexes_mock, get_ligands_mock, *mocks):
+        # Load kinases
+        kinase_folder = os.path.join(fixtures_dir, 'kinases')
+        complex_list = []
+        for i, pdb_file in enumerate(os.listdir(kinase_folder)):
+            new_comp = Complex.io.from_pdb(path=os.path.join(kinase_folder, pdb_file))
+            new_comp.full_name = pdb_file.split('.')[0]
+            new_comp.index = i + 1
+            complex_list.append(new_comp)
+        
+        fut = asyncio.Future()
+        fut.set_result(complex_list)
+        request_complexes_mock.return_value = fut
+        fixed_comp_name = '2OIB'
+        fixed_comp = next(comp for comp in complex_list if comp.full_name == fixed_comp_name)
+        moving_comp_indices = [cmp.index for cmp in complex_list if cmp.index != fixed_comp.index]
+        ligand_name = 'GLN#341 : TPO#345'
+
+        # Build mock substructure.
+        substruct = Substructure()
+        substruct._name = ligand_name
+        substruct._residues = [
+            res for res in next(fixed_comp.molecules).residues
+            if res.serial >= 341 and res.serial <= 345
+        ]
+        fut = asyncio.Future()
+        fut.set_result([substruct])
+        get_ligands_mock.return_value = fut
+
+        result = run_awaitable(
+            self.plugin_instance.superimpose_by_binding_site,
+            fixed_comp.index,
+            ligand_name,
+            moving_comp_indices,
+        )
+        expected_result = {
+            'complex': {
+                'rmsd': 6.17,
+                'paired_atoms': 138,
+                'paired_residues': 138
+            }
+        }
+        self.assertEqual(result, expected_result)
