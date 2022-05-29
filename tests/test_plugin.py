@@ -169,7 +169,7 @@ class PluginFunctionTestCase(unittest.TestCase):
             new_comp.full_name = pdb_file.split('.')[0]
             new_comp.index = i + 1
             complex_list.append(new_comp)
-        
+
         fut = asyncio.Future()
         fut.set_result(complex_list)
         request_complexes_mock.return_value = fut
