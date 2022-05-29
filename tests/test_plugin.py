@@ -156,6 +156,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         }
         self.assertEqual(result, expected_output)
 
+    @unittest.skip("Not ready yet")
     @patch('nanome._internal._network.PluginNetwork._instance')
     @patch('nanome.api.structure.Molecule.get_ligands')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
