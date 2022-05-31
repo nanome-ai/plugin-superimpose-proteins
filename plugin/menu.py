@@ -120,7 +120,7 @@ class MainMenu:
         fixed_comp_index = self.get_fixed_comp_index() or 0
 
         # Get alignment method based on dropdown selection
-        heavy_atoms_method = 'Heavy atoms only'
+        heavy_atoms_method = 'All heavy atoms'
         alignment_method = None
         selected_alignment_method = next((
             item.name for item in self.dd_align_using.items
