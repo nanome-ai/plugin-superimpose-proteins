@@ -228,7 +228,10 @@ class MainMenu:
 
     def get_binding_site_ligand(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
-            btn_fixed = item.find_node('ln_btn_fixed').get_content()
+            ln_btn_fixed = item.find_node('ln_btn_fixed')
+            if not ln_btn_fixed:
+                continue
+            btn_fixed = ln_btn_fixed.get_content()
             if btn_fixed.selected:
                 dd_chain = item.find_node('dd_chain').get_content()
                 selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
@@ -236,7 +239,10 @@ class MainMenu:
 
     def get_fixed_chain(self):
         for item in self.ln_moving_comp_list.get_content().items:
-            btn_fixed = item.find_node('ln_btn_fixed').get_content()
+            ln_btn_fixed = item.find_node('ln_btn_fixed')
+            if not ln_btn_fixed:
+                continue
+            btn_fixed = ln_btn_fixed.get_content()
             if btn_fixed.selected:
                 # Check if a chain has been selected
                 ln_chain_btns = item.find_node('ln_chain_list').get_children()
