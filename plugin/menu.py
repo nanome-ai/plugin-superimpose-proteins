@@ -612,7 +612,7 @@ class MainMenu:
 
     def toggle_chain_atoms_selected(self, comp, chain_name, value: bool):
         """Select or deselect all atoms in a chain."""
-        Logs.message(f"{'Selecting' if value else 'Deselecting'} Chain {chain_name}")
+        Logs.debug(f"{'Selecting' if value else 'Deselecting'} Chain {chain_name}")
         chain = next(ch for ch in comp.chains if ch.name == chain_name)
         for atom in chain.atoms:
             atom.selected = value
