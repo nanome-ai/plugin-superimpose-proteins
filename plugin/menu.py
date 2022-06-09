@@ -346,10 +346,9 @@ class MainMenu:
             if grp_btn is not btn and grp_btn.selected:
                 grp_btn.selected = False
                 chain_name = grp_btn.text.value.idle
-                self.toggle_chain_atoms_selected(comp, chain_name, False)
                 btns_to_update.append(grp_btn)
-        self.plugin.update_content(btns_to_update)
         chain_name = btn.text.value.idle
+        self.plugin.update_content(btns_to_update)
         self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
         self.check_if_ready_to_submit()
 
@@ -595,28 +594,32 @@ class MainMenu:
             )
             btn.register_pressed_callback(selected_callback_fn)
 
-            hover_callback_fn = functools.partial(
-                self.chain_btn_hover_callback, comp
-            )
-            btn.register_hover_callback(hover_callback_fn)
         # Add padding when less than 4 chains
         while len(list_items) < 4:
             list_items.append(ui.LayoutNode())
         return list_items
 
-    @async_callback
-    async def chain_btn_hover_callback(self, comp, btn, hovered: bool):
-        chain_name = btn.text.value.idle
-        if not btn.selected:
-            self.toggle_chain_atoms_selected(comp, chain_name, hovered)
-
     def toggle_chain_atoms_selected(self, comp, chain_name, value: bool):
         """Select or deselect all atoms in a chain."""
-        Logs.debug(f"{'Selecting' if value else 'Deselecting'} Chain {chain_name}")
+        Logs.debug(f"{'Selecting' if value else 'Deselecting'} Chain {chain_name} Atoms")
         chain = next(ch for ch in comp.chains if ch.name == chain_name)
-        for atom in chain.atoms:
-            atom.selected = value
-        self.plugin.update_structures_deep(list(chain.atoms))
+        atoms_to_update = []
+        for chain in comp.chains:
+            # Select or deselect all atoms in the provided chain
+            if chain.name == chain_name:
+                chain_atms_to_update = (atm for atm in chain.atoms if atm.selected != value)
+                for atm in chain_atms_to_update:
+                    atm.selected = value
+                    atoms_to_update.append(atm)
+            else:
+                # Deselect all atoms not on selected chain
+                selected_nonchain_atms = (atm for atm in chain.atoms if atm.selected)
+                for atm in selected_nonchain_atms:
+                    atm.selected = False
+                    atoms_to_update.append(atm)
+        if atoms_to_update:
+            Logs.debug(f"Updating {len(atoms_to_update)} atom selections")
+            self.plugin.update_structures_shallow(atoms_to_update)
 
 
 class RMSDMenu(ui.Menu):
