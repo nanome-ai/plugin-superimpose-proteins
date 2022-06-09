@@ -478,7 +478,7 @@ class MainMenu:
         await self.plugin.menu.render(complexes=self.complexes)
         if update:
             self.plugin.update_menu(self._menu)
-    
+
     async def get_deep_complexes_if_required(self):
         # Get deep complexes for chain or binding site mode.
         if self.current_mode in [AlignmentModeEnum.CHAIN, AlignmentModeEnum.BINDING_SITE]:
