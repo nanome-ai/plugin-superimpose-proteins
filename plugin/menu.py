@@ -217,7 +217,7 @@ class MainMenu:
         ddi = ui.DropdownItem(f"Run {run_number}")
         ddi.run_number = run_number
         self.dd_run_history.items.append(ddi)
-        self.dd_run_history.permanent_title = f"Run History ({run_number})"
+        self.dd_run_history.permanent_title = f"RMSD Tables ({run_number})"
         self.plugin.update_content(self.dd_run_history)
 
     def get_fixed_comp_index(self):
