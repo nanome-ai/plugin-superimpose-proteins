@@ -11,6 +11,7 @@ from plugin.fpocket_client import FPocketClient
 fixtures_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
 
 
+@unittest.skip("Skipping FPocket tests")
 class FPocketClientTestCase(unittest.TestCase):
 
     def setUp(self):
