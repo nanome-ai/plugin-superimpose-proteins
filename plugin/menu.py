@@ -342,7 +342,6 @@ class MainMenu:
                 btn_fixed.selected = True
                 if set_default_values and ln_btns:
                     ln_btns[0].get_content().selected = True
-                    print('here')
             # Select second structure as moving val if only two structs.
             if set_default_values and i == 1:
                 btn_moving.selected = True
