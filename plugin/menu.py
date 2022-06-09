@@ -303,7 +303,7 @@ class MainMenu:
 
             ln.find_node('chain_selection').enabled = mode == AlignmentModeEnum.CHAIN
 
-            comp_list.display_rows = min(max(len(comp_list.items), 4), 6)
+            comp_list.display_rows = min(max(len(comp_list.items), 4), 5)
             # Set up chain dropdown if in chain mode
             if mode == AlignmentModeEnum.CHAIN:
                 comp_list.display_rows = 4
