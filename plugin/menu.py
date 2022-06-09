@@ -358,8 +358,8 @@ class MainMenu:
                 btns_to_update.append(grp_btn)
         chain_name = btn.text.value.idle
         self.plugin.update_content(btns_to_update)
-        self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
         self.check_if_ready_to_submit()
+        self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
 
     @async_callback
     async def btn_fixed_clicked(self, btn):
