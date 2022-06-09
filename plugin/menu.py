@@ -7,7 +7,7 @@ from nanome.util.enums import NotificationTypes, VertAlignOptions
 from .enums import AlignmentModeEnum, AlignmentMethodEnum
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
+MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
 COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
