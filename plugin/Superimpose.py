@@ -53,27 +53,24 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
-        self.complexes = await self.request_complex_list()
+        if not hasattr(self, 'complexes'):
+            self.complexes = await self.request_complex_list()
         self.menu.render(complexes=self.complexes, force_enable=True)
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
-        if not hasattr(self, 'complexes'):
-            self.complexes = complexes
-        if self.menu.enabled:
-            self.menu.render(complexes=complexes)
+        self.complexes = complexes
+        await self.menu.render(complexes=self.complexes)
 
     @async_callback
     async def on_complex_added(self):
-        complexes = await self.request_complex_list()
-        if self.menu.enabled:
-            await self.menu.render(complexes=complexes)
+        self.complexes = await self.request_complex_list()
+        await self.menu.render(complexes=self.complexes)
 
     @async_callback
     async def on_complex_removed(self):
         self.complexes = await self.request_complex_list()
-        if self.menu.enabled:
-            await self.menu.render(complexes=self.complexes)
+        await self.menu.render(complexes=self.complexes)
 
     async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_method):
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
