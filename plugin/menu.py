@@ -103,12 +103,14 @@ class MainMenu:
         return self._menu.root.find_node('ln_btn_deselect_all').get_content()
 
     @async_callback
-    async def render(self, complexes=None):
+    async def render(self, complexes=None, force_enable=False):
         complexes = complexes or []
         self.ln_binding_site_mode.enabled = False
         self.populate_comp_list(complexes, self.current_mode)
         self.check_if_ready_to_submit()
         self.btn_submit.register_pressed_callback(self.submit)
+        if force_enable:
+            self._menu.enabled = True
         self.plugin.update_menu(self._menu)
 
     @async_callback
@@ -690,14 +692,6 @@ class RMSDMenu(ui.Menu):
 
     def update(self):
         self.plugin.update_menu(self._menu)
-
-    @property
-    def enabled(self):
-        return self._menu._enabled
-
-    @enabled.setter
-    def enabled(self, value):
-        self._menu._enabled = value
 
     @property
     def index(self):
