@@ -4,7 +4,7 @@ from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
 from nanome.util.enums import NotificationTypes, VertAlignOptions
-from .enums import AlignmentModeEnum, AlignmentMethodEnum
+from .enums import AlignmentModeEnum, OverlayMethodEnum
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
 MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
@@ -41,6 +41,13 @@ class MainMenu:
             functools.partial(self.toggle_all_moving_complexes, True))
         self.btn_deselect_all.register_pressed_callback(
             functools.partial(self.toggle_all_moving_complexes, False))
+
+        overlay_button_group = [self.btn_alpha_carbons, self.btn_heavy_atoms]
+        overlay_method_selected_callback = functools.partial(
+            self.overlay_method_selected, overlay_button_group
+        )
+        self.btn_alpha_carbons.register_pressed_callback(overlay_method_selected_callback)
+        self.btn_heavy_atoms.register_pressed_callback(overlay_method_selected_callback)
 
     @property
     def btn_submit(self):
@@ -83,8 +90,12 @@ class MainMenu:
         return self._menu.root.find_node('lbl_moving_structures').get_content()
 
     @property
-    def dd_align_using(self):
-        return self._menu.root.find_node('ln_align_using').get_content()
+    def btn_alpha_carbons(self):
+        return self._menu.root.find_node('ln_btn_alpha_carbons').get_content()
+    
+    @property
+    def btn_heavy_atoms(self):
+        return self._menu.root.find_node('ln_btn_heavy_atoms').get_content()
 
     @property
     def ln_loading_bar(self):
@@ -118,21 +129,24 @@ class MainMenu:
     async def submit(self, btn):
         current_mode = self.current_mode
         self.btn_submit.unusable = True
+        original_unusable_text = self.btn_submit.text.value.unusable
         self.btn_submit.text.value.unusable = "Calculating..."
         self.plugin.update_content(self.btn_submit)
         fixed_comp_index = self.get_fixed_comp_index() or 0
 
         # Get alignment method based on dropdown selection
-        heavy_atoms_method = 'All heavy atoms'
-        alignment_method = None
-        selected_alignment_method = next((
-            item.name for item in self.dd_align_using.items
-            if item.selected), None)
+        heavy_atoms_method = 'btn_heavy_atoms'
+        overlay_method = None
+        
+        selected_overlay_method = next(
+            btn.name for btn in
+            [self.btn_alpha_carbons, self.btn_heavy_atoms]
+            if btn.selected)
 
-        if selected_alignment_method == heavy_atoms_method:
-            alignment_method = AlignmentMethodEnum.HEAVY_ATOMS_ONLY
+        if selected_overlay_method.lower() == heavy_atoms_method:
+            overlay_method = OverlayMethodEnum.HEAVY_ATOMS_ONLY
         else:
-            alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
+            overlay_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
         Logs.message("Submit button Pressed.")
 
         self.ln_loading_bar.enabled = True
@@ -146,14 +160,14 @@ class MainMenu:
             if current_mode == AlignmentModeEnum.ENTRY:
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
-                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
-                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, alignment_method)
+                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
+                rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, overlay_method)
             elif current_mode == AlignmentModeEnum.CHAIN:
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
                 moving_comp_count = len(moving_comp_chain_list)
-                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
-                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, alignment_method)
+                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
+                rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, overlay_method)
             elif current_mode == AlignmentModeEnum.BINDING_SITE:
                 ligand_name = self.get_binding_site_ligand()
                 moving_comp_indices = self.get_moving_comp_indices()
@@ -163,7 +177,7 @@ class MainMenu:
                     Logs.warning(msg)
                     self.plugin.send_notification(NotificationTypes.error, msg)
                 else:
-                    Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {alignment_method.name.lower()}")
+                    Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
                         fixed_comp_index, ligand_name, moving_comp_indices)
         except Exception as e:
@@ -177,7 +191,7 @@ class MainMenu:
             self.render_rmsd_results(rmsd_results, fixed_name)
             self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
-        self.btn_submit.text.value.unusuable = "Superimpose"
+        self.btn_submit.text.value.unusuable = original_unusable_text
         self.ln_loading_bar.enabled = False
         self.plugin.update_node(self.ln_btn_rmsd_table, self.ln_loading_bar)
         self.plugin.update_content(self.btn_submit)
@@ -185,7 +199,7 @@ class MainMenu:
         # Log data about run
         elapsed_time = round(end_time - start_time, 2)
         log_extra = {
-            'alignment_method': selected_alignment_method,
+            'overlay_method': selected_overlay_method,
             'alignment_mode': current_mode.name,
             'moving_complexes': moving_comp_count,
             'elapsed_time': elapsed_time
@@ -510,9 +524,10 @@ class MainMenu:
         return comp_chain_list
 
     def open_rmsd_menu(self, btn):
+        Logs.message("Opening RMSD Menu.")
         if self.rmsd_menus:
             self.rmsd_menu = self.rmsd_menus[-1]
-            self.rmsd_menu.enabled = True
+            self.rmsd_menu._menu.enabled = True
             self.rmsd_menu.update()
 
     def open_docs_page(self, btn):
@@ -615,6 +630,18 @@ class MainMenu:
             Logs.debug(f"Updating {len(atoms_to_update)} atom selections")
             self.plugin.update_structures_shallow(atoms_to_update)
 
+    def overlay_method_selected(self, btn_group, selected_btn):
+        """Callback for when an overlay method is selected."""
+        btns_to_update = []
+        for btn in btn_group:
+            if btn == selected_btn and not btn.selected:
+                btn.selected = True
+                btns_to_update.append(btn)
+            elif btn != selected_btn and btn.selected:
+                btn.selected = False
+                btns_to_update.append(btn)
+        if btns_to_update:
+            self.plugin.update_content(*btns_to_update)
 
 class RMSDMenu(ui.Menu):
 
