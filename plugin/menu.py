@@ -3,7 +3,7 @@ import time
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
-from nanome.util.enums import NotificationTypes, VertAlignOptions
+from nanome.util.enums import NotificationTypes
 from .enums import AlignmentModeEnum, OverlayMethodEnum
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
@@ -35,7 +35,7 @@ class MainMenu:
         self.current_mode = AlignmentModeEnum.ENTRY
         for btn in self.mode_selection_btn_group:
             btn.register_pressed_callback(self.on_mode_selected)
-        self.btn_rmsd_table.register_pressed_callback(self.open_rmsd_menu)
+        self.dd_run_history.register_item_clicked_callback(self.open_rmsd_menu)
         self.btn_docs.register_pressed_callback(self.open_docs_page)
         self.btn_select_all.register_pressed_callback(
             functools.partial(self.toggle_all_moving_complexes, True))
@@ -66,12 +66,12 @@ class MainMenu:
         return self.ln_btn_align_by_binding_site.get_content()
 
     @property
-    def ln_btn_rmsd_table(self):
-        return self._menu.root.find_node('btn_rmsd_table')
+    def ln_run_history(self):
+        return self._menu.root.find_node('ln_run_history')
 
     @property
-    def btn_rmsd_table(self):
-        return self.ln_btn_rmsd_table.get_content()
+    def dd_run_history(self):
+        return self.ln_run_history.get_content()
 
     @property
     def ln_moving_comp_list(self):
@@ -189,11 +189,10 @@ class MainMenu:
             if current_mode == AlignmentModeEnum.CHAIN:
                 fixed_name = f'{fixed_name} Chain {fixed_chain}'
             self.render_rmsd_results(rmsd_results, fixed_name)
-            self.ln_btn_rmsd_table.enabled = True
         self.btn_submit.unusable = False
         self.btn_submit.text.value.unusuable = original_unusable_text
         self.ln_loading_bar.enabled = False
-        self.plugin.update_node(self.ln_btn_rmsd_table, self.ln_loading_bar)
+        self.plugin.update_node(self.ln_loading_bar)
         self.plugin.update_content(self.btn_submit)
         end_time = time.time()
         # Log data about run
@@ -214,6 +213,14 @@ class MainMenu:
         self.rmsd_menus.append(rmsd_menu)
         rmsd_menu.index = 255 - len(self.rmsd_menus)
         rmsd_menu.render(rmsd_results, fixed_comp_name, run_number=len(self.rmsd_menus))
+        run_number = len(self.rmsd_menus)
+        ddi = ui.DropdownItem(f"Run {run_number}")
+        ddi.run_number = run_number
+        self.dd_run_history.items.append(ddi)
+        self.dd_run_history.permanent_title = f"Run History ({run_number})"
+        self.plugin.update_content(self.dd_run_history)
+        print('here')
+
 
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
@@ -523,10 +530,11 @@ class MainMenu:
             comp_chain_list.append((comp_index, selected_chain))
         return comp_chain_list
 
-    def open_rmsd_menu(self, btn):
-        Logs.message("Opening RMSD Menu.")
+    def open_rmsd_menu(self, dd, ddi):
+        run_number = ddi.run_number
+        Logs.message(f"Opening results for run {run_number}")
         if self.rmsd_menus:
-            self.rmsd_menu = self.rmsd_menus[-1]
+            self.rmsd_menu = self.rmsd_menus[run_number - 1]
             self.rmsd_menu._menu.enabled = True
             self.rmsd_menu.update()
 
