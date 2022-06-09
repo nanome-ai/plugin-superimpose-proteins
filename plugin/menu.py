@@ -259,7 +259,6 @@ class MainMenu:
         comp_list = self.ln_moving_comp_list.get_content()
         set_default_values = len(complexes) == 2
         visible_items = []
-        hidden_items = []
         if len(complexes) == 0:
             self.ln_moving_comp_list.enabled = False
             self.ln_empty_list.enabled = True
@@ -321,23 +320,8 @@ class MainMenu:
             elif set_default_values and i == 1:
                 btn_fixed.selected = False
                 btn_moving.selected = True
-
-            if comp.visible:
-                visible_items.append(ln)
-            else:
-                hidden_items.append(ln)
-                continue
-
+            visible_items.append(ln)
         comp_list.items = visible_items
-        if hidden_items:
-            hidden_item_header = ui.LayoutNode()
-            hidden_item_header.set_padding(left=0.02)
-            label = hidden_item_header.add_new_label(f"Hidden Items ({len(hidden_items)})")
-            label.text_auto_size = False
-            label.text_size = .3
-            label.text_vertical_align = VertAlignOptions.Middle
-            comp_list.items.append(hidden_item_header)
-            comp_list.items.extend(hidden_items)
         self.plugin.update_node(self.ln_moving_comp_list)
 
     def chain_selected_callback(self, comp, btn_group, btn):
@@ -410,10 +394,10 @@ class MainMenu:
                 btns_to_update.append(ch_btn)
 
         for menu_item in self.ln_moving_comp_list.get_content().items:
-            ln = menu_item.find_node('ln_btn_moving')
-            if not ln:
+            ln_btn_moving = menu_item.find_node('ln_btn_moving')
+            if not ln_btn_moving:
                 continue
-            btn_moving = ln.get_content()
+            btn_moving = ln_btn_moving.get_content()
             if btn_moving.selected:
                 selected_count += 1
         self.update_selection_counter()
