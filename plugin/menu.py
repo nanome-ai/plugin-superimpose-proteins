@@ -92,7 +92,7 @@ class MainMenu:
     @property
     def btn_alpha_carbons(self):
         return self._menu.root.find_node('ln_btn_alpha_carbons').get_content()
-    
+
     @property
     def btn_heavy_atoms(self):
         return self._menu.root.find_node('ln_btn_heavy_atoms').get_content()
@@ -137,7 +137,7 @@ class MainMenu:
         # Get alignment method based on dropdown selection
         heavy_atoms_method = 'btn_heavy_atoms'
         overlay_method = None
-        
+
         selected_overlay_method = next(
             btn.name for btn in
             [self.btn_alpha_carbons, self.btn_heavy_atoms]
@@ -653,6 +653,7 @@ class MainMenu:
                 btns_to_update.append(btn)
         if btns_to_update:
             self.plugin.update_content(*btns_to_update)
+
 
 class RMSDMenu(ui.Menu):
 
