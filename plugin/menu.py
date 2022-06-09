@@ -219,8 +219,6 @@ class MainMenu:
         self.dd_run_history.items.append(ddi)
         self.dd_run_history.permanent_title = f"Run History ({run_number})"
         self.plugin.update_content(self.dd_run_history)
-        print('here')
-
 
     def get_fixed_comp_index(self):
         for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
