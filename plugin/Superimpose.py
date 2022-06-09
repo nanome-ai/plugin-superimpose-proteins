@@ -14,7 +14,7 @@ from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex
-from .enums import AlignmentMethodEnum
+from .enums import OverlayMethodEnum
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
@@ -72,7 +72,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         self.complexes = await self.request_complex_list()
         await self.menu.render(complexes=self.complexes)
 
-    async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, alignment_method):
+    async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, overlay_method):
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
@@ -94,7 +94,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
             try:
                 superimposer, paired_residue_count, paired_atom_count = await self.superimpose(
-                    fixed_struct, moving_struct, alignment_method)
+                    fixed_struct, moving_struct, overlay_method)
             except Exception:
                 Logs.error(f"Superimposition failed for {moving_comp.full_name}")
                 continue
@@ -112,7 +112,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         await self.update_structures_deep(comps_to_update)
         return rmsd_results
 
-    async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, alignment_method):
+    async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, overlay_method):
         moving_comp_indices = [item[0] for item in moving_comp_chain_list]
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
@@ -144,7 +144,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
             try:
                 superimposer, paired_residue_count, paired_atom_count = await self.superimpose(
-                    fixed_chain, moving_chain, alignment_method)
+                    fixed_chain, moving_chain, overlay_method)
             except Exception:
                 Logs.error(f"Superimposition failed for {moving_comp.full_name}")
                 continue
@@ -204,7 +204,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         m.transpose()
         return m
 
-    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, alignment_method):
+    async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, overlay_method):
         """Align residues from each Structure, and calculate RMS"""
         paired_res_id_mapping = self.align_structures(fixed_struct, moving_struct)
         fixed_atoms = []
@@ -221,7 +221,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
             new_fixed_atoms = []
             new_moving_atoms = []
-            if alignment_method == AlignmentMethodEnum.ALPHA_CARBONS_ONLY:
+            if overlay_method == OverlayMethodEnum.ALPHA_CARBONS_ONLY:
                 # Add alpha carbons.
                 try:
                     fixed_alpha_carbon = fixed_residue[alpha_carbon_name]

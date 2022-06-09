@@ -7,7 +7,7 @@ from random import randint
 from unittest.mock import MagicMock
 from nanome.api.structure import Complex, Substructure
 from plugin.Superimpose import SuperimposePlugin
-from plugin.enums import AlignmentMethodEnum
+from plugin.enums import OverlayMethodEnum
 
 fixtures_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
 
@@ -52,7 +52,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
 
-        alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
+        alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
         moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
         result = run_awaitable(
             self.plugin_instance.superimpose_by_chain,
@@ -80,7 +80,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
-        alignment_method = AlignmentMethodEnum.ALPHA_CARBONS_ONLY
+        alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
         result = run_awaitable(
             self.plugin_instance.superimpose_by_entry,
             self.complex_4hhb.index,
@@ -106,7 +106,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
-        alignment_method = AlignmentMethodEnum.HEAVY_ATOMS_ONLY
+        alignment_method = OverlayMethodEnum.HEAVY_ATOMS_ONLY
         result = run_awaitable(
             self.plugin_instance.superimpose_by_entry,
             self.complex_4hhb.index,
@@ -138,7 +138,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
 
-        alignment_method = AlignmentMethodEnum.HEAVY_ATOMS_ONLY
+        alignment_method = OverlayMethodEnum.HEAVY_ATOMS_ONLY
         moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
         result = run_awaitable(
             self.plugin_instance.superimpose_by_chain,
