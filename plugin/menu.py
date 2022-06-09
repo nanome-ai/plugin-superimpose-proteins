@@ -326,6 +326,7 @@ class MainMenu:
 
             comp_list.display_rows = min(max(len(comp_list.items), 4), 5)
             # Set up chain dropdown if in chain mode
+            ln_btns = None
             if mode == AlignmentModeEnum.CHAIN:
                 comp_list.display_rows = 4
                 comp = next(
@@ -335,14 +336,19 @@ class MainMenu:
                 for ln_btn in ln_btns:
                     ln_chain_list.add_child(ln_btn)
 
-            # Set default selections if required.
-            if set_default_values and i == 0:
+            # First item is always defaulted to fixed structure
+            # It helps the user figure out how table works
+            if i == 0:
                 btn_fixed.selected = True
-                btn_moving.selected = False
-
-            elif set_default_values and i == 1:
-                btn_fixed.selected = False
+                if set_default_values and ln_btns:
+                    ln_btns[0].get_content().selected = True
+                    print('here')
+            # Select second structure as moving val if only two structs.
+            if set_default_values and i == 1:
                 btn_moving.selected = True
+                if ln_btns:
+                    ln_btns[0].get_content().selected = True
+
             visible_items.append(ln)
         comp_list.items = visible_items
         self.plugin.update_node(self.ln_moving_comp_list)
