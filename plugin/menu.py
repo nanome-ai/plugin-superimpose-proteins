@@ -289,7 +289,7 @@ class MainMenu:
 
             lbl_struct_name.text_value = comp.full_name
 
-            overflow_size = 25 if mode == AlignmentModeEnum.CHAIN else 15
+            overflow_size = 25 if mode == AlignmentModeEnum.CHAIN else 40
             for chain in comp.chains:
                 ln_chain = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
                 ln_chain.chain_index = chain.index
@@ -571,6 +571,7 @@ class MainMenu:
         ])
         for chain_name in chain_names:
             btn_ln = ui.LayoutNode()
+            btn_ln.set_padding(top=0.01, down=0.01)
             new_btn = btn_ln.add_new_button(chain_name)
             new_btn.text.min_size = 0.1
             new_btn.text.max_size = 0.15
