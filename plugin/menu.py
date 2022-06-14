@@ -412,10 +412,15 @@ class MainMenu:
 
     def btn_moving_clicked(self, ln_chain_list, btn_moving):
         btns_to_update = [btn_moving]
-        selected_count = 0
         chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
-
-        if not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
+        # If moving struct being selected, and no chains are already selected, select the first one
+        if btn_moving.selected and chain_btns and not any(ch_btn.selected for ch_btn in chain_btns):
+            first_chain_btn = chain_btns[0]
+            first_chain_btn._pressed_callback(first_chain_btn)
+            first_chain_btn.selected = True
+            btns_to_update.append(first_chain_btn)
+        # If moving struct being deselected, and any chains are already selected, deselect all
+        elif not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
             for ch_btn in chain_btns:
                 ch_btn.selected = False
                 btns_to_update.append(ch_btn)
@@ -425,8 +430,6 @@ class MainMenu:
             if not ln_btn_moving:
                 continue
             btn_moving = ln_btn_moving.get_content()
-            if btn_moving.selected:
-                selected_count += 1
         self.update_selection_counter()
         self.check_if_ready_to_submit()
         self.plugin.update_content(self.lbl_moving_structures, self.btn_submit, *btns_to_update)
