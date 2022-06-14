@@ -7,15 +7,14 @@ from nanome.util.enums import NotificationTypes
 from .enums import AlignmentModeEnum, OverlayMethodEnum
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
+MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
 COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
 
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
-GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'TargetReferenceIcon.png')
-DASHED_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'TargetReferenceHoverIcon.png')
-TRANSPARENCY_PATH = path.join(BASE_PATH, 'assets', 'transparent.png')
+GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'gold_pin.png')
+GREY_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'grey_pin.png')
 LOAD_ICON_PATH = path.join(BASE_PATH, 'assets', 'LoadIcon.png')
 EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
 
@@ -216,7 +215,7 @@ class MainMenu:
         run_number = len(self.rmsd_menus)
         ddi = ui.DropdownItem(f"Run {run_number}")
         ddi.run_number = run_number
-        self.dd_run_history.items.append(ddi)
+        self.dd_run_history.items.insert(0, ddi)
         self.dd_run_history.permanent_title = f"RMSD Tables ({run_number})"
         self.plugin.update_content(self.dd_run_history)
 
@@ -295,8 +294,8 @@ class MainMenu:
             btn_fixed.selected = False
             btn_fixed.icon.value.set_each(
                 selected=GOLD_PIN_ICON_PATH,
-                highlighted=DASHED_PIN_ICON_PATH,
-                idle=TRANSPARENCY_PATH,
+                highlighted=GREY_PIN_ICON_PATH,
+                idle=GREY_PIN_ICON_PATH,
                 selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('ln_btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
@@ -338,9 +337,10 @@ class MainMenu:
             # It helps the user figure out how table works
             if i == 0:
                 btn_fixed.selected = True
-                if set_default_values and ln_btns:
+                btn_moving.unusable = True
+                if ln_btns:
                     ln_btns[0].get_content().selected = True
-            # Select second structure as moving val if only two structs.
+            # Select second structure as moving val if default_values is True.
             if set_default_values and i == 1:
                 btn_moving.selected = True
                 if ln_btns:
@@ -411,10 +411,15 @@ class MainMenu:
 
     def btn_moving_clicked(self, ln_chain_list, btn_moving):
         btns_to_update = [btn_moving]
-        selected_count = 0
         chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
-
-        if not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
+        # If moving struct being selected, and no chains are already selected, select the first one
+        if btn_moving.selected and chain_btns and not any(ch_btn.selected for ch_btn in chain_btns):
+            first_chain_btn = chain_btns[0]
+            first_chain_btn._pressed_callback(first_chain_btn)
+            first_chain_btn.selected = True
+            btns_to_update.append(first_chain_btn)
+        # If moving struct being deselected, and any chains are already selected, deselect all
+        elif not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
             for ch_btn in chain_btns:
                 ch_btn.selected = False
                 btns_to_update.append(ch_btn)
@@ -424,8 +429,6 @@ class MainMenu:
             if not ln_btn_moving:
                 continue
             btn_moving = ln_btn_moving.get_content()
-            if btn_moving.selected:
-                selected_count += 1
         self.update_selection_counter()
         self.check_if_ready_to_submit()
         self.plugin.update_content(self.lbl_moving_structures, self.btn_submit, *btns_to_update)
@@ -537,9 +540,9 @@ class MainMenu:
         run_number = ddi.run_number
         Logs.message(f"Opening results for run {run_number}")
         if self.rmsd_menus:
-            self.rmsd_menu = self.rmsd_menus[run_number - 1]
-            self.rmsd_menu._menu.enabled = True
-            self.rmsd_menu.update()
+            rmsd_menu = next((m for m in self.rmsd_menus if m.run_number == run_number), None)
+            rmsd_menu._menu.enabled = True
+            rmsd_menu.update()
 
     def open_docs_page(self, btn):
         self.plugin.open_url(DOCS_URL)
@@ -680,6 +683,7 @@ class RMSDMenu(ui.Menu):
 
     def render(self, rmsd_results, fixed_comp_name, run_number=0):
         self.rmsd_results = rmsd_results
+        self.run_number = run_number
         results_list = self._menu.root.find_node('results_list').get_content()
         list_items = []
         row_color_dark = Color(21, 26, 37)
