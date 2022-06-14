@@ -7,7 +7,7 @@ from nanome.util.enums import NotificationTypes
 from .enums import AlignmentModeEnum, OverlayMethodEnum
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu_json', 'newMenu.json')
+MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
 COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
@@ -338,9 +338,10 @@ class MainMenu:
             # It helps the user figure out how table works
             if i == 0:
                 btn_fixed.selected = True
-                if set_default_values and ln_btns:
+                btn_moving.unusable = True
+                if ln_btns:
                     ln_btns[0].get_content().selected = True
-            # Select second structure as moving val if only two structs.
+            # Select second structure as moving val if default_values is True.
             if set_default_values and i == 1:
                 btn_moving.selected = True
                 if ln_btns:
