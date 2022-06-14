@@ -216,7 +216,7 @@ class MainMenu:
         run_number = len(self.rmsd_menus)
         ddi = ui.DropdownItem(f"Run {run_number}")
         ddi.run_number = run_number
-        self.dd_run_history.items.append(ddi)
+        self.dd_run_history.items.insert(0, ddi)
         self.dd_run_history.permanent_title = f"RMSD Tables ({run_number})"
         self.plugin.update_content(self.dd_run_history)
 
@@ -541,9 +541,9 @@ class MainMenu:
         run_number = ddi.run_number
         Logs.message(f"Opening results for run {run_number}")
         if self.rmsd_menus:
-            self.rmsd_menu = self.rmsd_menus[run_number - 1]
-            self.rmsd_menu._menu.enabled = True
-            self.rmsd_menu.update()
+            rmsd_menu = next((m for m in self.rmsd_menus if m.run_number == run_number), None)
+            rmsd_menu._menu.enabled = True
+            rmsd_menu.update()
 
     def open_docs_page(self, btn):
         self.plugin.open_url(DOCS_URL)
@@ -684,6 +684,7 @@ class RMSDMenu(ui.Menu):
 
     def render(self, rmsd_results, fixed_comp_name, run_number=0):
         self.rmsd_results = rmsd_results
+        self.run_number = run_number
         results_list = self._menu.root.find_node('results_list').get_content()
         list_items = []
         row_color_dark = Color(21, 26, 37)
