@@ -13,9 +13,8 @@ RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
 
 GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
-GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'TargetReferenceIcon.png')
-DASHED_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'TargetReferenceHoverIcon.png')
-TRANSPARENCY_PATH = path.join(BASE_PATH, 'assets', 'transparent.png')
+GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'gold_pin.png')
+GREY_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'grey_pin.png')
 LOAD_ICON_PATH = path.join(BASE_PATH, 'assets', 'LoadIcon.png')
 EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
 
@@ -295,8 +294,8 @@ class MainMenu:
             btn_fixed.selected = False
             btn_fixed.icon.value.set_each(
                 selected=GOLD_PIN_ICON_PATH,
-                highlighted=DASHED_PIN_ICON_PATH,
-                idle=TRANSPARENCY_PATH,
+                highlighted=GREY_PIN_ICON_PATH,
+                idle=GREY_PIN_ICON_PATH,
                 selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('ln_btn_moving').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
