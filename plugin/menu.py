@@ -323,7 +323,7 @@ class MainMenu:
             ln.find_node('chain_selection').enabled = mode == AlignmentModeEnum.CHAIN
 
             comp_list.display_rows = min(max(len(comp_list.items), 4), 5)
-            # Set up chain dropdown if in chain mode
+            # Set up chain buttons if in chain mode
             ln_btns = None
             if mode == AlignmentModeEnum.CHAIN:
                 comp_list.display_rows = 4
@@ -370,17 +370,28 @@ class MainMenu:
     async def btn_fixed_pressed(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
+        selected_chain_btn = None
         for menu_item in self.ln_moving_comp_list.get_content().items:
             if not menu_item.find_node('ln_btn_fixed'):
                 continue
             btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
             btn_moving = menu_item.find_node('ln_btn_moving').get_content()
+            ln_chain_list = menu_item.find_node('ln_chain_list')
             ln_dd_chain = menu_item.find_node('dd_chain')
+            chain_btns = [
+                ln.get_content() for ln in ln_chain_list.get_children()
+                if ln.get_content()]
             if btn_fixed == btn:
                 if btn_fixed.selected:
                     # Make sure the other button is not selected
                     btn_moving.selected = False
                     btn_moving.unusable = True
+                    if self.current_mode == AlignmentModeEnum.CHAIN:
+                        # Default to first chain selected
+                        if chain_btns:
+                            selected_chain_btn = chain_btns[0]
+                            selected_chain_btn.selected = True
+
                     if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                         ln_dd_chain.enabled = True
                         dd_ligand = ln_dd_chain.get_content()
@@ -390,17 +401,22 @@ class MainMenu:
                         dd_ligand.items = await self.create_ligand_dropdown_items(comp)
                 else:
                     btn_moving.unusable = False
+                    if self.current_mode == AlignmentModeEnum.CHAIN and chain_btns:
+                        selected_chain_btn = next((btn for btn in chain_btns if btn.selected), None)
+                        if selected_chain_btn:
+                            selected_chain_btn.selected = False
             else:
                 btn_fixed.selected = False
                 btn_moving.unusable = False
                 if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                     ln_dd_chain.enabled = False
-
             btns_to_update.append(btn_fixed)
             btns_to_update.append(btn_moving)
         self.update_selection_counter()
         self.check_if_ready_to_submit()
         self.plugin.update_node(self.ln_moving_comp_list)
+        if selected_chain_btn:
+            selected_chain_btn._pressed_callback(selected_chain_btn)
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
