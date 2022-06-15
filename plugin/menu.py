@@ -300,7 +300,7 @@ class MainMenu:
                 idle=GREY_PIN_ICON_PATH,
                 selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('ln_btn_moving').get_content()
-            # btn_moving.toggle_on_press = True
+            btn_moving.toggle_on_press = True
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_chain_list = ln.find_node('ln_chain_list')
             ln_chain_list.remove_content()

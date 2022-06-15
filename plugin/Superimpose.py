@@ -54,8 +54,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
-        if not hasattr(self, 'complexes'):
-            self.complexes = await self.request_complex_list()
+        self.complexes = await self.request_complex_list()
         self.menu.render(complexes=self.complexes, force_enable=True)
 
     @async_callback
