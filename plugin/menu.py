@@ -197,7 +197,7 @@ class MainMenu:
         # Log data about run
         elapsed_time = round(end_time - start_time, 2)
         log_extra = {
-            'overlay_method': selected_overlay_method,
+            'overlay_method': overlay_method.name,
             'alignment_mode': current_mode.name,
             'moving_complexes': moving_comp_count,
             'elapsed_time': elapsed_time
