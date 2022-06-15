@@ -115,7 +115,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             comp_index = self.complexes[i].index
             updated_comp = next(
                 (updated_comp for updated_comp in comps_to_update
-                if updated_comp.index == comp_index), None)
+                 if updated_comp.index == comp_index), None)
             if updated_comp:
                 self.complexes[i] = updated_comp
         return rmsd_results
@@ -178,7 +178,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             comp_index = self.complexes[i].index
             updated_comp = next(
                 (updated_comp for updated_comp in comps_to_update
-                if updated_comp.index == comp_index), None)
+                 if updated_comp.index == comp_index), None)
             if updated_comp:
                 self.complexes[i] = updated_comp
         return results
