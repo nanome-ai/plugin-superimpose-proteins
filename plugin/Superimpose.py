@@ -49,6 +49,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     def start(self):
         self.menu = MainMenu(self)
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.complexes = []
 
     @async_callback
     async def on_run(self):
