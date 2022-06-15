@@ -293,12 +293,14 @@ class MainMenu:
             ln.comp_index = comp.index
             btn_fixed = ln.find_node('ln_btn_fixed').get_content()
             btn_fixed.selected = False
+            btn_fixed.toggle_on_press = True
             btn_fixed.icon.value.set_each(
                 selected=GOLD_PIN_ICON_PATH,
                 highlighted=GREY_PIN_ICON_PATH,
                 idle=GREY_PIN_ICON_PATH,
                 selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('ln_btn_moving').get_content()
+            # btn_moving.toggle_on_press = True
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_chain_list = ln.find_node('ln_chain_list')
             ln_chain_list.remove_content()
@@ -371,6 +373,7 @@ class MainMenu:
         """Only one fixed strcuture can be selected at a time."""
         content_to_update = [pressed_btn]
         selected_chain_btn = None
+        previously_selected_chain_btn = None
         for menu_item in self.ln_moving_comp_list.get_content().items:
             if not menu_item.find_node('ln_btn_fixed'):
                 continue
@@ -389,11 +392,10 @@ class MainMenu:
                 if self.current_mode == AlignmentModeEnum.CHAIN and chain_btns:
                     for ch_btn in [btn for btn in chain_btns if btn.selected]:
                         ch_btn.selected = False
-                        ch_btn._pressed_callback(ch_btn)
-
+                        content_to_update.append(ch_btn)
+                        previously_selected_chain_btn = ch_btn
             else:
                 if btn_fixed.selected:
-                    # Make sure the other button is not selected
                     btn_moving.selected = False
                     btn_moving.unusable = True
                     if self.current_mode == AlignmentModeEnum.CHAIN and chain_btns:
@@ -422,7 +424,17 @@ class MainMenu:
         self.check_if_ready_to_submit()
         self.plugin.update_content(*content_to_update)
         if selected_chain_btn:
-            selected_chain_btn._pressed_callback(selected_chain_btn)
+            # selected_chain_btn._pressed_callback(selected_chain_btn)
+            chain_name = selected_chain_btn.text.value.idle
+            comp_index = selected_chain_btn.comp_index
+            comp = next(cmp for cmp in self.plugin.complexes if cmp.index == comp_index)
+            self.toggle_chain_atoms_selected(comp, chain_name, True)
+        if previously_selected_chain_btn:
+            # previously_selected_chain_btn._pressed_callback(selected_chain_btn)
+            chain_name = previously_selected_chain_btn.text.value.idle
+            comp_index = previously_selected_chain_btn.comp_index
+            comp = next(cmp for cmp in self.plugin.complexes if cmp.index == comp_index)
+            self.toggle_chain_atoms_selected(comp, chain_name, False)
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
@@ -563,6 +575,7 @@ class MainMenu:
 
     def open_rmsd_menu(self, dd, ddi):
         run_number = ddi.run_number
+        ddi.selected = False
         Logs.message(f"Opening results for run {run_number}")
         if self.rmsd_menus:
             rmsd_menu = next((m for m in self.rmsd_menus if m.run_number == run_number), None)
@@ -637,6 +650,7 @@ class MainMenu:
         btn_list = [ln.get_content() for ln in list_items]
         for ln_btn in list_items:
             btn = ln_btn.get_content()
+            btn.comp_index = comp.index
             selected_callback_fn = functools.partial(
                 self.chain_selected_callback, comp.index, btn_list
             )
