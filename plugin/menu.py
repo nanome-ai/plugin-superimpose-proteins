@@ -3,7 +3,7 @@ import time
 from os import path
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
-from nanome.util.enums import NotificationTypes
+from nanome.util.enums import NotificationTypes, ScalingOptions
 from .enums import AlignmentModeEnum, OverlayMethodEnum
 
 BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
@@ -732,7 +732,10 @@ class RMSDMenu(ui.Menu):
         item = ui.LayoutNode().io.from_json(RMSD_TABLE_ENTRY)
         item_mesh = item.add_new_mesh()
         item_mesh.mesh_color = row_color_light
-        item.get_children()[0].add_new_image(GOLD_PIN_ICON_PATH)
+        image_ln = item.get_children()[0]
+        image_ln.set_padding(top=0.03, down=0.025, left=0.025, right=0.025)
+        image = image_ln.add_new_image(GOLD_PIN_ICON_PATH)
+        image.scaling_options = ScalingOptions.fit
         item.get_children()[1].get_content().text_value = fixed_comp_name
         item.get_children()[2].get_content().text_value = '--'
         item.get_children()[3].get_content().text_value = '--'
