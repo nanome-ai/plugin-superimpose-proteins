@@ -574,8 +574,9 @@ class MainMenu:
         return comp_chain_list
 
     def open_rmsd_menu(self, dd, ddi):
-        run_number = ddi.run_number
         ddi.selected = False
+        self.plugin.update_content(dd)
+        run_number = ddi.run_number
         Logs.message(f"Opening results for run {run_number}")
         if self.rmsd_menus:
             rmsd_menu = next((m for m in self.rmsd_menus if m.run_number == run_number), None)
