@@ -114,7 +114,7 @@ class MainMenu:
 
     @async_callback
     async def render(self, complexes=None, force_enable=False):
-        self.complexes = complexes or []
+        self.plugin.complexes = complexes or []
         await self.get_deep_complexes_if_required()
         self.ln_binding_site_mode.enabled = False  # Disable until feature ready
         self.populate_comp_list(self.current_mode)
@@ -184,7 +184,7 @@ class MainMenu:
             Logs.error("Error calculating Superposition.")
 
         if rmsd_results:
-            fixed_name = next(comp.full_name for comp in self.complexes if comp.index == fixed_comp_index)
+            fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
             if current_mode == AlignmentModeEnum.CHAIN:
                 fixed_name = f'{fixed_name} Chain {fixed_chain}'
             self.render_rmsd_results(rmsd_results, fixed_name)
@@ -229,7 +229,7 @@ class MainMenu:
             btn_fixed = ln_btn_fixed.get_content()
             if btn_fixed.selected:
                 comp = next((
-                    comp for comp in self.complexes
+                    comp for comp in self.plugin.complexes
                     if comp.index == item.comp_index), None)
                 return getattr(comp, 'index', None)
 
@@ -241,7 +241,7 @@ class MainMenu:
             btn_moving = item.find_node('ln_btn_moving').get_content()
             if btn_moving.selected:
                 comp = next((
-                    comp for comp in self.complexes
+                    comp for comp in self.plugin.complexes
                     if comp.index == item.comp_index), None)
                 if comp:
                     comps.append(comp.index)
@@ -274,8 +274,9 @@ class MainMenu:
                     if chain_btn.selected), '')
                 return selected_chain
 
-    def populate_comp_list(self, mode=AlignmentModeEnum.ENTRY):
-        complexes = self.complexes
+    def populate_comp_list(self, mode=None):
+        mode = mode or getattr(self, 'current_mode', None) or AlignmentModeEnum.ENTRY
+        complexes = self.plugin.complexes
         comp_list = self.ln_moving_comp_list.get_content()
         set_default_values = len(complexes) == 2
         visible_items = []
@@ -302,8 +303,8 @@ class MainMenu:
             ln_chain_list = ln.find_node('ln_chain_list')
             ln_chain_list.remove_content()
 
-            btn_fixed.register_pressed_callback(self.btn_fixed_clicked)
-            btn_moving.register_pressed_callback(functools.partial(self.btn_moving_clicked, ln_chain_list))
+            btn_fixed.register_pressed_callback(self.btn_fixed_pressed)
+            btn_moving.register_pressed_callback(functools.partial(self.btn_moving_pressed, ln_chain_list))
 
             lbl_struct_name.text_value = comp.full_name
 
@@ -327,7 +328,7 @@ class MainMenu:
             if mode == AlignmentModeEnum.CHAIN:
                 comp_list.display_rows = 4
                 comp = next(
-                    cmp for cmp in self.complexes
+                    cmp for cmp in self.plugin.complexes
                     if cmp.index == ln.comp_index)
                 ln_btns = self.create_chain_buttons(comp)
                 for ln_btn in ln_btns:
@@ -350,9 +351,10 @@ class MainMenu:
         comp_list.items = visible_items
         self.plugin.update_node(self.ln_moving_comp_list)
 
-    def chain_selected_callback(self, comp, btn_group, btn):
+    def chain_selected_callback(self, comp_index, btn_group, btn):
         # One item in button group selected at a time.
         Logs.message(f"Chain selected: {btn.text.value.idle}")
+        comp = next(comp for comp in self.plugin.complexes if comp.index == comp_index)
         btns_to_update = [btn]
         for grp_btn in btn_group:
             if grp_btn is not btn and grp_btn.selected:
@@ -365,7 +367,7 @@ class MainMenu:
         self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
 
     @async_callback
-    async def btn_fixed_clicked(self, btn):
+    async def btn_fixed_pressed(self, btn):
         """Only one fixed strcuture can be selected at a time."""
         btns_to_update = [btn]
         for menu_item in self.ln_moving_comp_list.get_content().items:
@@ -384,7 +386,7 @@ class MainMenu:
                         dd_ligand = ln_dd_chain.get_content()
                         dd_ligand.register_item_clicked_callback(self.check_if_ready_to_submit)
                         comp_name = menu_item.find_node('lbl_struct_name').get_content().text_value
-                        comp = next(cmp for cmp in self.complexes if cmp.full_name == comp_name)
+                        comp = next(cmp for cmp in self.plugin.complexes if cmp.full_name == comp_name)
                         dd_ligand.items = await self.create_ligand_dropdown_items(comp)
                 else:
                     btn_moving.unusable = False
@@ -409,7 +411,7 @@ class MainMenu:
             dropdown_items.append(ui.DropdownItem(lig.name))
         return dropdown_items
 
-    def btn_moving_clicked(self, ln_chain_list, btn_moving):
+    def btn_moving_pressed(self, ln_chain_list, btn_moving):
         btns_to_update = [btn_moving]
         chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
         # If moving struct being selected, and no chains are already selected, select the first one
@@ -420,7 +422,7 @@ class MainMenu:
             btns_to_update.append(first_chain_btn)
         # If moving struct being deselected, and any chains are already selected, deselect all
         elif not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
-            for ch_btn in chain_btns:
+            for ch_btn in [btn for btn in chain_btns if btn.selected]:
                 ch_btn.selected = False
                 btns_to_update.append(ch_btn)
 
@@ -488,7 +490,7 @@ class MainMenu:
             if log:
                 Logs.message("Switched to entry mode")
             self.current_mode = AlignmentModeEnum.ENTRY
-            self.render(complexes=self.complexes)
+            self.render(complexes=self.plugin.complexes)
         elif mode_btn.name == 'btn_align_by_chain':
             Logs.message("Switched to chain mode.")
             self.current_mode = AlignmentModeEnum.CHAIN
@@ -502,17 +504,17 @@ class MainMenu:
             mode_btn.unusable = False
             self.plugin.update_content(mode_btn)
 
-        await self.plugin.menu.render(complexes=self.complexes)
+        await self.plugin.menu.render(complexes=self.plugin.complexes)
         if update:
             self.plugin.update_menu(self._menu)
 
     async def get_deep_complexes_if_required(self):
         # Get deep complexes for chain or binding site mode.
         if self.current_mode in [AlignmentModeEnum.CHAIN, AlignmentModeEnum.BINDING_SITE]:
-            for comp in self.complexes:
+            for comp in self.plugin.complexes:
                 if sum(1 for _ in comp.chains) == 0:
-                    comp_indices = [cmp.index for cmp in self.complexes]
-                    self.complexes = await self.plugin.request_complexes(comp_indices)
+                    comp_indices = [cmp.index for cmp in self.plugin.complexes]
+                    self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
                     break
 
     def get_moving_comp_indices_and_chains(self):
@@ -613,7 +615,7 @@ class MainMenu:
         for ln_btn in list_items:
             btn = ln_btn.get_content()
             selected_callback_fn = functools.partial(
-                self.chain_selected_callback, comp, btn_list
+                self.chain_selected_callback, comp.index, btn_list
             )
             btn.register_pressed_callback(selected_callback_fn)
 
