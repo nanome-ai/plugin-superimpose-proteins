@@ -733,7 +733,7 @@ class RMSDMenu(ui.Menu):
         item_mesh = item.add_new_mesh()
         item_mesh.mesh_color = row_color_light
         image_ln = item.get_children()[0]
-        image_ln.set_padding(top=0.03, down=0.025, left=0.025, right=0.025)
+        image_ln.set_padding(top=0.025, down=0.025, left=0.025, right=0.025)
         image = image_ln.add_new_image(GOLD_PIN_ICON_PATH)
         image.scaling_options = ScalingOptions.fit
         item.get_children()[1].get_content().text_value = fixed_comp_name
