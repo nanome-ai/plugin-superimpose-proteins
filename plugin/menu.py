@@ -467,11 +467,6 @@ class MainMenu:
                 self.toggle_chain_atoms_selected(comp, chain_name, False)
                 btns_to_update.append(ch_btn)
 
-        for menu_item in self.ln_moving_comp_list.get_content().items:
-            ln_btn_moving = menu_item.find_node('ln_btn_moving')
-            if not ln_btn_moving:
-                continue
-            btn_moving = ln_btn_moving.get_content()
         self.update_selection_counter()
         self.check_if_ready_to_submit()
         self.plugin.update_content(self.lbl_moving_structures, self.btn_submit, *btns_to_update)
