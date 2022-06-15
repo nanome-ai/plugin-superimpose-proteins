@@ -737,7 +737,7 @@ class RMSDMenu(ui.Menu):
         image_ln = item.get_children()[0]
         image_ln.set_padding(top=0.025, down=0.025, left=0.025, right=0.025)
         image = image_ln.add_new_image(GOLD_PIN_ICON_PATH)
-        image.scaling_options = ScalingOptions.fit
+        image.scaling_options = ScalingOptions.fill
         item.get_children()[1].get_content().text_value = fixed_comp_name
         item.get_children()[2].get_content().text_value = '--'
         item.get_children()[3].get_content().text_value = '--'
