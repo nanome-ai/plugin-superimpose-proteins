@@ -420,7 +420,6 @@ class MainMenu:
             content_to_update.append(btn_moving)
         self.update_selection_counter()
         self.check_if_ready_to_submit()
-        # self.plugin.update_node(self.ln_moving_comp_list)
         self.plugin.update_content(*content_to_update)
         if selected_chain_btn:
             selected_chain_btn._pressed_callback(selected_chain_btn)
