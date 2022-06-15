@@ -417,13 +417,14 @@ class MainMenu:
         # If moving struct being selected, and no chains are already selected, select the first one
         if btn_moving.selected and chain_btns and not any(ch_btn.selected for ch_btn in chain_btns):
             first_chain_btn = chain_btns[0]
-            first_chain_btn._pressed_callback(first_chain_btn)
             first_chain_btn.selected = True
+            first_chain_btn._pressed_callback(first_chain_btn)
             btns_to_update.append(first_chain_btn)
         # If moving struct being deselected, and any chains are already selected, deselect all
         elif not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
             for ch_btn in [btn for btn in chain_btns if btn.selected]:
                 ch_btn.selected = False
+                ch_btn._pressed_callback(ch_btn)
                 btns_to_update.append(ch_btn)
 
         for menu_item in self.ln_moving_comp_list.get_content().items:
