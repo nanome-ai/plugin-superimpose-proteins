@@ -617,7 +617,7 @@ class MainMenu:
             btn_moving = ln_btn_moving.get_content()
             if not ln_btn_moving or btn_moving.unusable:
                 continue
-            
+
             btn_moving.selected = value
             content_to_update.append(btn_moving)
             # Select first chain, or deselect all chains
