@@ -345,16 +345,14 @@ class MainMenu:
                 if ln_btns:
                     ch_btn = ln_btns[0].get_content()
                     ch_btn.selected = True
-                    chain_name = ch_btn.text.value.idle
-                    self.toggle_chain_atoms_selected(comp, chain_name, True)
+                    self.toggle_chain_button(ch_btn)
             # Select second structure as moving val if default_values is True.
             if set_default_values and i == 1:
                 btn_moving.selected = True
                 if ln_btns:
                     ch_btn = ln_btns[0].get_content()
                     ch_btn.selected = True
-                    chain_name = ch_btn.text.value.idle
-                    self.toggle_chain_atoms_selected(comp, chain_name, True)
+                    self.toggle_chain_button(ch_btn)
 
             visible_items.append(ln)
         comp_list.items = visible_items
@@ -431,15 +429,9 @@ class MainMenu:
         self.check_if_ready_to_submit()
         self.plugin.update_content(*content_to_update)
         if selected_comp_chain_btn:
-            chain_name = selected_comp_chain_btn.text.value.idle
-            comp_index = selected_comp_chain_btn.comp_index
-            comp = next(cmp for cmp in self.plugin.complexes if cmp.index == comp_index)
-            self.toggle_chain_atoms_selected(comp, chain_name, selected_comp_chain_btn.selected)
+            self.toggle_chain_button(selected_comp_chain_btn)
         if previous_comp_chain_btn:
-            chain_name = previous_comp_chain_btn.text.value.idle
-            comp_index = previous_comp_chain_btn.comp_index
-            comp = next(cmp for cmp in self.plugin.complexes if cmp.index == comp_index)
-            self.toggle_chain_atoms_selected(comp, chain_name, False)
+            self.toggle_chain_button(previous_comp_chain_btn)
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
@@ -457,19 +449,13 @@ class MainMenu:
         if btn_moving.selected and chain_btns and not any(ch_btn.selected for ch_btn in chain_btns):
             first_chain_btn = chain_btns[0]
             first_chain_btn.selected = True
-            chain_name = first_chain_btn.text.value.idle
-            comp_index = first_chain_btn.comp_index
-            comp = next(cmp for cmp in self.plugin.complexes if cmp.index == comp_index)
-            self.toggle_chain_atoms_selected(comp, chain_name, True)
+            self.toggle_chain_button(first_chain_btn)
             btns_to_update.append(first_chain_btn)
         # If moving struct being deselected, and any chains are already selected, deselect all
         elif not btn_moving.selected and any(ch_btn.selected for ch_btn in chain_btns):
             for ch_btn in [btn for btn in chain_btns if btn.selected]:
                 ch_btn.selected = False
-                chain_name = ch_btn.text.value.idle
-                comp_index = ch_btn.comp_index
-                comp = next(cmp for cmp in self.plugin.complexes if cmp.index == comp_index)
-                self.toggle_chain_atoms_selected(comp, chain_name, False)
+                self.toggle_chain_button(ch_btn)
                 btns_to_update.append(ch_btn)
 
         self.update_selection_counter()
@@ -622,18 +608,42 @@ class MainMenu:
 
     def toggle_all_moving_complexes(self, value: bool, btn: ui.Button):
         """Select or deselect all complexes as moving complexes"""
+        content_to_update = []
+        chain_btns_to_toggle = []
         for item in self.ln_moving_comp_list.get_content().items:
             ln_btn_moving = item.find_node('ln_btn_moving')
-            if not ln_btn_moving:
-                continue
+            ln_chain_btns = item.find_node('ln_chain_list').get_children()
+            chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
             btn_moving = ln_btn_moving.get_content()
-            if not btn_moving.unusable:
-                btn_moving.selected = value
-            dd_chain = item.find_node('dd_chain').get_content()
-            if dd_chain.items:
-                dd_chain.items[0].selected = value
-        self.plugin.update_node(self.ln_moving_comp_list)
+            if not ln_btn_moving or btn_moving.unusable:
+                continue
+
+            btn_moving.selected = value
+            content_to_update.append(btn_moving)
+            # Select first chain, or deselect all chains
+            if chain_btns and not any([btn.selected for btn in chain_btns]):
+                ch_btn = chain_btns[0]
+                ch_btn.selected = value
+                chain_btns_to_toggle.append(ch_btn)
+                content_to_update.append(ch_btn)
+            elif not value and any([btn.selected for btn in chain_btns]):
+                for ch_btn in chain_btns:
+                    if ch_btn.selected:
+                        ch_btn.selected = False
+                        chain_btns_to_toggle.append(ch_btn)
+                        content_to_update.append(ch_btn)
+        self.plugin.update_content(*content_to_update)
         self.check_if_ready_to_submit()
+        for ch_btn in chain_btns_to_toggle:
+            self.toggle_chain_button(ch_btn)
+
+    def toggle_chain_button(self, chain_btn: ui.Button):
+        comp_index = chain_btn.comp_index
+        chain_name = chain_btn.text.value.idle
+        comp = next((
+            comp for comp in self.plugin.complexes
+            if comp.index == comp_index), None)
+        self.toggle_chain_atoms_selected(comp, chain_name, chain_btn.selected)
 
     def create_chain_buttons(self, comp, set_default=False):
         """Update chain dropdown to reflect changes in complex."""
