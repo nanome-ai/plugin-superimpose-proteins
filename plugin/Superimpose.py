@@ -49,12 +49,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     def start(self):
         self.menu = MainMenu(self)
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.complexes = []
 
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
-        if not hasattr(self, 'complexes'):
-            self.complexes = await self.request_complex_list()
+        self.complexes = await self.request_complex_list()
         self.menu.render(complexes=self.complexes, force_enable=True)
 
     @async_callback
@@ -110,6 +110,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
+        # Update comps in stored complex list
+        for i in range(len(self.complexes)):
+            comp_index = self.complexes[i].index
+            updated_comp = next(
+                (updated_comp for updated_comp in comps_to_update
+                 if updated_comp.index == comp_index), None)
+            if updated_comp:
+                self.complexes[i] = updated_comp
         return rmsd_results
 
     async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, overlay_method):
@@ -165,6 +173,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
+        # Update comps in stored complex list
+        for i in range(len(self.complexes)):
+            comp_index = self.complexes[i].index
+            updated_comp = next(
+                (updated_comp for updated_comp in comps_to_update
+                 if updated_comp.index == comp_index), None)
+            if updated_comp:
+                self.complexes[i] = updated_comp
         return results
 
     async def superimpose_by_binding_site(
