@@ -280,7 +280,7 @@ class MainMenu:
         comp_list = self.ln_moving_comp_list.get_content()
         set_default_values = len(complexes) == 2
         visible_items = []
-        if len(complexes) == 0:
+        if len(complexes) < 2:
             self.ln_moving_comp_list.enabled = False
             self.ln_empty_list.enabled = True
             return
