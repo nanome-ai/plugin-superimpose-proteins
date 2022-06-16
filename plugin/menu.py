@@ -622,17 +622,27 @@ class MainMenu:
 
     def toggle_all_moving_complexes(self, value: bool, btn: ui.Button):
         """Select or deselect all complexes as moving complexes"""
+        content_to_update = []
         for item in self.ln_moving_comp_list.get_content().items:
             ln_btn_moving = item.find_node('ln_btn_moving')
+            ln_chain_btns = item.find_node('ln_chain_list').get_children()
+            chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
             if not ln_btn_moving:
                 continue
             btn_moving = ln_btn_moving.get_content()
             if not btn_moving.unusable:
                 btn_moving.selected = value
-            dd_chain = item.find_node('dd_chain').get_content()
-            if dd_chain.items:
-                dd_chain.items[0].selected = value
-        self.plugin.update_node(self.ln_moving_comp_list)
+                content_to_update.append(btn_moving)
+            # Select first chain, or deselect all chains
+            if value and chain_btns and not any([btn.selected for btn in chain_btns]):
+                chain_btns[0].selected = value
+                content_to_update.append(chain_btns[0])
+            elif not value and any([btn.selected for btn in chain_btns]):
+                for ch_btn in chain_btns:
+                    if ch_btn.selected:
+                        ch_btn.selected = False
+                        content_to_update.append(ch_btn)
+        self.plugin.update_content(*content_to_update)
         self.check_if_ready_to_submit()
 
     def create_chain_buttons(self, comp, set_default=False):
