@@ -290,7 +290,8 @@ class MainMenu:
 
         for i, comp in enumerate(sorted(complexes, key=lambda cmp: cmp.full_name)):
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
-            ln.comp_index = comp.index
+            comp_index = comp.index
+            ln.comp_index = comp_index
             btn_fixed = ln.find_node('ln_btn_fixed').get_content()
             btn_fixed.selected = False
             btn_fixed.toggle_on_press = True
@@ -342,12 +343,18 @@ class MainMenu:
                 btn_fixed.selected = True
                 btn_moving.unusable = True
                 if ln_btns:
-                    ln_btns[0].get_content().selected = True
+                    ch_btn = ln_btns[0].get_content()
+                    ch_btn.selected = True
+                    chain_name = ch_btn.text.value.idle
+                    self.toggle_chain_atoms_selected(comp, chain_name, True)
             # Select second structure as moving val if default_values is True.
             if set_default_values and i == 1:
                 btn_moving.selected = True
                 if ln_btns:
-                    ln_btns[0].get_content().selected = True
+                    ch_btn = ln_btns[0].get_content()
+                    ch_btn.selected = True
+                    chain_name = ch_btn.text.value.idle
+                    self.toggle_chain_atoms_selected(comp, chain_name, True)
 
             visible_items.append(ln)
         comp_list.items = visible_items
@@ -372,8 +379,8 @@ class MainMenu:
     async def btn_fixed_pressed(self, pressed_btn):
         """Only one fixed strcuture can be selected at a time."""
         content_to_update = [pressed_btn]
-        selected_chain_btn = None
-        previously_selected_chain_btn = None
+        selected_comp_chain_btn = None
+        previous_comp_chain_btn = None
         for menu_item in self.ln_moving_comp_list.get_content().items:
             if not menu_item.find_node('ln_btn_fixed'):
                 continue
@@ -393,16 +400,16 @@ class MainMenu:
                     for ch_btn in [btn for btn in chain_btns if btn.selected]:
                         ch_btn.selected = False
                         content_to_update.append(ch_btn)
-                        previously_selected_chain_btn = ch_btn
+                        previous_comp_chain_btn = ch_btn
             else:
                 if btn_fixed.selected:
                     btn_moving.selected = False
                     btn_moving.unusable = True
                     if self.current_mode == AlignmentModeEnum.CHAIN and chain_btns:
                         # Default to first chain selected
-                        selected_chain_btn = chain_btns[0]
-                        selected_chain_btn.selected = True
-                        content_to_update.append(selected_chain_btn)
+                        selected_comp_chain_btn = chain_btns[0]
+                        selected_comp_chain_btn.selected = True
+                        content_to_update.append(selected_comp_chain_btn)
                     if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                         ln_dd_chain.enabled = True
                         dd_ligand = ln_dd_chain.get_content()
@@ -414,25 +421,23 @@ class MainMenu:
                     # Button being deselected
                     btn_moving.unusable = False
                     if self.current_mode == AlignmentModeEnum.CHAIN and chain_btns:
-                        selected_chain_btn = next((btn for btn in chain_btns if btn.selected), None)
-                        if selected_chain_btn:
-                            selected_chain_btn.selected = False
-                            content_to_update.append(selected_chain_btn)
+                        selected_comp_chain_btn = next((btn for btn in chain_btns if btn.selected), None)
+                        if selected_comp_chain_btn:
+                            selected_comp_chain_btn.selected = False
+                            content_to_update.append(selected_comp_chain_btn)
             content_to_update.append(btn_fixed)
             content_to_update.append(btn_moving)
         self.update_selection_counter()
         self.check_if_ready_to_submit()
         self.plugin.update_content(*content_to_update)
-        if selected_chain_btn:
-            # selected_chain_btn._pressed_callback(selected_chain_btn)
-            chain_name = selected_chain_btn.text.value.idle
-            comp_index = selected_chain_btn.comp_index
+        if selected_comp_chain_btn:
+            chain_name = selected_comp_chain_btn.text.value.idle
+            comp_index = selected_comp_chain_btn.comp_index
             comp = next(cmp for cmp in self.plugin.complexes if cmp.index == comp_index)
-            self.toggle_chain_atoms_selected(comp, chain_name, True)
-        if previously_selected_chain_btn:
-            # previously_selected_chain_btn._pressed_callback(selected_chain_btn)
-            chain_name = previously_selected_chain_btn.text.value.idle
-            comp_index = previously_selected_chain_btn.comp_index
+            self.toggle_chain_atoms_selected(comp, chain_name, selected_comp_chain_btn.selected)
+        if previous_comp_chain_btn:
+            chain_name = previous_comp_chain_btn.text.value.idle
+            comp_index = previous_comp_chain_btn.comp_index
             comp = next(cmp for cmp in self.plugin.complexes if cmp.index == comp_index)
             self.toggle_chain_atoms_selected(comp, chain_name, False)
 
@@ -684,6 +689,8 @@ class MainMenu:
         if atoms_to_update:
             Logs.debug(f"Updating {len(atoms_to_update)} atom selections")
             self.plugin.update_structures_shallow(atoms_to_update)
+        else:
+            Logs.debug(f"Not updating any atom selections")
 
     def overlay_method_selected(self, btn_group, selected_btn):
         """Callback for when an overlay method is selected."""
