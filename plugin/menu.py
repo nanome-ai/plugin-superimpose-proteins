@@ -609,27 +609,33 @@ class MainMenu:
     def toggle_all_moving_complexes(self, value: bool, btn: ui.Button):
         """Select or deselect all complexes as moving complexes"""
         content_to_update = []
+        chain_btns_to_toggle = []
         for item in self.ln_moving_comp_list.get_content().items:
             ln_btn_moving = item.find_node('ln_btn_moving')
             ln_chain_btns = item.find_node('ln_chain_list').get_children()
             chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
-            if not ln_btn_moving:
-                continue
             btn_moving = ln_btn_moving.get_content()
-            if not btn_moving.unusable:
-                btn_moving.selected = value
-                content_to_update.append(btn_moving)
+            if not ln_btn_moving or btn_moving.unusable:
+                continue
+            
+            btn_moving.selected = value
+            content_to_update.append(btn_moving)
             # Select first chain, or deselect all chains
-            if value and chain_btns and not any([btn.selected for btn in chain_btns]):
-                chain_btns[0].selected = value
-                content_to_update.append(chain_btns[0])
+            if chain_btns and not any([btn.selected for btn in chain_btns]):
+                ch_btn = chain_btns[0]
+                ch_btn.selected = value
+                chain_btns_to_toggle.append(ch_btn)
+                content_to_update.append(ch_btn)
             elif not value and any([btn.selected for btn in chain_btns]):
                 for ch_btn in chain_btns:
                     if ch_btn.selected:
                         ch_btn.selected = False
+                        chain_btns_to_toggle.append(ch_btn)
                         content_to_update.append(ch_btn)
         self.plugin.update_content(*content_to_update)
         self.check_if_ready_to_submit()
+        for ch_btn in chain_btns_to_toggle:
+            self.toggle_chain_button(ch_btn)
 
     def toggle_chain_button(self, chain_btn: ui.Button):
         comp_index = chain_btn.comp_index
