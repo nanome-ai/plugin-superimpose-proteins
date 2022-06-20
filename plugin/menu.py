@@ -289,6 +289,9 @@ class MainMenu:
             self.ln_empty_list.enabled = False
 
         for i, comp in enumerate(sorted(complexes, key=lambda cmp: cmp.full_name)):
+            # Skip any complexes that are only hetatoms.
+            if not any(not atm.is_het for atm in comp.atoms):
+                continue
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             comp_index = comp.index
             ln.comp_index = comp_index
@@ -537,12 +540,11 @@ class MainMenu:
 
     async def get_deep_complexes_if_required(self):
         # Get deep complexes for chain or binding site mode.
-        if self.current_mode in [AlignmentModeEnum.CHAIN, AlignmentModeEnum.BINDING_SITE]:
-            for comp in self.plugin.complexes:
-                if sum(1 for _ in comp.chains) == 0:
-                    comp_indices = [cmp.index for cmp in self.plugin.complexes]
-                    self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
-                    break
+        for comp in self.plugin.complexes:
+            if sum(1 for _ in comp.chains) == 0:
+                comp_indices = [cmp.index for cmp in self.plugin.complexes]
+                self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
+                break
 
     def get_moving_comp_indices_and_chains(self):
         comp_chain_list = []
