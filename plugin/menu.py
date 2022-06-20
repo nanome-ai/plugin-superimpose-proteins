@@ -314,7 +314,11 @@ class MainMenu:
 
             lbl_struct_name.text_value = comp.full_name
 
-            overflow_size = 25 if mode == AlignmentModeEnum.CHAIN else 40
+            chain_label = ln.find_node('select chains').get_content()
+            if mode == AlignmentModeEnum.ENTRY:
+                chain_label.text_value = ''
+                
+            overflow_size = 25
             for chain in comp.chains:
                 ln_chain = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
                 ln_chain.chain_index = chain.index
@@ -326,19 +330,17 @@ class MainMenu:
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
 
-            ln.find_node('chain_selection').enabled = mode == AlignmentModeEnum.CHAIN
+            ln.find_node('chain_selection').enabled = True
 
-            comp_list.display_rows = min(max(len(comp_list.items), 4), 5)
             # Set up chain buttons if in chain mode
             ln_btns = None
-            if mode == AlignmentModeEnum.CHAIN:
-                comp_list.display_rows = 4
-                comp = next(
-                    cmp for cmp in self.plugin.complexes
-                    if cmp.index == ln.comp_index)
-                ln_btns = self.create_chain_buttons(comp)
-                for ln_btn in ln_btns:
-                    ln_chain_list.add_child(ln_btn)
+            comp_list.display_rows = 4
+            comp = next(
+                cmp for cmp in self.plugin.complexes
+                if cmp.index == ln.comp_index)
+            ln_btns = self.create_chain_buttons(comp)
+            for ln_btn in ln_btns:
+                ln_chain_list.add_child(ln_btn)
 
             # First item is always defaulted to fixed structure
             # It helps the user figure out how table works
@@ -672,6 +674,7 @@ class MainMenu:
             new_btn.text.min_size = 0.1
             new_btn.text.max_size = 0.15
             new_btn.toggle_on_press = True
+            new_btn.unusable = not self.current_mode == AlignmentModeEnum.CHAIN
             list_items.append(btn_ln)
         if set_default and list_items:
             list_items[0].selected = True
