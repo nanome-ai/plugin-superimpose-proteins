@@ -615,7 +615,7 @@ class MainMenu:
             ln_btn_moving = item.find_node('ln_btn_moving')
             if not ln_btn_moving:
                 continue
-            
+
             btn_moving = ln_btn_moving.get_content()
             ln_chain_btns = item.find_node('ln_chain_list').get_children()
             chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
