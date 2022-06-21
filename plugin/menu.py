@@ -610,13 +610,23 @@ class MainMenu:
         """Select or deselect all complexes as moving complexes"""
         content_to_update = []
         chain_btns_to_toggle = []
+
         for item in self.ln_moving_comp_list.get_content().items:
             ln_btn_moving = item.find_node('ln_btn_moving')
+            if not ln_btn_moving:
+                continue
+            
+            btn_moving = ln_btn_moving.get_content()
             ln_chain_btns = item.find_node('ln_chain_list').get_children()
             chain_btns = [ln.get_content() for ln in ln_chain_btns if ln.get_content()]
-            btn_moving = ln_btn_moving.get_content()
-            if not ln_btn_moving or btn_moving.unusable:
-                continue
+            btn_fixed = item.find_node('ln_btn_fixed').get_content()
+
+            # If deselecting all, deselect fixed selection.
+            if not value and btn_fixed.selected:
+                btn_fixed.selected = False
+                btn_moving.selected = False
+                btn_moving.unusable = False
+                content_to_update.append(btn_fixed)
 
             btn_moving.selected = value
             content_to_update.append(btn_moving)
