@@ -55,11 +55,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
-        self.set_plugin_list_button(PluginListButtonType.run, text='Loading...', usable=False)
-        workspace = await self.request_workspace()
-        self.complexes = workspace.complexes
+        if not self.complexes:
+            self.set_plugin_list_button(PluginListButtonType.run, text='Loading...', usable=False)
+            workspace = await self.request_workspace()
+            self.complexes = workspace.complexes
+            self.set_plugin_list_button(PluginListButtonType.run, text='Run', usable=True)
         self.menu.render(force_enable=True)
-        self.set_plugin_list_button(PluginListButtonType.run, text='Run', usable=True)
 
     @async_callback
     async def on_complex_list_updated(self, complexes):

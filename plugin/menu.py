@@ -116,9 +116,6 @@ class MainMenu:
     async def render(self, force_enable=False):
         self.ln_binding_site_mode.enabled = False  # Disable until feature ready
         self.populate_comp_list()
-
-
-
         self.check_if_ready_to_submit()
         self.btn_submit.register_pressed_callback(self.submit)
         if force_enable:
