@@ -647,7 +647,7 @@ class MainMenu:
             btn_ln.set_padding(top=0.01, down=0.01)
             new_btn = btn_ln.add_new_button(chain_name)
             new_btn.text.min_size = 0.1
-            new_btn.text.max_size = 0.15
+            new_btn.text.max_size = 0.25
             new_btn.toggle_on_press = True
             new_btn.unusable = not self.current_mode == AlignmentModeEnum.CHAIN
             list_items.append(btn_ln)
