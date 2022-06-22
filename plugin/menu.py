@@ -117,6 +117,21 @@ class MainMenu:
     async def render(self, force_enable=False):
         self.ln_binding_site_mode.enabled = False  # Disable until feature ready
         self.populate_comp_list()
+        comp_list = self.ln_moving_comp_list.get_content()
+        
+        if len(comp_list.items) >= 2:
+            first_item = comp_list.items[0]
+            first_fixed_btn = first_item.find_node('ln_btn_fixed').get_content()
+            first_fixed_btn.selected = True
+            self.btn_fixed_pressed(first_fixed_btn)
+        if len(comp_list.items) == 2:
+            second_item = comp_list.items[1]
+            second_moving_btn = second_item.find_node('ln_btn_moving').get_content()
+            ln_chain_list = second_item.find_node('ln_chain_list')
+            second_moving_btn.selected = True
+            self.btn_moving_pressed(ln_chain_list, second_moving_btn)
+
+
         self.check_if_ready_to_submit()
         if force_enable:
             self._menu.enabled = True
@@ -374,7 +389,8 @@ class MainMenu:
         chain_name = btn.text.value.idle
         self.plugin.update_content(btns_to_update)
         self.check_if_ready_to_submit()
-        self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
+        if self.current_mode == AlignmentModeEnum.CHAIN:
+            self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
 
     @async_callback
     async def btn_fixed_pressed(self, pressed_btn):
@@ -627,6 +643,8 @@ class MainMenu:
             self.toggle_chain_button(ch_btn)
 
     def toggle_chain_button(self, chain_btn: ui.Button):
+        if self.current_mode != AlignmentModeEnum.CHAIN:
+            return
         comp_index = chain_btn.comp_index
         chain_name = chain_btn.text.value.idle
         comp = next((
