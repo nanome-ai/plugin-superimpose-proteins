@@ -381,63 +381,58 @@ class MainMenu:
 
     @async_callback
     async def btn_fixed_pressed(self, pressed_btn):
-        """Only one fixed strcuture can be selected at a time."""
+        """Handle selections ."""
         content_to_update = [pressed_btn]
         selected_comp_chain_btn = None
-        previous_comp_chain_btn = None
+        deselected_comp_chain_btn = None
         for menu_item in self.ln_moving_comp_list.get_content().items:
             if not menu_item.find_node('ln_btn_fixed'):
                 continue
             btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
             btn_moving = menu_item.find_node('ln_btn_moving').get_content()
             ln_chain_list = menu_item.find_node('ln_chain_list')
-            ln_dd_chain = menu_item.find_node('dd_chain')
             chain_btns = [
                 ln.get_content() for ln in ln_chain_list.get_children()
                 if ln.get_content()]
-            if btn_fixed != pressed_btn:
-                btn_fixed.selected = False
-                btn_moving.unusable = False
-                if self.current_mode == AlignmentModeEnum.BINDING_SITE:
-                    ln_dd_chain.enabled = False
-                if self.current_mode == AlignmentModeEnum.CHAIN and chain_btns:
-                    for ch_btn in [btn for btn in chain_btns if btn.selected]:
-                        ch_btn.selected = False
-                        content_to_update.append(ch_btn)
-                        previous_comp_chain_btn = ch_btn
-            else:
+            # Handle row who's fixed selection is being toggled.
+            if btn_fixed is pressed_btn:
                 if btn_fixed.selected:
+                    # If Button being selected, disable moving button, and select first chain.
                     btn_moving.selected = False
                     btn_moving.unusable = True
-                    if self.current_mode == AlignmentModeEnum.CHAIN and chain_btns:
-                        # Default to first chain selected
+                    if chain_btns:
                         selected_comp_chain_btn = chain_btns[0]
                         selected_comp_chain_btn.selected = True
                         content_to_update.append(selected_comp_chain_btn)
-                    if self.current_mode == AlignmentModeEnum.BINDING_SITE:
-                        ln_dd_chain.enabled = True
-                        dd_ligand = ln_dd_chain.get_content()
-                        dd_ligand.register_item_clicked_callback(self.check_if_ready_to_submit)
-                        comp_name = menu_item.find_node('lbl_struct_name').get_content().text_value
-                        comp = next(cmp for cmp in self.plugin.complexes if cmp.full_name == comp_name)
-                        dd_ligand.items = await self.create_ligand_dropdown_items(comp)
                 else:
-                    # Button being deselected
+                    # If Button being deselected, enable moving button, and deselect all chains.
                     btn_moving.unusable = False
-                    if self.current_mode == AlignmentModeEnum.CHAIN and chain_btns:
+                    if chain_btns:
                         selected_comp_chain_btn = next((btn for btn in chain_btns if btn.selected), None)
                         if selected_comp_chain_btn:
                             selected_comp_chain_btn.selected = False
                             content_to_update.append(selected_comp_chain_btn)
+            # Handle row other than the one that fixed selection is being toggled.
+            else:
+                btn_fixed.selected = False
+                btn_moving.unusable = False
+                # Unless moving structure is selected, deselect all chains
+                if not btn_moving.selected:
+                    for ch_btn in [btn for btn in chain_btns if btn.selected]:
+                        ch_btn.selected = False
+                        content_to_update.append(ch_btn)
+                        deselected_comp_chain_btn = ch_btn
+
             content_to_update.append(btn_fixed)
             content_to_update.append(btn_moving)
         self.update_selection_counter()
         self.check_if_ready_to_submit()
         self.plugin.update_content(*content_to_update)
+        # Update chain selections. Save to the end for performance.
         if selected_comp_chain_btn:
             self.toggle_chain_button(selected_comp_chain_btn)
-        if previous_comp_chain_btn:
-            self.toggle_chain_button(previous_comp_chain_btn)
+        if deselected_comp_chain_btn:
+            self.toggle_chain_button(deselected_comp_chain_btn)
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
