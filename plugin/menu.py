@@ -47,6 +47,7 @@ class MainMenu:
         )
         self.btn_alpha_carbons.register_pressed_callback(overlay_method_selected_callback)
         self.btn_heavy_atoms.register_pressed_callback(overlay_method_selected_callback)
+        self.btn_submit.register_pressed_callback(self.submit)
 
     @property
     def btn_submit(self):
@@ -117,7 +118,6 @@ class MainMenu:
         self.ln_binding_site_mode.enabled = False  # Disable until feature ready
         self.populate_comp_list()
         self.check_if_ready_to_submit()
-        self.btn_submit.register_pressed_callback(self.submit)
         if force_enable:
             self._menu.enabled = True
         self.plugin.update_menu(self._menu)
