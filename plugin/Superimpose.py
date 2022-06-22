@@ -117,6 +117,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
+        # Due to a bug in nanome-core, if a complex is unlocked, we need to
+        # make a separate call to remove box from around complexes.
+        await self.update_structures_shallow(comps_to_update)
+
         # Update comps in stored complex list
         for i in range(len(self.complexes)):
             comp_index = self.complexes[i].index
@@ -180,6 +184,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
+        # Due to a bug in nanome-core, if a complex is unlocked, we need to
+        # make a separate call to remove box from around complexes.
+        await self.update_structures_shallow(comps_to_update)
         # Update comps in stored complex list
         for i in range(len(self.complexes)):
             comp_index = self.complexes[i].index
