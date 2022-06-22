@@ -344,6 +344,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             def _aainfo(r): return (r.id[1], aa3to1.get(r.resname, "X"))
             seq = [_aainfo(r) for r in structure.get_residues() if is_aa(r)]
             return seq
+
         start_time = time.time()
         Logs.message("Calculating alignment")
         resseq_A = _get_pdb_sequence(structA)

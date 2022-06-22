@@ -131,7 +131,6 @@ class MainMenu:
             second_moving_btn.selected = True
             self.btn_moving_pressed(ln_chain_list, second_moving_btn)
 
-
         self.check_if_ready_to_submit()
         if force_enable:
             self._menu.enabled = True
