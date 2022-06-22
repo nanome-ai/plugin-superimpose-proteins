@@ -58,25 +58,25 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         self.set_plugin_list_button(PluginListButtonType.run, text='Loading...', usable=False)
         workspace = await self.request_workspace()
         self.complexes = workspace.complexes
-        self.menu.render(complexes=self.complexes, force_enable=True)
+        self.menu.render(force_enable=True)
         self.set_plugin_list_button(PluginListButtonType.run, text='Run', usable=True)
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
         self.complexes = complexes
-        await self.menu.render(complexes=self.complexes)
+        await self.menu.render()
 
     @async_callback
     async def on_complex_added(self):
         workspace = await self.request_workspace()
         self.complexes = workspace.complexes
-        await self.menu.render(complexes=self.complexes)
+        await self.menu.render()
 
     @async_callback
     async def on_complex_removed(self):
         workspace = await self.request_workspace()
         self.complexes = workspace.complexes
-        await self.menu.render(complexes=self.complexes)
+        await self.menu.render()
 
     async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, overlay_method):
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])

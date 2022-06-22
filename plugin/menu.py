@@ -113,10 +113,12 @@ class MainMenu:
         return self._menu.root.find_node('ln_btn_deselect_all').get_content()
 
     @async_callback
-    async def render(self, complexes=None, force_enable=False):
-        self.plugin.complexes = complexes or []
+    async def render(self, force_enable=False):
         self.ln_binding_site_mode.enabled = False  # Disable until feature ready
-        self.populate_comp_list(self.current_mode)
+        self.populate_comp_list()
+
+
+
         self.check_if_ready_to_submit()
         self.btn_submit.register_pressed_callback(self.submit)
         if force_enable:
@@ -219,7 +221,7 @@ class MainMenu:
         self.plugin.update_content(self.dd_run_history)
 
     def get_fixed_comp_index(self):
-        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+        for item in self.ln_moving_comp_list.get_content().items:
             ln_btn_fixed = item.find_node('ln_btn_fixed')
             if not ln_btn_fixed:
                 # This is usually the row with the label for hidden complexes.
@@ -234,7 +236,7 @@ class MainMenu:
 
     def get_moving_comp_indices(self):
         comps = []
-        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+        for item in self.ln_moving_comp_list.get_content().items:
             if not item.find_node('ln_btn_moving'):
                 continue
             btn_moving = item.find_node('ln_btn_moving').get_content()
@@ -247,7 +249,7 @@ class MainMenu:
         return comps
 
     def get_binding_site_ligand(self):
-        for item in self._menu.root.find_node('ln_moving_comp_list').get_content().items:
+        for item in self.ln_moving_comp_list.get_content().items:
             ln_btn_fixed = item.find_node('ln_btn_fixed')
             if not ln_btn_fixed:
                 continue
@@ -273,12 +275,12 @@ class MainMenu:
                     if chain_btn.selected), '')
                 return selected_chain
 
-    def populate_comp_list(self, mode=None):
-        mode = mode or getattr(self, 'current_mode', None) or AlignmentModeEnum.ENTRY
+    def populate_comp_list(self):
         complexes = self.plugin.complexes
         comp_list = self.ln_moving_comp_list.get_content()
-        set_default_values = len(complexes) == 2
-        visible_items = []
+        comp_list.display_rows = 4
+        list_items = []
+
         if len(complexes) < 2:
             self.ln_moving_comp_list.enabled = False
             self.ln_empty_list.enabled = True
@@ -287,10 +289,11 @@ class MainMenu:
             self.ln_moving_comp_list.enabled = True
             self.ln_empty_list.enabled = False
 
-        for i, comp in enumerate(complexes):
+        for comp in complexes:
             # Skip any complexes that are only hetatoms.
             if not any(not atm.is_het for atm in comp.atoms):
                 continue
+
             ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
             comp_index = comp.index
             ln.comp_index = comp_index
@@ -308,15 +311,16 @@ class MainMenu:
             ln_chain_list = ln.find_node('ln_chain_list')
             ln_chain_list.remove_content()
 
+            chain_label = ln.find_node('select chains').get_content()
+            if self.current_mode == AlignmentModeEnum.CHAIN:
+                chain_label.text_value = 'Select Chain'
+            else:
+                chain_label.text_value = ''
+
             btn_fixed.register_pressed_callback(self.btn_fixed_pressed)
             btn_moving.register_pressed_callback(functools.partial(self.btn_moving_pressed, ln_chain_list))
 
             lbl_struct_name.text_value = comp.full_name
-
-            chain_label = ln.find_node('select chains').get_content()
-            if mode == AlignmentModeEnum.ENTRY:
-                chain_label.text_value = ''
-                
             overflow_size = 25
             for chain in comp.chains:
                 ln_chain = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
@@ -329,37 +333,36 @@ class MainMenu:
             btn_fixed.toggle_on_press = True
             btn_moving.toggle_on_press = True
 
-            ln.find_node('chain_selection').enabled = True
-
-            # Set up chain buttons if in chain mode
+            # Set up chain buttons
             ln_btns = None
-            comp_list.display_rows = 4
             comp = next(
                 cmp for cmp in self.plugin.complexes
                 if cmp.index == ln.comp_index)
             ln_btns = self.create_chain_buttons(comp)
             for ln_btn in ln_btns:
                 ln_chain_list.add_child(ln_btn)
-
-            # First item is always defaulted to fixed structure
-            if i == 0:
-                btn_fixed.selected = True
-                btn_moving.unusable = True
-                if ln_btns:
-                    ch_btn = ln_btns[0].get_content()
-                    ch_btn.selected = self.current_mode == AlignmentModeEnum.CHAIN
-                    self.toggle_chain_button(ch_btn)
-            # Select second structure as moving val if default_values is True.
-            if set_default_values and i == 1:
-                btn_moving.selected = True
-                if ln_btns:
-                    ch_btn = ln_btns[0].get_content()
-                    ch_btn.selected = True
-                    self.toggle_chain_button(ch_btn)
-
-            visible_items.append(ln)
-        comp_list.items = visible_items
+            list_items.append(ln)
+        comp_list.items = list_items
         self.plugin.update_node(self.ln_moving_comp_list)
+
+    def refresh_comp_list(self):
+        comp_list = self.ln_moving_comp_list.get_content()
+        for ln in comp_list.items:
+            ln_chain_list = ln.find_node('ln_chain_list')
+            chain_label = ln.find_node('select chains').get_content()
+            if self.current_mode == AlignmentModeEnum.CHAIN:
+                chain_label.text_value = 'Select Chain'
+            else:
+                chain_label.text_value = ''
+
+            chain_btns = [
+                ln_btn.get_content() for ln_btn in ln_chain_list.get_children()
+                if ln_btn.get_content()
+            ]
+            for btn in chain_btns:
+                btn.unusable = self.current_mode != AlignmentModeEnum.CHAIN
+            
+        self.plugin.update_content(comp_list)
 
     def chain_selected_callback(self, comp_index, btn_group, btn):
         # One item in button group selected at a time.
@@ -509,7 +512,7 @@ class MainMenu:
         return self._menu.root.find_node('btn_advanced').get_content()
 
     @async_callback
-    async def on_mode_selected(self, mode_btn, update=True, log=True):
+    async def on_mode_selected(self, mode_btn):
         mode_btn.selected = True
         btns_to_update = [mode_btn]
         for group_item in self.mode_selection_btn_group:
@@ -517,25 +520,16 @@ class MainMenu:
                 group_item.selected = False
                 btns_to_update.append(group_item)
         if mode_btn.name == 'btn_entry_align':
-            if log:
-                Logs.message("Switched to entry mode")
+            Logs.message("Switched to entry mode")
             self.current_mode = AlignmentModeEnum.ENTRY
-            self.render(complexes=self.plugin.complexes)
         elif mode_btn.name == 'btn_align_by_chain':
             Logs.message("Switched to chain mode.")
             self.current_mode = AlignmentModeEnum.CHAIN
         elif mode_btn.name == 'btn_align_by_binding_site':
+            Logs.message("Switched to binding site mode.")
             self.current_mode = AlignmentModeEnum.BINDING_SITE
-
-        if self.current_mode in [AlignmentModeEnum.CHAIN, AlignmentModeEnum.BINDING_SITE]:
-            mode_btn.unusable = True
-            self.plugin.update_content(mode_btn)
-            mode_btn.unusable = False
-            self.plugin.update_content(mode_btn)
-
-        await self.plugin.menu.render(complexes=self.plugin.complexes)
-        if update:
-            self.plugin.update_menu(self._menu)
+        self.refresh_comp_list()
+        self.plugin.update_menu(self._menu)
 
     def get_moving_comp_indices_and_chains(self):
         comp_chain_list = []
@@ -649,7 +643,7 @@ class MainMenu:
         self.toggle_chain_atoms_selected(comp, chain_name, chain_btn.selected)
 
     def create_chain_buttons(self, comp, set_default=False):
-        """Update chain dropdown to reflect changes in complex."""
+        """Create list of LayoutNodes containing a button for each chain in comp."""
         list_items = []
         # Filter out hetatom chains (HA, HB, etc)
         chain_names = sorted([
@@ -684,7 +678,6 @@ class MainMenu:
 
     def toggle_chain_atoms_selected(self, comp, chain_name, value: bool):
         """Select or deselect all atoms in a chain."""
-        Logs.debug(f"{'Selecting' if value else 'Deselecting'} Chain {chain_name} Atoms")
         chain = next(ch for ch in comp.chains if ch.name == chain_name)
         atoms_to_update = []
         for chain in comp.chains:
@@ -703,8 +696,6 @@ class MainMenu:
         if atoms_to_update:
             Logs.debug(f"Updating {len(atoms_to_update)} atom selections")
             self.plugin.update_structures_shallow(atoms_to_update)
-        else:
-            Logs.debug(f"Not updating any atom selections")
 
     def overlay_method_selected(self, btn_group, selected_btn):
         """Callback for when an overlay method is selected."""
