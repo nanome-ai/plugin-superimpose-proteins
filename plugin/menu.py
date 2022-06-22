@@ -115,7 +115,6 @@ class MainMenu:
     @async_callback
     async def render(self, complexes=None, force_enable=False):
         self.plugin.complexes = complexes or []
-        await self.get_deep_complexes_if_required()
         self.ln_binding_site_mode.enabled = False  # Disable until feature ready
         self.populate_comp_list(self.current_mode)
         self.check_if_ready_to_submit()
@@ -288,7 +287,7 @@ class MainMenu:
             self.ln_moving_comp_list.enabled = True
             self.ln_empty_list.enabled = False
 
-        for i, comp in enumerate(sorted(complexes, key=lambda cmp: cmp.full_name)):
+        for i, comp in enumerate(complexes):
             # Skip any complexes that are only hetatoms.
             if not any(not atm.is_het for atm in comp.atoms):
                 continue
@@ -343,13 +342,12 @@ class MainMenu:
                 ln_chain_list.add_child(ln_btn)
 
             # First item is always defaulted to fixed structure
-            # It helps the user figure out how table works
             if i == 0:
                 btn_fixed.selected = True
                 btn_moving.unusable = True
                 if ln_btns:
                     ch_btn = ln_btns[0].get_content()
-                    ch_btn.selected = True
+                    ch_btn.selected = self.current_mode == AlignmentModeEnum.CHAIN
                     self.toggle_chain_button(ch_btn)
             # Select second structure as moving val if default_values is True.
             if set_default_values and i == 1:
@@ -532,21 +530,12 @@ class MainMenu:
         if self.current_mode in [AlignmentModeEnum.CHAIN, AlignmentModeEnum.BINDING_SITE]:
             mode_btn.unusable = True
             self.plugin.update_content(mode_btn)
-            await self.get_deep_complexes_if_required()
             mode_btn.unusable = False
             self.plugin.update_content(mode_btn)
 
         await self.plugin.menu.render(complexes=self.plugin.complexes)
         if update:
             self.plugin.update_menu(self._menu)
-
-    async def get_deep_complexes_if_required(self):
-        # Get deep complexes for chain or binding site mode.
-        for comp in self.plugin.complexes:
-            if sum(1 for _ in comp.chains) == 0:
-                comp_indices = [cmp.index for cmp in self.plugin.complexes]
-                self.plugin.complexes = await self.plugin.request_complexes(comp_indices)
-                break
 
     def get_moving_comp_indices_and_chains(self):
         comp_chain_list = []
