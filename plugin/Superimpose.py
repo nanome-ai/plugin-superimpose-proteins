@@ -1,6 +1,7 @@
 import copy
 import nanome
 import os
+import sys
 import tempfile
 import time
 
@@ -14,11 +15,11 @@ from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex
+from nanome.util.enums import PluginListButtonType
 from .enums import OverlayMethodEnum
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
-import sys
 
 
 def extract_binding_site(comp, binding_site_atoms):
@@ -54,23 +55,29 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
-        self.complexes = await self.request_complex_list()
-        self.menu.render(complexes=self.complexes, force_enable=True)
+        if not self.complexes:
+            self.set_plugin_list_button(PluginListButtonType.run, text='Loading...', usable=False)
+            workspace = await self.request_workspace()
+            self.complexes = workspace.complexes
+            self.set_plugin_list_button(PluginListButtonType.run, text='Run', usable=True)
+        self.menu.render(force_enable=True)
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
         self.complexes = complexes
-        await self.menu.render(complexes=self.complexes)
+        await self.menu.render()
 
     @async_callback
     async def on_complex_added(self):
-        self.complexes = await self.request_complex_list()
-        await self.menu.render(complexes=self.complexes)
+        workspace = await self.request_workspace()
+        self.complexes = workspace.complexes
+        await self.menu.render()
 
     @async_callback
     async def on_complex_removed(self):
-        self.complexes = await self.request_complex_list()
-        await self.menu.render(complexes=self.complexes)
+        workspace = await self.request_workspace()
+        self.complexes = workspace.complexes
+        await self.menu.render()
 
     async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, overlay_method):
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
@@ -110,6 +117,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
+        # Due to a bug in nanome-core, if a complex is unlocked, we need to
+        # make a separate call to remove box from around complexes.
+        self.update_structures_shallow(comps_to_update)
+
         # Update comps in stored complex list
         for i in range(len(self.complexes)):
             comp_index = self.complexes[i].index
@@ -173,6 +184,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.update_loading_bar(i + 1, comp_count)
 
         await self.update_structures_deep(comps_to_update)
+        # Due to a bug in nanome-core, if a complex is unlocked, we need to
+        # make a separate call to remove box from around complexes.
+        self.update_structures_shallow(comps_to_update)
+
         # Update comps in stored complex list
         for i in range(len(self.complexes)):
             comp_index = self.complexes[i].index
@@ -337,6 +352,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             def _aainfo(r): return (r.id[1], aa3to1.get(r.resname, "X"))
             seq = [_aainfo(r) for r in structure.get_residues() if is_aa(r)]
             return seq
+
         start_time = time.time()
         Logs.message("Calculating alignment")
         resseq_A = _get_pdb_sequence(structA)
