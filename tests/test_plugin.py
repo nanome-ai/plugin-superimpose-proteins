@@ -82,7 +82,7 @@ class PluginFunctionTestCase(unittest.TestCase):
             [self.complex_1mbo.index],
             alignment_method
         )
-        expected_result = {'complex': {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
+        expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
         self.assertEqual(result, expected_result)
 
     @patch('nanome._internal._network.PluginNetwork._instance')
@@ -102,7 +102,7 @@ class PluginFunctionTestCase(unittest.TestCase):
             [self.complex_1mbo.index],
             alignment_method
         )
-        expected_result = {'complex': {'paired_atoms': 366, 'paired_residues': 46, 'rmsd': 1.93}}
+        expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 366, 'paired_residues': 46, 'rmsd': 1.93}}
         self.assertEqual(result, expected_result)
 
     @patch('nanome._internal._network.PluginNetwork._instance')
