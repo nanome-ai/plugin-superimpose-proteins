@@ -118,7 +118,7 @@ class MainMenu:
         self.ln_binding_site_mode.enabled = False  # Disable until feature ready
         self.populate_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
-        
+
         if len(comp_list.items) >= 2:
             first_item = comp_list.items[0]
             first_fixed_btn = first_item.find_node('ln_btn_fixed').get_content()
@@ -372,7 +372,7 @@ class MainMenu:
             ]
             for btn in chain_btns:
                 btn.unusable = self.current_mode != AlignmentModeEnum.CHAIN
-            
+
         self.plugin.update_content(comp_list)
 
     def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
