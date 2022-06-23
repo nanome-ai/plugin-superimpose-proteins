@@ -201,7 +201,7 @@ class MainMenu:
                 fixed_name = f'{fixed_name} Chain {fixed_chain}'
             self.render_rmsd_results(rmsd_results, fixed_name)
         self.btn_submit.unusable = False
-        self.btn_submit.text.value.unusuable = original_unusable_text
+        self.btn_submit.text.value.unusable = original_unusable_text
         self.ln_loading_bar.enabled = False
         self.plugin.update_node(self.ln_loading_bar)
         self.plugin.update_content(self.btn_submit)
