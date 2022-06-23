@@ -360,14 +360,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
         sequence_A = "".join([i[1] for i in resseq_A])
         sequence_B = "".join([i[1] for i in resseq_B])
-        alns = pairwise2.align.globalds(
-            sequence_A,
-            sequence_B,
-            substitution_matrices.load("BLOSUM62"),
-            one_alignment_only=True,
-            open=-10.0,
-            extend=-0.5,
-            penalize_end_gaps=(False, False))
+        alns = pairwise2.align.globalms(sequence_A, sequence_B, 2, -1, -10, -.5)
         best_aln = alns[0]
         aligned_A, aligned_B, score, begin, end = best_aln
 

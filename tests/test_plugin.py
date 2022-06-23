@@ -61,13 +61,9 @@ class PluginFunctionTestCase(unittest.TestCase):
             alignment_method
         )
         expected_output = {
-            self.complex_1mbo.full_name: {
-                'rmsd': 1.95,
-                'paired_atoms': 138,
-                'chain': 'A',
-                'paired_residues': 138
-            }
+            self.complex_1mbo.full_name: {'rmsd': 1.97, 'paired_atoms': 141, 'paired_residues': 141, 'chain': 'A'}
         }
+        breakpoint()
         self.assertEqual(result, expected_output)
 
     @patch('nanome._internal._network.PluginNetwork._instance')
@@ -87,13 +83,7 @@ class PluginFunctionTestCase(unittest.TestCase):
             [self.complex_1mbo.index],
             alignment_method
         )
-        expected_result = {
-            'complex': {
-                'rmsd': 6.17,
-                'paired_atoms': 138,
-                'paired_residues': 138
-            }
-        }
+        expected_result = {'complex': {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
         self.assertEqual(result, expected_result)
 
     @patch('nanome._internal._network.PluginNetwork._instance')
@@ -113,13 +103,7 @@ class PluginFunctionTestCase(unittest.TestCase):
             [self.complex_1mbo.index],
             alignment_method
         )
-        expected_result = {
-            'complex': {
-                'paired_atoms': 391,
-                'paired_residues': 48,
-                'rmsd': 2.7,
-            }
-        }
+        expected_result = {'complex': {'paired_atoms': 366, 'paired_residues': 46, 'rmsd': 1.93}}
         self.assertEqual(result, expected_result)
 
     @patch('nanome._internal._network.PluginNetwork._instance')
@@ -146,14 +130,7 @@ class PluginFunctionTestCase(unittest.TestCase):
             moving_comp_chain_list,
             alignment_method
         )
-        expected_output = {
-            self.complex_1mbo.full_name: {
-                'chain': 'A',
-                'paired_atoms': 395,
-                'rmsd': 2.7,
-                'paired_residues': 49
-            }
-        }
+        expected_output = {self.complex_1mbo.full_name: {'rmsd': 1.91, 'paired_atoms': 378, 'paired_residues': 47, 'chain': 'A'}}
         self.assertEqual(result, expected_output)
 
     @unittest.skip("Not ready yet")
