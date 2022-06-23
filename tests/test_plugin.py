@@ -63,7 +63,6 @@ class PluginFunctionTestCase(unittest.TestCase):
         expected_output = {
             self.complex_1mbo.full_name: {'rmsd': 1.97, 'paired_atoms': 141, 'paired_residues': 141, 'chain': 'A'}
         }
-        breakpoint()
         self.assertEqual(result, expected_output)
 
     @patch('nanome._internal._network.PluginNetwork._instance')
