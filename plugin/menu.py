@@ -326,7 +326,7 @@ class MainMenu:
             if self.current_mode == AlignmentModeEnum.CHAIN:
                 chain_label.text_value = 'Select Chain'
             else:
-                chain_label.text_value = ''
+                chain_label.text_value = 'Chains'
 
             btn_fixed.register_pressed_callback(self.btn_fixed_pressed)
             btn_moving.register_pressed_callback(functools.partial(self.btn_moving_pressed, ln_chain_list))
@@ -364,7 +364,7 @@ class MainMenu:
             if self.current_mode == AlignmentModeEnum.CHAIN:
                 chain_label.text_value = 'Select Chain'
             else:
-                chain_label.text_value = ''
+                chain_label.text_value = 'Chains'
 
             chain_btns = [
                 ln_btn.get_content() for ln_btn in ln_chain_list.get_children()
@@ -375,25 +375,42 @@ class MainMenu:
             
         self.plugin.update_content(comp_list)
 
-    def chain_selected_callback(self, comp_index, btn_group, btn):
+    def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
         # One item in button group selected at a time.
-        Logs.message(f"Chain selected: {btn.text.value.idle}")
+        Logs.message(f"Chain selected: {pressed_btn.text.value.idle}")
         comp = next(comp for comp in self.plugin.complexes if comp.index == comp_index)
-        btns_to_update = [btn]
+        btns_to_update = [pressed_btn]
         for grp_btn in btn_group:
-            if grp_btn is not btn and grp_btn.selected:
+            if grp_btn is not pressed_btn and grp_btn.selected:
                 grp_btn.selected = False
-                chain_name = grp_btn.text.value.idle
                 btns_to_update.append(grp_btn)
-        chain_name = btn.text.value.idle
+
+        # If the corresponding moving or fixed button hasn't been selected, select it.
+        for menu_item in self.ln_moving_comp_list.get_content().items:
+            ln_chain_list = menu_item.find_node('ln_chain_list')
+            chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
+            if pressed_btn in chain_btns:
+                btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
+                btn_moving = menu_item.find_node('ln_btn_moving').get_content()
+                if not btn_fixed.selected and not btn_moving.unusable:
+                    btn_moving.selected = pressed_btn.selected
+                    btns_to_update.append(btn_moving)
+                elif btn_fixed.selected and not pressed_btn.selected:
+                    # Deselect fixed btn
+                    btn_fixed.selected = False
+                    btn_moving.unusable = False
+                    btns_to_update.append(btn_fixed)
+                    btns_to_update.append(btn_moving)
+
         self.plugin.update_content(btns_to_update)
         self.check_if_ready_to_submit()
         if self.current_mode == AlignmentModeEnum.CHAIN:
-            self.toggle_chain_atoms_selected(comp, chain_name, btn.selected)
+            chain_name = pressed_btn.text.value.idle
+            self.toggle_chain_atoms_selected(comp, chain_name, pressed_btn.selected)
 
     @async_callback
     async def btn_fixed_pressed(self, pressed_btn):
-        """Handle selections ."""
+        """Handle selections for fixed button."""
         content_to_update = [pressed_btn]
         selected_comp_chain_btn = None
         deselected_comp_chain_btn = None
@@ -403,19 +420,25 @@ class MainMenu:
             btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
             btn_moving = menu_item.find_node('ln_btn_moving').get_content()
             ln_chain_list = menu_item.find_node('ln_chain_list')
-            chain_btns = [
-                ln.get_content() for ln in ln_chain_list.get_children()
-                if ln.get_content()]
+            chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
             # Handle row who's fixed selection is being toggled.
             if btn_fixed is pressed_btn:
                 if btn_fixed.selected:
                     # If Button being selected, disable moving button, and select first chain.
                     btn_moving.selected = False
                     btn_moving.unusable = True
-                    if chain_btns:
-                        selected_comp_chain_btn = chain_btns[0]
-                        selected_comp_chain_btn.selected = True
-                        content_to_update.append(selected_comp_chain_btn)
+                    default_selection_index = 0
+                    chain_button_selections = [ch_btn.selected for ch_btn in chain_btns]
+                    selected_chain_index = next(
+                        (i for i, btn_sel in enumerate(chain_button_selections) if btn_sel),
+                        default_selection_index)
+                    for i, ch_btn in enumerate(chain_btns):
+                        if i == selected_chain_index:
+                            selected_comp_chain_btn = ch_btn
+                        selected_val = i == selected_chain_index
+                        if ch_btn.selected != selected_val:
+                            ch_btn.selected = selected_val
+                            content_to_update.append(ch_btn)
                 else:
                     # If Button being deselected, enable moving button, and deselect all chains.
                     btn_moving.unusable = False
