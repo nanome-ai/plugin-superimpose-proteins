@@ -15,6 +15,8 @@ from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex
 from nanome.util.enums import PluginListButtonType
+
+from . import __version__
 from .enums import OverlayMethodEnum
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
@@ -390,7 +392,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
 def main():
     plugin_title = 'Superimpose Proteins'
-    default_description = 'Superimpose two or more proteins, and calculate RMSD value.'
+    default_description = f'Superimpose two or more proteins, and calculate RMSD value.\n\nVersion {__version__}'
     description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
     plugin = nanome.Plugin(plugin_title, description, 'alignment', False)
     plugin.set_plugin_class(SuperimposePlugin)
