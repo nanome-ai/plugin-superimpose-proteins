@@ -389,9 +389,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
 
 def main():
-    default_description = 'Superimpose two or more structures'
+    plugin_title = 'Superimpose Proteins'
+    default_description = 'Superimpose two or more proteins, and calculate RMSD value.'
     description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
-    plugin = nanome.Plugin('Superimpose', description, 'alignment', False)
+    plugin = nanome.Plugin(plugin_title, description, 'alignment', False)
     plugin.set_plugin_class(SuperimposePlugin)
     plugin.run()
 
