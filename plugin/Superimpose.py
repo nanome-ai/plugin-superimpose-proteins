@@ -10,7 +10,6 @@ from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
-from Bio.Align import substitution_matrices
 from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
@@ -390,9 +389,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
 
 def main():
-    default_description = 'Superimpose two or more structures'
+    plugin_title = 'Superimpose Proteins'
+    default_description = 'Superimpose two or more proteins, and calculate RMSD value.'
     description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
-    plugin = nanome.Plugin('Superimpose', description, 'alignment', False)
+    plugin = nanome.Plugin(plugin_title, description, 'alignment', False)
     plugin.set_plugin_class(SuperimposePlugin)
     plugin.run()
 
