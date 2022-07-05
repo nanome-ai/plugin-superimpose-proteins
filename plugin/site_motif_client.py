@@ -17,11 +17,7 @@ class SiteMotifClient:
             pdb_size_filepath = site_motif.write_pdb_size(sites_dir.name, output_dir)
             script_path = f'{os.path.dirname(site_motif.__file__)}/pocket_matrix_mpi7.py'
             command = f"mpiexec -n 4 python {script_path} {sites_dir.name} {pairs_filepath} {pdb_size_filepath} {output_dir}"
-            output = subprocess.run(
-                command.split())
-                # shell=True,
-                # stdout=subprocess.PIPE,
-                # stderr=subprocess.PIPE)
+            output = subprocess.run(command.split())
             align_output = f'{output_dir}/align_output.txt'
             sites_dir.cleanup()
             if not os.path.exists(align_output):

@@ -23,26 +23,23 @@ from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
 
 
-def extract_binding_site(comp, binding_site_atoms):
-    # Copy comp, and remove all residues that are not part of the binding site
+def extract_binding_site(comp, binding_site_residues):
+    """Copy comp, and remove all residues that are not part of the binding site."""
     orig_recursion_limit = sys.getrecursionlimit()
     sys.setrecursionlimit(100000)
     new_comp = copy.deepcopy(comp)
     sys.setrecursionlimit(orig_recursion_limit)
     new_comp.name = f'{comp.name} binding site'
     new_comp.index = -1
-    new_comp.set_surface_needs_redraw()
 
-    binding_site_atom_indices = iter(a.index for a in binding_site_atoms)
-    comp_residues = list(new_comp.residues)
-    for i in range(len(comp_residues) - 1, -1, -1):
-        res = comp_residues[i]
-        binding_atoms_in_res = [a for a in res.atoms if a.index in binding_site_atom_indices]
-        if not binding_atoms_in_res:
-            res.chain.remove_residue(res)
-        else:
-            for atom in binding_atoms_in_res:
-                atom.index = -1
+    binding_site_residue_indices = [r.index for r in binding_site_residues]
+    Logs.debug(f'Binding site residues: {len(binding_site_residues)}')
+    for ch in new_comp.chains:
+        reses_on_chain = [res for res in ch.residues if res.index in binding_site_residue_indices]
+        ch.residues = reses_on_chain
+        if not reses_on_chain:
+            ch.molecule.remove_chain(ch)
+    Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
     return new_comp
 
 
@@ -205,8 +202,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
-        fixed_binding_site_atoms = await self.get_binding_site_atoms(fixed_comp, ligand_name, site_size)
-        fixed_binding_site_comp = extract_binding_site(fixed_comp, fixed_binding_site_atoms)
+        fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_name, site_size)
+        fixed_binding_site_comp = extract_binding_site(fixed_comp, fixed_binding_site_residues)
 
         fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
@@ -303,7 +300,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             comp_data['chain'] = chain_name
         return comp_data
 
-    async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
+    async def get_binding_site_residues(self, target_reference: Complex, ligand_name: str, site_size=4.5):
         """Identify atoms in the active site around a ligand."""
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
@@ -313,7 +310,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         # Use KDTree to find target atoms within site_size radius of ligand atoms
         ligand_atoms = chain(*[res.atoms for res in ligand.residues])
         binding_site_atoms = self.calculate_binding_site_atoms(target_reference, ligand_atoms)
-        return binding_site_atoms
+        residue_set = set()
+        for atom in binding_site_atoms:
+            residue_set.add(atom.residue)
+        return residue_set
 
     def calculate_binding_site_atoms(self, target_reference: Complex, ligand_atoms: list, site_size=4.5):
         """Use KDTree to find target atoms within site_size radius of ligand atoms."""
