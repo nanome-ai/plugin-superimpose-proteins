@@ -239,7 +239,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
             pocket_residue_pdbs = clean_fpocket_pdbs(pocket_pdbs, moving_comp)
-            matching_pocket = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_residue_pdbs)
+            pdb1, pdb2, alignment = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_residue_pdbs)
+            if pdb1 == fixed_binding_site_pdb.name:
+                comp1 = fixed_comp
+                comp2 = moving_comp
+            else:
+                comp1 = moving_comp
+                comp2 = fixed_comp
+            atom_pairs = sitemotif_client.parse_atom_pairs(comp1, comp2, alignment)
         return {}
 
     @staticmethod

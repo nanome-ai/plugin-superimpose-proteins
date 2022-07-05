@@ -19,6 +19,7 @@ class SiteMotifClient:
             # Remove pairs not involving the fixed binding site
             with open(pairs_filepath, "r") as f:
                 lines = f.readlines()
+
             with open(pairs_filepath, "w") as f:
                 for line in lines:
                     binding_site_filename = os.path.basename(binding_site_pdb)
@@ -29,12 +30,15 @@ class SiteMotifClient:
             command = f"mpiexec -n 4 python {script_path} {sites_dir.name} {pairs_filepath} {pdb_size_filepath} {output_dir}"
             
             try:
-                output = subprocess.run(command.split(), timeout=60)
+                subprocess.run(command.split(), timeout=60)
             except subprocess.TimeoutExpired:
                 Logs.warning("SiteMotif: Timeout. SiteMotif may not have finished.")
                 pass
             align_output = f'{output_dir}/align_output.txt'
             sites_dir.cleanup()
+            with open(align_output, "r") as f:
+                with open('align_output.txt', 'w') as w:
+                    w.write(f.read())
             if not os.path.exists(align_output):
                 raise Exception('No align output found')
             with open(align_output, 'r') as f:
@@ -44,7 +48,8 @@ class SiteMotifClient:
             
             max_paired_res = -1
             residue_alignment = ''
-            best_pocket = ''
+            pdb_1 = ''
+            pdb_2 = ''
             for line in lines:
                 line_split = line.split('\t')
                 if line_split[0] == line_split[1]:
@@ -53,7 +58,18 @@ class SiteMotifClient:
                 paired_residue_count = len(aligned_residues.split(' '))
                 if paired_residue_count > max_paired_res:
                     max_paired_res = paired_residue_count
-                    best_pocket = line_split[0] if line_split[0] != binding_site_filename else line_split[1]
+                    pdb_1 = line_split[0]
+                    pdb_2 = line_split[1]
                     residue_alignment = aligned_residues
-            return best_pocket, residue_alignment
+
+            # Replace pdb names with full paths
+            for pdb_file in [binding_site_pdb, *pocket_pdbs]:
+                if pdb_1 in pdb_file:
+                    pdb_1 = pdb_file
+                if pdb_2 in pdb_file:
+                    pdb_2 = pdb_file
+            return pdb_1, pdb_2, residue_alignment
+    
+    def parse_atom_pairs(self, pdb_1, pdb_2, alignment):
+        pass
                 
