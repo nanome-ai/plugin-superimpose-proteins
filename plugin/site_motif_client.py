@@ -18,15 +18,13 @@ class SiteMotifClient:
             script_path = f'{os.path.dirname(site_motif.__file__)}/pocket_matrix_mpi7.py'
             command = f"mpiexec -n 4 python {script_path} {sites_dir.name} {pairs_filepath} {pdb_size_filepath} {output_dir}"
             output = subprocess.run(
-                command.split(),
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+                command.split())
+                # shell=True,
+                # stdout=subprocess.PIPE,
+                # stderr=subprocess.PIPE)
             align_output = f'{output_dir}/align_output.txt'
             sites_dir.cleanup()
-            if output.returncode != 0:
-                raise Exception(output.stderr.decode('utf-8'))
-            elif not os.path.exists(align_output):
+            if not os.path.exists(align_output):
                 raise Exception('No align output found')
             with open(align_output, 'r') as f:
                 lines = f.readlines()
