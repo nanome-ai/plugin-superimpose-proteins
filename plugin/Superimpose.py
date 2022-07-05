@@ -23,6 +23,10 @@ from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
 
 
+PDBOPTIONS = Complex.io.PDBSaveOptions()
+PDBOPTIONS.write_bonds = True
+
+
 def extract_binding_site(comp, binding_site_residues):
     """Copy comp, and remove all residues that are not part of the binding site."""
     orig_recursion_limit = sys.getrecursionlimit()
@@ -41,6 +45,25 @@ def extract_binding_site(comp, binding_site_residues):
             ch.molecule.remove_chain(ch)
     Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
     return new_comp
+
+
+def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
+    """Add full residue data to pdb files."""
+    Logs.debug(f"Cleaning {len(fpocket_pdbs)} fpocket pdbs")
+    for i, pocket_pdb in enumerate(fpocket_pdbs):
+        Logs.debug(f"Cleaning Pocket {i + 1}")
+        pocket_residues = []
+        with open(pocket_pdb) as f:
+            for line in f:
+                if line.startswith('ATOM'):
+                    chain_name = line[21]
+                    res_serial = int(line[22:26])
+                    chain = next(ch for ch in comp.chains if ch.name == chain_name)
+                    residue = next(rez for rez in chain.residues if rez.serial == res_serial)
+                    pocket_residues.append(residue)
+        pocket_comp = extract_binding_site(comp, pocket_residues)
+        pocket_comp.io.to_pdb(path=pocket_pdb, options=PDBOPTIONS)
+    return fpocket_pdbs
 
 
 class SuperimposePlugin(nanome.AsyncPluginInstance):
@@ -214,7 +237,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             print(f"Identifying binding sites for {moving_comp.full_name}")
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
-            matching_pocket = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_pdbs)
+            pocket_residue_pdbs = clean_fpocket_pdbs(pocket_pdbs, moving_comp)
+            matching_pocket = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_residue_pdbs)
         return {}
 
     @staticmethod
@@ -333,7 +357,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         for targ_atom in mol.atoms:
             if targ_atom.position.unpack() in near_point_set:
                 binding_site_atoms.append(targ_atom)
-        Logs.message(f"{len(binding_site_atoms)} atoms identified in binding site.")
         return binding_site_atoms
 
     def align_structures(self, structA, structB):

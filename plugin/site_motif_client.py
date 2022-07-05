@@ -11,9 +11,18 @@ class SiteMotifClient:
         """Finds the pocket that best matches provided binding site."""
         with tempfile.TemporaryDirectory() as output_dir:
             sites_dir = tempfile.TemporaryDirectory(dir=output_dir)
+            shutil.copy(binding_site_pdb, sites_dir.name)
             for pdb in pocket_pdbs:
                 shutil.copy(pdb, sites_dir.name)
             pairs_filepath = site_motif.write_pairs(sites_dir.name, output_dir)
+            # Remove pairs not involving the fixed binding site
+            with open(pairs_filepath, "r") as f:
+                lines = f.readlines()
+            with open(pairs_filepath, "w") as f:
+                for line in lines:
+                    binding_site_filename = os.path.basename(binding_site_pdb)
+                    if binding_site_filename in line:
+                        f.write(line)
             pdb_size_filepath = site_motif.write_pdb_size(sites_dir.name, output_dir)
             script_path = f'{os.path.dirname(site_motif.__file__)}/pocket_matrix_mpi7.py'
             command = f"mpiexec -n 4 python {script_path} {sites_dir.name} {pairs_filepath} {pdb_size_filepath} {output_dir}"
