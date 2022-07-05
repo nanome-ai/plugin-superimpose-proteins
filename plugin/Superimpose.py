@@ -13,7 +13,7 @@ from Bio.PDB.Polypeptide import is_aa
 from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
-from nanome.api.structure import Complex
+from nanome.api.structure import Complex, Molecule, Chain
 from nanome.util.enums import PluginListButtonType
 
 from . import __version__
@@ -29,20 +29,21 @@ PDBOPTIONS.write_bonds = True
 
 def extract_binding_site(comp, binding_site_residues):
     """Copy comp, and remove all residues that are not part of the binding site."""
-    orig_recursion_limit = sys.getrecursionlimit()
-    sys.setrecursionlimit(100000)
-    new_comp = copy.deepcopy(comp)
-    sys.setrecursionlimit(orig_recursion_limit)
+    new_comp = Complex()
+    new_mol = Molecule()
+    new_comp.add_molecule(new_mol)
     new_comp.name = f'{comp.name} binding site'
     new_comp.index = -1
 
     binding_site_residue_indices = [r.index for r in binding_site_residues]
     Logs.debug(f'Binding site residues: {len(binding_site_residues)}')
-    for ch in new_comp.chains:
+    for ch in comp.chains:
         reses_on_chain = [res for res in ch.residues if res.index in binding_site_residue_indices]
-        ch.residues = reses_on_chain
-        if not reses_on_chain:
-            ch.molecule.remove_chain(ch)
+        if reses_on_chain:
+            new_ch = Chain()
+            new_ch.name = ch.name
+            new_ch.residues = reses_on_chain
+            new_mol.add_chain(new_ch)
     Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
     return new_comp
 
@@ -52,7 +53,7 @@ def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
     Logs.debug(f"Cleaning {len(fpocket_pdbs)} fpocket pdbs")
     for i, pocket_pdb in enumerate(fpocket_pdbs):
         Logs.debug(f"Cleaning Pocket {i + 1}")
-        pocket_residues = []
+        pocket_residues = set()
         with open(pocket_pdb) as f:
             for line in f:
                 if line.startswith('ATOM'):
@@ -60,7 +61,7 @@ def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
                     res_serial = int(line[22:26])
                     chain = next(ch for ch in comp.chains if ch.name == chain_name)
                     residue = next(rez for rez in chain.residues if rez.serial == res_serial)
-                    pocket_residues.append(residue)
+                    pocket_residues.add(residue)
         pocket_comp = extract_binding_site(comp, pocket_residues)
         pocket_comp.io.to_pdb(path=pocket_pdb, options=PDBOPTIONS)
     return fpocket_pdbs

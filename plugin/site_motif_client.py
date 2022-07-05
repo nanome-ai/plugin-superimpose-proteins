@@ -3,6 +3,7 @@ import shutil
 import site_motif
 import subprocess
 import tempfile
+from nanome.util import Logs
 
 
 class SiteMotifClient:
@@ -26,7 +27,12 @@ class SiteMotifClient:
             pdb_size_filepath = site_motif.write_pdb_size(sites_dir.name, output_dir)
             script_path = f'{os.path.dirname(site_motif.__file__)}/pocket_matrix_mpi7.py'
             command = f"mpiexec -n 4 python {script_path} {sites_dir.name} {pairs_filepath} {pdb_size_filepath} {output_dir}"
-            output = subprocess.run(command.split())
+            
+            try:
+                output = subprocess.run(command.split(), timeout=60)
+            except subprocess.TimeoutExpired:
+                Logs.warning("SiteMotif: Timeout. SiteMotif may not have finished.")
+                pass
             align_output = f'{output_dir}/align_output.txt'
             sites_dir.cleanup()
             if not os.path.exists(align_output):
@@ -35,7 +41,19 @@ class SiteMotifClient:
                 lines = f.readlines()
                 if not lines:
                     raise Exception("No lines found in align output")
-                for line in lines:
-                    if 'Best match' in line:
-                        return line.split()[0]
-                raise Exception('No best match found')
+            
+            max_paired_res = -1
+            residue_alignment = ''
+            best_pocket = ''
+            for line in lines:
+                line_split = line.split('\t')
+                if line_split[0] == line_split[1]:
+                    continue
+                aligned_residues = line_split[-1]
+                paired_residue_count = len(aligned_residues.split(' '))
+                if paired_residue_count > max_paired_res:
+                    max_paired_res = paired_residue_count
+                    best_pocket = line_split[0] if line_split[0] != binding_site_filename else line_split[1]
+                    residue_alignment = aligned_residues
+            return best_pocket, residue_alignment
+                
