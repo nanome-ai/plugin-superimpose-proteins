@@ -116,7 +116,7 @@ class MainMenu:
 
     @async_callback
     async def render(self, force_enable=False):
-        self.populate_comp_list()
+        await self.populate_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
         if len(comp_list.items) >= 2:
@@ -184,7 +184,7 @@ class MainMenu:
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
                 if not all([fixed_comp_index, ligand_name, moving_comp_indices]):
-                    msg = "Please select all complexes and chains."
+                    msg = "Please select all complexes and ligand."
                     Logs.warning(msg)
                     self.plugin.send_notification(NotificationTypes.error, msg)
                 else:
@@ -286,7 +286,7 @@ class MainMenu:
                     if chain_btn.selected), '')
                 return selected_chain
 
-    def populate_comp_list(self):
+    async def populate_comp_list(self):
         complexes = self.plugin.complexes
         comp_list = self.ln_moving_comp_list.get_content()
         comp_list.display_rows = 4
@@ -353,6 +353,9 @@ class MainMenu:
             for ln_btn in ln_btns:
                 ln_chain_list.add_child(ln_btn)
             list_items.append(ln)
+            # Set up ligand dropdown
+            dd_ligands = ln.find_node('dd_ligands').get_content()
+            dd_ligands.items = await self.create_ligand_dropdown_items(comp)
         comp_list.items = list_items
         self.plugin.update_node(self.ln_moving_comp_list)
 
@@ -486,6 +489,7 @@ class MainMenu:
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
+        # return []
         mol = next(mo for mo in comp.molecules)
         ligands = await mol.get_ligands()
         dropdown_items = []
