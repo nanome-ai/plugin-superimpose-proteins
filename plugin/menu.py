@@ -116,7 +116,6 @@ class MainMenu:
 
     @async_callback
     async def render(self, force_enable=False):
-        self.ln_binding_site_mode.enabled = False  # Disable until feature ready
         self.populate_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
@@ -267,8 +266,8 @@ class MainMenu:
                 continue
             btn_fixed = ln_btn_fixed.get_content()
             if btn_fixed.selected:
-                dd_chain = item.find_node('dd_chain').get_content()
-                selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
+                dd_ligands = item.find_node('dd_ligands').get_content()
+                selected_ddi = next((ddi for ddi in dd_ligands.items if ddi.selected), None)
                 return getattr(selected_ddi, 'name', '')
 
     def get_fixed_chain(self):
@@ -359,9 +358,9 @@ class MainMenu:
 
     def refresh_comp_list(self):
         comp_list = self.ln_moving_comp_list.get_content()
-        for ln in comp_list.items:
-            ln_chain_list = ln.find_node('ln_chain_list')
-            chain_label = ln.find_node('select chains').get_content()
+        for menu_item in comp_list.items:
+            ln_chain_list = menu_item.find_node('ln_chain_list')
+            chain_label = menu_item.find_node('select chains').get_content()
             if self.current_mode == AlignmentModeEnum.CHAIN:
                 chain_label.text_value = 'Select Chain'
             else:
@@ -373,7 +372,16 @@ class MainMenu:
             ]
             for btn in chain_btns:
                 btn.unusable = self.current_mode != AlignmentModeEnum.CHAIN
-
+            
+            ln_chain_selection = menu_item.find_node('chain_selection')
+            ln_chain_selection.enabled = self.current_mode != AlignmentModeEnum.BINDING_SITE
+            btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
+            ln_ligand_selection = menu_item.find_node('ligand_selection')
+            ln_ligand_selection.enabled = all([
+                self.current_mode == AlignmentModeEnum.BINDING_SITE,
+                btn_fixed.selected
+            ])
+        
         self.plugin.update_content(comp_list)
 
     def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
@@ -415,7 +423,8 @@ class MainMenu:
         content_to_update = [pressed_btn]
         selected_comp_chain_btn = None
         deselected_comp_chain_btn = None
-        for menu_item in self.ln_moving_comp_list.get_content().items:
+        comp_list = self.ln_moving_comp_list.get_content()
+        for menu_item in comp_list.items:
             if not menu_item.find_node('ln_btn_fixed'):
                 continue
             btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
@@ -461,9 +470,14 @@ class MainMenu:
 
             content_to_update.append(btn_fixed)
             content_to_update.append(btn_moving)
+            if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+                ln_chain_selection = menu_item.find_node('chain_selection')
+                ln_chain_selection.enabled = False
+                ln_lig_selection = menu_item.find_node('ligand_selection')
+                ln_lig_selection.enabled = btn_fixed.selected
         self.update_selection_counter()
         self.check_if_ready_to_submit()
-        self.plugin.update_content(*content_to_update)
+        self.plugin.update_content(comp_list)
         # Update chain selections. Save to the end for performance.
         if selected_comp_chain_btn:
             self.toggle_chain_button(selected_comp_chain_btn)
