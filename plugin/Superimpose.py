@@ -214,7 +214,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fpocket_client = FPocketClient()
         sitemotif_client = SiteMotifClient()
         for moving_comp in moving_comp_list:
-            print(f"Calculating binding site for {moving_comp.full_name}")
+            print(f"Identifying binding sites for {moving_comp.full_name}")
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
             matching_pocket = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_pdbs)
