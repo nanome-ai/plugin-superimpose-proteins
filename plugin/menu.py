@@ -18,7 +18,7 @@ GREY_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'grey_pin.png')
 LOAD_ICON_PATH = path.join(BASE_PATH, 'assets', 'LoadIcon.png')
 EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
 
-DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
+DOCS_URL = 'https://docs.nanome.ai/plugins/superimpose.html'
 
 
 class MainMenu:
