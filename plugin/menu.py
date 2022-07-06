@@ -18,7 +18,8 @@ GREY_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'grey_pin.png')
 LOAD_ICON_PATH = path.join(BASE_PATH, 'assets', 'LoadIcon.png')
 EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
 
-DOCS_URL = 'https://docs.nanome.ai/plugins/cheminteractions.html'
+
+DOCS_URL = 'https://docs.nanome.ai/plugins/superimpose.html'
 
 
 class MainMenu:
@@ -171,13 +172,13 @@ class MainMenu:
             if current_mode == AlignmentModeEnum.ENTRY:
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
-                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
+                Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, overlay_method)
             elif current_mode == AlignmentModeEnum.CHAIN:
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
                 moving_comp_count = len(moving_comp_chain_list)
-                Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
+                Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, overlay_method)
             elif current_mode == AlignmentModeEnum.BINDING_SITE:
                 ligand_name = self.get_binding_site_ligand()
@@ -188,7 +189,7 @@ class MainMenu:
                     Logs.warning(msg)
                     self.plugin.send_notification(NotificationTypes.error, msg)
                 else:
-                    Logs.message(f"Superimposing {moving_comp_count} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
+                    Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
                         fixed_comp_index, ligand_name, moving_comp_indices)
         except Exception as e:
