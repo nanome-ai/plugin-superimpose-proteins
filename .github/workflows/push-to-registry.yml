@@ -40,7 +40,7 @@ jobs:
         access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         account_id: ${{ secrets.AWS_ACCOUNT_ID }}
-        repo: rmsd-v2
+        repo: superimpose-proteins
         region: us-west-1
         tags: ${{ steps.tag.outputs.tag }},${{ steps.sha.outputs.sha7 }}
         dockerfile: docker/Dockerfile
