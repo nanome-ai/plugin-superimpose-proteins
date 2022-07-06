@@ -17,6 +17,14 @@ jobs:
       INPUT_EXTRA_BUILD_ARGS: "--target=production"
     steps:
     - uses: actions/checkout@v2
+    - name: Get repo name
+      id: repoName
+      run: |
+        prefix=nanome-ai/plugin-
+        git_repository="${{github.repository}}"
+        repo_name=${git_repository/#$prefix} 
+        echo $repo_name
+        echo "::set-output name=repo_name::$(echo $repo_name)"
     - name: Set default tag
       id: default_tag
       run: |
