@@ -6,6 +6,8 @@ Protein overlay is done either by using backbone (alpha-carbons) or by using all
 
 A Fixed Reference structure is chosen, and Moving Structures are translocated to be superimposed upon the Fixed Reference. RMSD values are reported between the Fixed Reference and each Moving Structure.
 
+For in-depth instructions, please see our [docs](https://docs.nanome.ai/plugins/superimpose.html)
+
 ## Dependencies
 
 [Docker](https://docs.docker.com/get-docker/)
