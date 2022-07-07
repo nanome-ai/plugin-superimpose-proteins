@@ -3,7 +3,7 @@
 echo "./deploy.sh $*" > redeploy.sh
 chmod +x redeploy.sh
 
-container_name=superimpose
+container_name=superimpose-proteins
 existing=$(docker ps -aqf name=$container_name)
 if [ -n "$existing" ]; then
     echo "removing existing container"
