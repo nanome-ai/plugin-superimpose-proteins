@@ -114,7 +114,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.set_surface_needs_redraw()
             moving_comp.locked = True
             moving_comp.boxed = False
-            ComplexUtils.reset_transform(moving_comp)
             comps_to_update.append(moving_comp)
             self.update_loading_bar(i + 1, comp_count)
 
@@ -182,7 +181,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.locked = True
             moving_comp.boxed = False
             moving_comp.set_surface_needs_redraw()
-            ComplexUtils.reset_transform(moving_comp)
             comps_to_update.append(moving_comp)
             self.update_loading_bar(i + 1, comp_count)
 
