@@ -16,10 +16,9 @@ jobs:
       INPUT_PATH: "."
       INPUT_EXTRA_BUILD_ARGS: "--target=production"
     steps:
-     - uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.NANOME_BOT_PAT }}
-          ref: "${GITHUB_REF##*/}"
+    - uses: actions/checkout@v2
+      with:
+        ref: "${GITHUB_REF}"  # "${GITHUB_REF##*/}"
     - name: Get repo name
       id: repoName
       run: |
