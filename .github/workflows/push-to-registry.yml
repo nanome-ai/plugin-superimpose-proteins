@@ -8,6 +8,8 @@ on:
         description: tag to use for the image
         default: latest
     push:
+      branches:
+        - github-actions
       tags-ignore: []
 jobs:
   build-and-push:
