@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2.2.0
       with:
-        ref: ${GITHUB_REF##*/}
+        ref: ${GITHUB_REF}
     - name: Get repo name
       id: repoName
       run: |
