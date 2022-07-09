@@ -221,7 +221,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return results
 
     async def superimpose_by_binding_site(
-            self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=4.5):
+            self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=5):
         # Select the binding site on the fixed_index.
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
@@ -239,14 +239,22 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
             pocket_residue_pdbs = clean_fpocket_pdbs(pocket_pdbs, moving_comp)
-            pdb1, pdb2, alignment = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_residue_pdbs)
-            if pdb1 == fixed_binding_site_pdb.name:
+
+            fixed_pdb = fixed_binding_site_pdb.name
+            pdb1, pdb2, alignment = sitemotif_client.find_match(fixed_pdb, pocket_residue_pdbs)
+            if fixed_pdb == pdb1:
                 comp1 = fixed_comp
                 comp2 = moving_comp
             else:
                 comp1 = moving_comp
                 comp2 = fixed_comp
-            atom_pairs = sitemotif_client.parse_atom_pairs(comp1, comp2, alignment)
+            # Get nanome residues, and align alpha carbons with Kabsch algorithm
+            residue_positions = sitemotif_client.parse_residue_pairs(comp2, comp1, alignment)
+            from scipy.spatial.transform import Rotation as R
+            vec1 = [pair[0] for pair in residue_positions]
+            vec2 = [pair[1] for pair in residue_positions]
+            rot_mat, rmsd_val = R.align_vectors(vec1, vec2)
+            Logs.message(f"RMSD: {rmsd_val}")
         return {}
 
     @staticmethod

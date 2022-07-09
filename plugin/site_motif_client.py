@@ -4,11 +4,13 @@ import site_motif
 import subprocess
 import tempfile
 from nanome.util import Logs
+from nanome.api.structure import Complex, Residue
 
 
 class SiteMotifClient:
 
-    def find_match(self, binding_site_pdb: str, pocket_pdbs: list):
+    @staticmethod
+    def find_match(binding_site_pdb: str, pocket_pdbs: list):
         """Finds the pocket that best matches provided binding site."""
         with tempfile.TemporaryDirectory() as output_dir:
             sites_dir = tempfile.TemporaryDirectory(dir=output_dir)
@@ -30,7 +32,7 @@ class SiteMotifClient:
             command = f"mpiexec -n 4 python {script_path} {sites_dir.name} {pairs_filepath} {pdb_size_filepath} {output_dir}"
             
             try:
-                subprocess.run(command.split(), timeout=60)
+                subprocess.run(command.split(), timeout=30)
             except subprocess.TimeoutExpired:
                 Logs.warning("SiteMotif: Timeout. SiteMotif may not have finished.")
                 pass
@@ -46,6 +48,7 @@ class SiteMotifClient:
                 if not lines:
                     raise Exception("No lines found in align output")
             
+            # Find the alignment that contains the longest fragment match
             max_paired_res = -1
             residue_alignment = ''
             pdb_1 = ''
@@ -68,8 +71,42 @@ class SiteMotifClient:
                     pdb_1 = pdb_file
                 if pdb_2 in pdb_file:
                     pdb_2 = pdb_file
+                if pdb_1 and pdb_2:
+                    break
             return pdb_1, pdb_2, residue_alignment
     
-    def parse_atom_pairs(self, pdb_1, pdb_2, alignment):
-        pass
+    @staticmethod
+    def parse_residue_pairs(comp1: Complex, comp2: Complex, alignment: str):
+        """Parses aligned residues from complexes.
+        
+        alignment format ex. ARG-A-334 GLN-A-155_VAL-A-343 LYS-A-198_ILE-A-364 ALA-A-151
+        where comp1 is the first residue and comp2 is the second residue
+        """
+        alignment_pairings = alignment.strip().split(' ')
+        residue_pair_positions = []
+        for residue_pair in alignment_pairings:
+            residues = residue_pair.split('_')
+            if len(residues) != 2:
+                # For now skip single residues returned, or anything weird.
+                continue
+            res1, res2 = residues
+            res1_name, res1_chain, res1_serial = res1.split('-')
+            res2_name, res2_chain, res2_serial = res2.split('-')
+            comp1_res = None
+            for rez in comp1.residues:
+                # Clean this up later
+                if rez.chain.name == res1_chain and rez.serial == int(res1_serial):
+                    comp1_res = rez
+                    break
+            comp2_res = None
+            for rez in comp2.residues:
+                if rez.chain.name == res2_chain and rez.serial == int(res2_serial):
+                    comp2_res = rez
+                    break
+            # Get alpha carbon positions for each paired residue
+            ca1_position = next(atom.position.unpack() for atom in comp1_res.atoms if atom.name == 'CA')
+            ca2_position = next(atom.position.unpack() for atom in comp2_res.atoms if atom.name == 'CA')
+            residue_pair_positions.append((ca1_position, ca2_position))
+        return residue_pair_positions
+  
                 
