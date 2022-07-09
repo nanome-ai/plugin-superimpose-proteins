@@ -711,7 +711,11 @@ class MainMenu:
 
     def toggle_chain_atoms_selected(self, comp, chain_name, value: bool):
         """Select or deselect all atoms in a chain."""
-        chain = next(ch for ch in comp.chains if ch.name == chain_name)
+        chain = next((ch for ch in comp.chains if ch.name == chain_name), None)
+        if not chain:
+            Logs.warning(f"Chain {chain_name} not found in comp. Skipping atom.")
+            return
+
         atoms_to_update = []
         for chain in comp.chains:
             # Select or deselect all atoms in the provided chain
