@@ -29,7 +29,7 @@ jobs:
     - name: Set default tag
       id: default_tag
       run: |
-        default_tag="${GITHUB_REF}"
+        default_tag="${GITHUB_REF#refs/*/}"
         echo Default tag = $default_tag
         echo "::set-output name=default_tag::$default_tag"
     - name: Get short SHA
