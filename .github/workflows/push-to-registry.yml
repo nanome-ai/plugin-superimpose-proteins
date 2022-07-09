@@ -5,11 +5,8 @@ on:
     inputs:
       tag:
         type: string
-        description: tag to use for the image. Empty string will use the default tag.
-        # default: latest
+        description: Tag to use for image. Defaults to $GITHUB_REF
     push:
-      branches:
-        - github-actions
       tags-ignore: []
 jobs:
   build-and-push:
