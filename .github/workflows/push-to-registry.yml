@@ -16,7 +16,6 @@ jobs:
       INPUT_PATH: "."
       INPUT_EXTRA_BUILD_ARGS: "--target=production"
     steps:
-    - uses: actions/checkout@v2
     - name: Get repo name
       id: repoName
       run: |
@@ -28,7 +27,7 @@ jobs:
     - name: Set default tag
       id: default_tag
       run: |
-        default_tag="${GITHUB_REF##*/}"
+        default_tag="${GITHUB_REF}"
         echo Default tag = $default_tag
         echo "::set-output name=default_tag::$default_tag"
     - name: Get short SHA
