@@ -19,9 +19,8 @@ jobs:
       INPUT_EXTRA_BUILD_ARGS: "--target=production"
     steps:
     - uses: actions/checkout@v2.2.0
-        with:
-          - fetch-depth: 0
-          - ref: ${GITHUB_REF##*/}
+      with:
+        ref: ${GITHUB_REF##*/}
     - name: Get repo name
       id: repoName
       run: |
