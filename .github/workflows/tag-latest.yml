@@ -29,5 +29,5 @@ jobs:
     needs: "tag-repo"
     uses: ./.github/workflows/push-to-registry.yml
     with:
-      tag: ${{ env.TAG_NAME }}
+      tag: ${{needs.tag-repo.outputs.TAG_NAME}}
     secrets: inherit
