@@ -48,10 +48,8 @@ jobs:
             exit 1
           fi
   push-to-registry:
-    env:
-      TAG_NAME: ${{needs.bump-version.outputs.version_number}}
     needs: [bump-version, validate-bump-version-output]
     uses: ./.github/workflows/push-to-registry.yml
     with:
-      tag: $TAG_NAME
+      tag: ${{needs.bump-version.outputs.version_number}}
     secrets: inherit
