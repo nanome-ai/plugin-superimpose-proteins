@@ -50,6 +50,8 @@ jobs:
   push-to-registry:
     needs: [bump-version, validate-bump-version-output]
     uses: ./.github/workflows/push-to-registry.yml
+    env:
+      TAG_NAME: ${{needs.bump-version.outputs.version_number}}
     with:
-      tag: "${{needs.bump-version.outputs.version_number}}"
+      tag: $TAG_NAME
     secrets: inherit
