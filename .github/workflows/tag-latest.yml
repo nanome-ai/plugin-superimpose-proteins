@@ -1,7 +1,7 @@
 name: Tag latest.
 on:
   push:
-    branches: [github-actions]
+    branches: [master]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,7 +15,7 @@ jobs:
         git config --global user.email '45469149+nanome-bot@users.noreply.github.com'
     - name: tag latest
       run: |
-        git tag -f test-latest
+        git tag -f latest
     - name: push latest
       run:
         git push -f origin --tags
