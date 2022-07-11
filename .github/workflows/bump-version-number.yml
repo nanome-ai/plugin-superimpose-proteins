@@ -49,4 +49,4 @@ jobs:
     steps:
       - name: Check previous job output
         run: |
-          echo ${{needs.bump-version.outputs.version_number}}
+          echo NEW VERSION NUMBER = ${{needs.bump-version.outputs.version_number}}
