@@ -14,7 +14,7 @@ jobs:
   bump-version:
     runs-on: ubuntu-latest
     outputs:
-      version_number: "{{steps.new_version_number.outputs.version_number}}"
+      version_number: ${{steps.new_version_number.outputs.version_number}}
     steps:
       # Checkout repository, bump version with ./version.sh, and commit
       - uses: actions/checkout@v2
