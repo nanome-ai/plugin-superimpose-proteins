@@ -37,8 +37,18 @@ jobs:
       - name: Push to GitHub
         run: |
           git push --follow-tags
-  push-to-registry:
+  validate-bump-version-output:
+    runs-on: ubuntu-latest
     needs: "bump-version"
+    steps:
+      - run: |
+          new_ver=${{needs.bump-version.outputs.version_number}}
+          if [ -z "$new_ver" ]; then
+            echo "::error::No version number found"
+            exit 1
+          fi
+  push-to-registry:
+    needs: [bump-version, validate-bump-version-output]
     uses: ./.github/workflows/push-to-registry.yml
     with:
       tag: ${{needs.bump-version.outputs.version_number}}
