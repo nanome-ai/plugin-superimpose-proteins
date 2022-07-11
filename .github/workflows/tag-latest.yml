@@ -11,5 +11,6 @@ jobs:
       run: |
         git tag -a test-latest
     - name: push latest
+      run:
         git push -f origin --tags
     
