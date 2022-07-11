@@ -29,3 +29,4 @@ jobs:
     uses: ./.github/workflows/push-to-registry.yml
     with:
       tag: $TAG_NAME
+    secrets: inherit
