@@ -7,7 +7,9 @@ on:
         type: string
         description: Tag to use for image. Defaults to $GITHUB_REF
     push:
-      tags-ignore: []
+      tags:
+        - *.*.*
+        - latest
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
