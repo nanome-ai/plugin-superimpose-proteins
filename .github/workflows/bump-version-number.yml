@@ -46,8 +46,6 @@ jobs:
   push-to-registry:
     needs: "bump-version"
     runs-on: ubuntu-latest
-    with:
-      tag: ${{needs.bump-version.outputs.version_number}}
     steps:
       - name: Check previous job output
         run: |
