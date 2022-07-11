@@ -1,10 +1,10 @@
 name: Tag latest
 on:
   push:
-    branches: [github-actions]
+    branches: [master]
 
 env:
-  TAG_NAME: latest-test
+  TAG_NAME: latest
 
 jobs:
   tag-repo:
