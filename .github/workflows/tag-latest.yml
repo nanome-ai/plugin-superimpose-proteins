@@ -1,10 +1,10 @@
-name: Deploy to DEV.
+name: Tag latest.
 on:
   push:
     branches: [master]
 jobs:
   deploy:
-    name: Deploy to Dev
+    name: Tag latest
     runs-on: ubuntu-latest
     steps:
     - name: Run latest-tag
