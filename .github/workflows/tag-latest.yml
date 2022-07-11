@@ -26,6 +26,13 @@ jobs:
   push-to-registry:
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/workflows/push-to-registry.yml
-        with:
-          tag: $TAG_NAME
+    - uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.NANOME_BOT_PAT }}
+    - name: git setup
+      run: |
+        git config --global user.name 'nanome-bot'
+        git config --global user.email '45469149+nanome-bot@users.noreply.github.com'
+    - uses: ./.github/workflows/push-to-registry.yml
+      with:
+        tag: $TAG_NAME
