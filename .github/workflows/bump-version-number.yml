@@ -49,5 +49,6 @@ jobs:
     with:
       tag: ${{needs.bump-version.outputs.version_number}}
     steps:
-      - run: |
-        echo "${{needs.bump-version.outputs.version_number}}"
+      - name: Check previous job output
+        run: |
+          echo "${{needs.bump-version.outputs.version_number}}"
