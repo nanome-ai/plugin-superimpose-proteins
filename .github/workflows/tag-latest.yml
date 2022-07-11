@@ -1,4 +1,4 @@
-name: Tag latest.
+name: Tag latest
 on:
   push:
     branches: [master]
@@ -7,8 +7,10 @@ env:
   TAG_NAME: latest
 
 jobs:
-  tag-latest:
+  tag-repo:
     runs-on: ubuntu-latest
+    outputs:
+      TAG_NAME: ${{ env.TAG_NAME }}
     steps:
     - uses: actions/checkout@v2
       with:
@@ -17,15 +19,15 @@ jobs:
       run: |
         git config --global user.name 'nanome-bot'
         git config --global user.email '45469149+nanome-bot@users.noreply.github.com'
-    - name: tag latest
+    - name: tag repo
       run: |
         git tag -f $TAG_NAME
-    - name: push latest
+    - name: push tags
       run:
         git push -f origin --tags
   push-to-registry:
-    needs: "tag-latest"
-    # uses: nanome-ai/plugin-superimpose-proteins/.github/workflows/push-to-registry.yml@github-actions
+    needs: "tag-repo"
     uses: ./.github/workflows/push-to-registry.yml
     with:
-      tag: $TAG_NAME
+      tag: ${{needs.tag-repo.outputs.TAG_NAME}}
+    secrets: inherit
