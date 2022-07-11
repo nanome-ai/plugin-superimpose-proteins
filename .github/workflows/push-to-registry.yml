@@ -8,7 +8,8 @@ on:
         description: Tag to use for image. Defaults to $GITHUB_REF
     push:
       tags:
-        - '*'
+        - 'latest'
+        - '*.*.*'
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
