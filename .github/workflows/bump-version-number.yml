@@ -37,9 +37,16 @@ jobs:
       - name: Push to GitHub
         run: |
           git push --follow-tags
+  # push-to-registry:
+  #   needs: "bump-version"
+  #   uses: ./.github/workflows/push-to-registry.yml
+  #   with:
+  #     tag: ${{needs.bump-version.outputs.version_number}}
+  #   secrets: inherit
   push-to-registry:
     needs: "bump-version"
-    uses: ./.github/workflows/push-to-registry.yml
+    uses: ubuntu-latest
     with:
       tag: ${{needs.bump-version.outputs.version_number}}
-    secrets: inherit
+    run: |
+      echo "${{needs.bump-version.outputs.version_number}}"
