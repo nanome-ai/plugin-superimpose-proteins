@@ -1,9 +1,12 @@
 name: Tag latest.
 on:
   push:
-    branches: [master]
+    branches: [github-actions]
 jobs:
-  build:
+  env:
+    TAG_NAME: test-latest
+    INPUT_EXTRA_BUILD_ARGS: "--target=production"
+  tag-latest:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -15,7 +18,13 @@ jobs:
         git config --global user.email '45469149+nanome-bot@users.noreply.github.com'
     - name: tag latest
       run: |
-        git tag -f latest
+        git tag -f ${{ env.TAG_NAME }}
     - name: push latest
       run:
         git push -f origin --tags
+  push-to-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/workflows/push-to-registry.yml
+        with:
+          tag: ${{ env.TAG_NAME }}
