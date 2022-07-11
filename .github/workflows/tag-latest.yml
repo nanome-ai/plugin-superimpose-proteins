@@ -1,13 +1,14 @@
 name: Tag latest
 on:
   push:
-    branches: [master]
+    branches: [github-actions]
 
 env:
-  TAG_NAME: latest
+  TAG_NAME: test-latest
 
 jobs:
   tag-repo:
+    if: "!contains(github.event.commits[0].message, 'Bump Version:')"
     runs-on: ubuntu-latest
     outputs:
       TAG_NAME: ${{ env.TAG_NAME }}
