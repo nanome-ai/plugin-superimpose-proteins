@@ -48,5 +48,6 @@ jobs:
     runs-on: ubuntu-latest
     with:
       tag: ${{needs.bump-version.outputs.version_number}}
-    run: |
-      echo "${{needs.bump-version.outputs.version_number}}"
+    steps:
+      - run: |
+        echo "${{needs.bump-version.outputs.version_number}}"
