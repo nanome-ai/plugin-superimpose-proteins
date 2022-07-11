@@ -24,7 +24,7 @@ jobs:
       run:
         git push -f origin --tags
   push-to-registry:
-    - needs: tag-latest
-      uses: nanome-ai/plugin-superimpose-proteins/.github/workflows/push-to-registry.yml@github-actions
-      with:
-        tag: $TAG_NAME
+    needs: tag-latest
+    uses: nanome-ai/plugin-superimpose-proteins/.github/workflows/push-to-registry.yml@github-actions
+    with:
+      tag: $TAG_NAME
