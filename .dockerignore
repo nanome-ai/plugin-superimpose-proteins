@@ -2,9 +2,7 @@
 !plugin
 !tests
 !requirements.txt
-!requirements-cookbook.txt
 !run_tests.py
 **/__pycache__
 !package.json
-!cookbook*
 !run.py
