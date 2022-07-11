@@ -10,9 +10,9 @@ jobs:
       with:
         token: ${{ secrets.NANOME_BOT_PAT }}
     - name: git setup
-        run: |
-          git config --global user.name 'nanome-bot'
-          git config --global user.email '45469149+nanome-bot@users.noreply.github.com'
+      run: |
+        git config --global user.name 'nanome-bot'
+        git config --global user.email '45469149+nanome-bot@users.noreply.github.com'
     - name: tag latest
       run: |
         git tag -a test-latest
