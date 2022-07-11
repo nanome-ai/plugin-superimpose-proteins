@@ -21,20 +21,3 @@ RUN pip install -r requirements.txt
 
 COPY . .
 CMD python run.py ${ARGS}
-
-##############################
-FROM production as cookbook
-
-# RUN pip install jupyterlab pip
-COPY cookbook/cookbook_environ.yaml .
-RUN conda env update --file cookbook_environ.yaml
-
-COPY cookbook /app/cookbook
-RUN ln -s /app/plugin /app/cookbook/plugin
-RUN ln -s /app/plugin /opt/conda/lib/python3.9/site-packages/plugin
-
-RUN ln -s /app/cookbook /opt/conda/lib/python3.9/site-packages/cookbook
-
-WORKDIR /app/cookbook/notebooks
-RUN jupyter notebook --generate-config
-CMD jupyter lab --ip 0.0.0.0 --allow-root
