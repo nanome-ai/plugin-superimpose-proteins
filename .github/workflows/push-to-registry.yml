@@ -39,7 +39,7 @@ jobs:
     - name: Get tag
       id: tag
       run: |
-        input_tag=${{ github.event.inputs.tag }}
+        input_tag=${{ inputs.tag }}
         default_tag=${{ steps.default_tag.outputs.default_tag }}
         if [ -z "$input_tag" ]; then
           echo "::set-output name=tag::$default_tag"
