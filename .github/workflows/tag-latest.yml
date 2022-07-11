@@ -19,4 +19,3 @@ jobs:
     - name: push latest
       run:
         git push -f origin --tags
-    
