@@ -119,7 +119,7 @@ class MainMenu:
 
     @async_callback
     async def render(self, force_enable=False):
-        
+
         self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
         self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
         await self.populate_comp_list()
@@ -378,7 +378,7 @@ class MainMenu:
             ]
             for btn in chain_btns:
                 btn.unusable = self.current_mode != AlignmentModeEnum.CHAIN
-            
+
             ln_chain_selection = menu_item.find_node('chain_selection')
             ln_chain_selection.enabled = self.current_mode != AlignmentModeEnum.BINDING_SITE
             btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
@@ -395,7 +395,7 @@ class MainMenu:
                 comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
                 dd_ligands.items = await self.create_ligand_dropdown_items(comp)
                 self.btn_align_by_binding_site.unusable = False
-                self.plugin.update_content(self.btn_align_by_binding_site)        
+                self.plugin.update_content(self.btn_align_by_binding_site)
         self.plugin.update_content(comp_list)
 
     def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
