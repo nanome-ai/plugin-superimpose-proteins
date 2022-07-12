@@ -1,10 +1,7 @@
-import copy
 import nanome
 import os
-import sys
 import tempfile
 import time
-
 from Bio.PDB.Structure import Structure
 from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
@@ -13,7 +10,7 @@ from Bio.PDB.Polypeptide import is_aa
 from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
-from nanome.api.structure import Complex
+from nanome.api.structure import Complex, Molecule, Chain
 from nanome.util.enums import PluginListButtonType
 
 from . import __version__
@@ -23,27 +20,48 @@ from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
 
 
-def extract_binding_site(comp, binding_site_atoms):
-    # Copy comp, and remove all residues that are not part of the binding site
-    orig_recursion_limit = sys.getrecursionlimit()
-    sys.setrecursionlimit(100000)
-    new_comp = copy.deepcopy(comp)
-    sys.setrecursionlimit(orig_recursion_limit)
+PDBOPTIONS = Complex.io.PDBSaveOptions()
+PDBOPTIONS.write_bonds = True
+
+
+def extract_binding_site(comp, binding_site_residues):
+    """Copy comp, and remove all residues that are not part of the binding site."""
+    new_comp = Complex()
+    new_mol = Molecule()
+    new_comp.add_molecule(new_mol)
     new_comp.name = f'{comp.name} binding site'
     new_comp.index = -1
-    new_comp.set_surface_needs_redraw()
 
-    binding_site_atom_indices = iter(a.index for a in binding_site_atoms)
-    comp_residues = list(new_comp.residues)
-    for i in range(len(comp_residues) - 1, -1, -1):
-        res = comp_residues[i]
-        binding_atoms_in_res = [a for a in res.atoms if a.index in binding_site_atom_indices]
-        if not binding_atoms_in_res:
-            res.chain.remove_residue(res)
-        else:
-            for atom in binding_atoms_in_res:
-                atom.index = -1
+    binding_site_residue_indices = [r.index for r in binding_site_residues]
+    # Logs.debug(f'Binding site residues: {len(binding_site_residues)}')
+    for ch in comp.chains:
+        reses_on_chain = [res for res in ch.residues if res.index in binding_site_residue_indices]
+        if reses_on_chain:
+            new_ch = Chain()
+            new_ch.name = ch.name
+            new_ch.residues = reses_on_chain
+            new_mol.add_chain(new_ch)
+    # Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
     return new_comp
+
+
+def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
+    """Add full residue data to pdb files."""
+    Logs.debug(f"Cleaning {len(fpocket_pdbs)} fpocket pdbs")
+    for i, pocket_pdb in enumerate(fpocket_pdbs):
+        Logs.debug(f"Cleaning Pocket {i + 1}")
+        pocket_residues = set()
+        with open(pocket_pdb) as f:
+            for line in f:
+                if line.startswith('ATOM'):
+                    chain_name = line[21]
+                    res_serial = int(line[22:26])
+                    chain = next(ch for ch in comp.chains if ch.name == chain_name)
+                    residue = next(rez for rez in chain.residues if rez.serial == res_serial)
+                    pocket_residues.add(residue)
+        pocket_comp = extract_binding_site(comp, pocket_residues)
+        pocket_comp.io.to_pdb(path=pocket_pdb, options=PDBOPTIONS)
+    return fpocket_pdbs
 
 
 class SuperimposePlugin(nanome.AsyncPluginInstance):
@@ -60,8 +78,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.set_plugin_list_button(PluginListButtonType.run, text='Loading...', usable=False)
             workspace = await self.request_workspace()
             self.complexes = workspace.complexes
-            self.set_plugin_list_button(PluginListButtonType.run, text='Run', usable=True)
         self.menu.render(force_enable=True)
+        self.set_plugin_list_button(PluginListButtonType.run, text='Run', usable=True)
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
@@ -200,25 +218,75 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return results
 
     async def superimpose_by_binding_site(
-            self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=4.5):
+            self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=5):
         # Select the binding site on the fixed_index.
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
-        fixed_binding_site_atoms = await self.get_binding_site_atoms(fixed_comp, ligand_name, site_size)
-        fixed_binding_site_comp = extract_binding_site(fixed_comp, fixed_binding_site_atoms)
+        fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_name, site_size)
+        fixed_binding_site_comp = extract_binding_site(fixed_comp, fixed_binding_site_residues)
 
         fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
 
         fpocket_client = FPocketClient()
         sitemotif_client = SiteMotifClient()
-        for moving_comp in moving_comp_list:
-            print(f"Calculating binding site for {moving_comp.full_name}")
+
+        fixed_comp.locked = True
+        comps_to_update = [fixed_comp]
+        comp_count = len(moving_comp_list)
+        rmsd_results = {}
+        for i, moving_comp in enumerate(moving_comp_list):
+            ComplexUtils.align_to(moving_comp, fixed_comp)
+            Logs.debug(f"Identifying binding sites for moving comp {i + 1}")
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
-            matching_pocket = sitemotif_client.find_match(fixed_binding_site_pdb.name, pocket_pdbs)
-        return {}
+            pocket_residue_pdbs = clean_fpocket_pdbs(pocket_pdbs, moving_comp)
+
+            fixed_pdb = fixed_binding_site_pdb.name
+            pdb1, pdb2, alignment = sitemotif_client.find_match(fixed_pdb, pocket_residue_pdbs)
+            if fixed_pdb == pdb1:
+                comp1 = fixed_comp
+                comp2 = moving_comp
+            else:
+                comp1 = moving_comp
+                comp2 = fixed_comp
+
+            # Get nanome residues, and align alpha carbons with Kabsch algorithm
+            comp2_atoms, comp1_atoms = sitemotif_client.parse_residue_pairs(comp2, comp1, alignment)
+            superimposer = Superimposer()
+            if comp1 == fixed_comp:
+                superimposer.set_atoms(comp1_atoms, comp2_atoms)
+            else:
+                superimposer.set_atoms(comp2_atoms, comp1_atoms)
+            rms = round(superimposer.rms, 2)
+            Logs.debug(f"RMSD: {rms}")
+            paired_atom_count = len(comp1_atoms)
+            paired_residue_count = paired_atom_count
+            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)
+            transform_matrix = self.create_transform_matrix(superimposer)
+            for comp_atom in moving_comp.atoms:
+                new_position = transform_matrix * comp_atom.position
+                comp_atom.position = new_position
+            moving_comp.locked = True
+            moving_comp.boxed = False
+            moving_comp.set_surface_needs_redraw()
+            comps_to_update.append(moving_comp)
+            self.update_loading_bar(i + 1, comp_count)
+
+        await self.update_structures_deep(comps_to_update)
+        # Due to a bug in nanome-core, if a complex is unlocked, we need to
+        # make a second call to remove box from around complexes.
+        self.update_structures_shallow(comps_to_update)
+        # Update comps in stored complex list
+        for i in range(len(self.complexes)):
+            comp_index = self.complexes[i].index
+            updated_comp = next(
+                (updated_comp for updated_comp in comps_to_update
+                 if updated_comp.index == comp_index), None)
+            if updated_comp:
+                self.complexes[i] = updated_comp
+        return rmsd_results
 
     @staticmethod
     def create_transform_matrix(superimposer: Superimposer) -> Matrix:
@@ -237,7 +305,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return m
 
     async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, overlay_method):
-        """Align residues from each Structure, and calculate RMS"""
+        """Align residues from each Structure, and calculate RMS."""
         paired_res_id_mapping = self.align_structures(fixed_struct, moving_struct)
         fixed_atoms = []
         moving_atoms = []
@@ -303,7 +371,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             comp_data['chain'] = chain_name
         return comp_data
 
-    async def get_binding_site_atoms(self, target_reference: Complex, ligand_name: str, site_size=4.5):
+    async def get_binding_site_residues(self, target_reference: Complex, ligand_name: str, site_size=4.5):
         """Identify atoms in the active site around a ligand."""
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
@@ -313,7 +381,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         # Use KDTree to find target atoms within site_size radius of ligand atoms
         ligand_atoms = chain(*[res.atoms for res in ligand.residues])
         binding_site_atoms = self.calculate_binding_site_atoms(target_reference, ligand_atoms)
-        return binding_site_atoms
+        residue_set = set()
+        for atom in binding_site_atoms:
+            residue_set.add(atom.residue)
+        return residue_set
 
     def calculate_binding_site_atoms(self, target_reference: Complex, ligand_atoms: list, site_size=4.5):
         """Use KDTree to find target atoms within site_size radius of ligand atoms."""
@@ -333,7 +404,6 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         for targ_atom in mol.atoms:
             if targ_atom.position.unpack() in near_point_set:
                 binding_site_atoms.append(targ_atom)
-        Logs.message(f"{len(binding_site_atoms)} atoms identified in binding site.")
         return binding_site_atoms
 
     def align_structures(self, structA, structB):

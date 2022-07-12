@@ -1,22 +1,25 @@
+import asyncio
 import functools
 import time
-from os import path
+import os
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
 from nanome.util.enums import NotificationTypes, ScalingOptions
 from .enums import AlignmentModeEnum, OverlayMethodEnum
 
-BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
-COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
-RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
-RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+FEATURE_FLAG_BINDING_SITE = os.environ.get('FEATURE_FLAG_BINDING_SITE', "").lower() in ("yes", "true", "t", "1")
 
-GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
-GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'gold_pin.png')
-GREY_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'grey_pin.png')
-LOAD_ICON_PATH = path.join(BASE_PATH, 'assets', 'LoadIcon.png')
-EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
+BASE_PATH = os.path.dirname(f'{os.path.realpath(__file__)}')
+MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'menu.json')
+COMP_LIST_ITEM_PATH = os.path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
+RMSD_MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
+RMSD_TABLE_ENTRY = os.path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+
+GEAR_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'gear.png')
+GOLD_PIN_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'gold_pin.png')
+GREY_PIN_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'grey_pin.png')
+LOAD_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'LoadIcon.png')
+EXPORT_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'Export.png')
 
 
 DOCS_URL = 'https://docs.nanome.ai/plugins/superimpose.html'
@@ -55,8 +58,8 @@ class MainMenu:
         return self._menu.root.find_node('ln_submit').get_content()
 
     @property
-    def ln_btn_align_by_binding_site(self):
-        return self._menu.root.find_node('ln_btn_align_by_binding_site')
+    def ln_binding_site_mode(self):
+        return self._menu.root.find_node('ln_binding_site_mode')
 
     @property
     def ln_binding_site_mode(self):
@@ -116,8 +119,10 @@ class MainMenu:
 
     @async_callback
     async def render(self, force_enable=False):
-        self.ln_binding_site_mode.enabled = False  # Disable until feature ready
-        self.populate_comp_list()
+
+        self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
+        self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
+        await self.populate_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
         if len(comp_list.items) >= 2:
@@ -185,7 +190,7 @@ class MainMenu:
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
                 if not all([fixed_comp_index, ligand_name, moving_comp_indices]):
-                    msg = "Please select all complexes and chains."
+                    msg = "Please select all complexes and ligand."
                     Logs.warning(msg)
                     self.plugin.send_notification(NotificationTypes.error, msg)
                 else:
@@ -267,8 +272,8 @@ class MainMenu:
                 continue
             btn_fixed = ln_btn_fixed.get_content()
             if btn_fixed.selected:
-                dd_chain = item.find_node('dd_chain').get_content()
-                selected_ddi = next((ddi for ddi in dd_chain.items if ddi.selected), None)
+                dd_ligands = item.find_node('dd_ligands').get_content()
+                selected_ddi = next((ddi for ddi in dd_ligands.items if ddi.selected), None)
                 return getattr(selected_ddi, 'name', '')
 
     def get_fixed_chain(self):
@@ -287,7 +292,7 @@ class MainMenu:
                     if chain_btn.selected), '')
                 return selected_chain
 
-    def populate_comp_list(self):
+    async def populate_comp_list(self):
         complexes = self.plugin.complexes
         comp_list = self.ln_moving_comp_list.get_content()
         comp_list.display_rows = 4
@@ -357,11 +362,11 @@ class MainMenu:
         comp_list.items = list_items
         self.plugin.update_node(self.ln_moving_comp_list)
 
-    def refresh_comp_list(self):
+    async def refresh_comp_list(self):
         comp_list = self.ln_moving_comp_list.get_content()
-        for ln in comp_list.items:
-            ln_chain_list = ln.find_node('ln_chain_list')
-            chain_label = ln.find_node('select chains').get_content()
+        for menu_item in comp_list.items:
+            ln_chain_list = menu_item.find_node('ln_chain_list')
+            chain_label = menu_item.find_node('select chains').get_content()
             if self.current_mode == AlignmentModeEnum.CHAIN:
                 chain_label.text_value = 'Select Chain'
             else:
@@ -374,6 +379,23 @@ class MainMenu:
             for btn in chain_btns:
                 btn.unusable = self.current_mode != AlignmentModeEnum.CHAIN
 
+            ln_chain_selection = menu_item.find_node('chain_selection')
+            ln_chain_selection.enabled = self.current_mode != AlignmentModeEnum.BINDING_SITE
+            btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
+            ln_ligand_selection = menu_item.find_node('ligand_selection')
+            ln_ligand_selection.enabled = all([
+                self.current_mode == AlignmentModeEnum.BINDING_SITE,
+                btn_fixed.selected
+            ])
+            if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+                # Set up ligand dropdown
+                self.btn_align_by_binding_site.unusable = True
+                self.plugin.update_content(self.btn_align_by_binding_site)
+                dd_ligands = menu_item.find_node('dd_ligands').get_content()
+                comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
+                dd_ligands.items = await self.create_ligand_dropdown_items(comp)
+                self.btn_align_by_binding_site.unusable = False
+                self.plugin.update_content(self.btn_align_by_binding_site)
         self.plugin.update_content(comp_list)
 
     def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
@@ -415,7 +437,8 @@ class MainMenu:
         content_to_update = [pressed_btn]
         selected_comp_chain_btn = None
         deselected_comp_chain_btn = None
-        for menu_item in self.ln_moving_comp_list.get_content().items:
+        comp_list = self.ln_moving_comp_list.get_content()
+        for menu_item in comp_list.items:
             if not menu_item.find_node('ln_btn_fixed'):
                 continue
             btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
@@ -461,9 +484,14 @@ class MainMenu:
 
             content_to_update.append(btn_fixed)
             content_to_update.append(btn_moving)
+            if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+                ln_chain_selection = menu_item.find_node('chain_selection')
+                ln_chain_selection.enabled = False
+                ln_lig_selection = menu_item.find_node('ligand_selection')
+                ln_lig_selection.enabled = btn_fixed.selected
         self.update_selection_counter()
         self.check_if_ready_to_submit()
-        self.plugin.update_content(*content_to_update)
+        self.plugin.update_content(comp_list)
         # Update chain selections. Save to the end for performance.
         if selected_comp_chain_btn:
             self.toggle_chain_button(selected_comp_chain_btn)
@@ -472,8 +500,13 @@ class MainMenu:
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
+        Logs.debug("Creating ligand dropdown items")
         mol = next(mo for mo in comp.molecules)
-        ligands = await mol.get_ligands()
+        try:
+            ligands = await asyncio.wait_for(mol.get_ligands(), 10)
+        except asyncio.TimeoutError:
+            Logs.warning("get_ligands timeout error")
+            ligands = []
         dropdown_items = []
         for lig in ligands:
             dropdown_items.append(ui.DropdownItem(lig.name))
@@ -481,7 +514,10 @@ class MainMenu:
 
     def btn_moving_pressed(self, ln_chain_list, btn_moving):
         btns_to_update = [btn_moving]
-        chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
+        chain_btns = [
+            ln.get_content() for ln in ln_chain_list.get_children()
+            if ln.get_content()
+        ]
         # If moving struct being selected, and no chains are already selected, select the first one
         if btn_moving.selected and chain_btns and not any(ch_btn.selected for ch_btn in chain_btns):
             first_chain_btn = chain_btns[0]
@@ -559,7 +595,7 @@ class MainMenu:
         elif mode_btn.name == 'btn_align_by_binding_site':
             Logs.message("Switched to binding site mode.")
             self.current_mode = AlignmentModeEnum.BINDING_SITE
-        self.refresh_comp_list()
+        await self.refresh_comp_list()
         self.plugin.update_menu(self._menu)
 
     def get_moving_comp_indices_and_chains(self):
