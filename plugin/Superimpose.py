@@ -254,7 +254,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             # Get nanome residues, and align alpha carbons with Kabsch algorithm
             comp2_atoms, comp1_atoms = sitemotif_client.parse_residue_pairs(comp2, comp1, alignment)
             superimposer = Superimposer()
-            superimposer.set_atoms(comp1_atoms, comp2_atoms)
+            if comp1 == fixed_comp:
+                superimposer.set_atoms(comp1_atoms, comp2_atoms)
+            else:
+                superimposer.set_atoms(comp2_atoms, comp1_atoms)
             rms = round(superimposer.rms, 2)
             Logs.debug(f"RMSD: {rms}")
             paired_atom_count = len(comp1_atoms)
