@@ -389,10 +389,13 @@ class MainMenu:
             ])
             if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                 # Set up ligand dropdown
+                self.btn_align_by_binding_site.unusable = True
+                self.plugin.update_content(self.btn_align_by_binding_site)
                 dd_ligands = menu_item.find_node('dd_ligands').get_content()
                 comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
                 dd_ligands.items = await self.create_ligand_dropdown_items(comp)
-        
+                self.btn_align_by_binding_site.unusable = False
+                self.plugin.update_content(self.btn_align_by_binding_site)        
         self.plugin.update_content(comp_list)
 
     def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
@@ -592,7 +595,6 @@ class MainMenu:
         elif mode_btn.name == 'btn_align_by_binding_site':
             Logs.message("Switched to binding site mode.")
             self.current_mode = AlignmentModeEnum.BINDING_SITE
-            # Set up ligand dropdown
         await self.refresh_comp_list()
         self.plugin.update_menu(self._menu)
 
