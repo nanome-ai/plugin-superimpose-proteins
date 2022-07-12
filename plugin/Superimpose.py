@@ -238,7 +238,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         rmsd_results = {}
         for i, moving_comp in enumerate(moving_comp_list):
             ComplexUtils.align_to(moving_comp, fixed_comp)
-            print(f"Identifying binding sites for {moving_comp.full_name}")
+            Logs.debug(f"Identifying binding sites for moving comp {i + 1}")
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
             pocket_residue_pdbs = clean_fpocket_pdbs(pocket_pdbs, moving_comp)

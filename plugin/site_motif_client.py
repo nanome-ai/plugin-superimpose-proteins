@@ -30,9 +30,9 @@ class SiteMotifClient:
             pdb_size_filepath = site_motif.write_pdb_size(sites_dir.name, output_dir)
             script_path = f'{os.path.dirname(site_motif.__file__)}/pocket_matrix_mpi7.py'
             command = f"mpiexec -n 4 python {script_path} {sites_dir.name} {pairs_filepath} {pdb_size_filepath} {output_dir}"
-            
+
             try:
-                subprocess.run(command.split(), timeout=30)
+                subprocess.run(command.split(), timeout=60)
             except subprocess.TimeoutExpired:
                 Logs.warning("SiteMotif: Timeout. SiteMotif may not have finished.")
                 pass
@@ -48,7 +48,7 @@ class SiteMotifClient:
                 lines = f.readlines()
                 if not lines:
                     raise Exception("No lines found in align output")
-            
+
             # Find the alignment that contains the longest fragment match
             max_paired_res = -1
             residue_alignment = ''
