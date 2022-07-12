@@ -4,8 +4,8 @@ import site_motif
 import subprocess
 import tempfile
 from nanome.util import Logs
-from nanome.api.structure import Complex, Residue
-
+from nanome.api.structure import Complex
+from Bio.PDB import PDBParser
 
 class SiteMotifClient:
 
@@ -83,7 +83,16 @@ class SiteMotifClient:
         where comp1 is the first residue and comp2 is the second residue
         """
         alignment_pairings = alignment.strip().split(' ')
-        residue_pair_positions = []
+        parser = PDBParser(QUIET=True)
+        comp1_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
+        comp2_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
+        comp1.io.to_pdb(comp1_pdb.name)
+        comp2.io.to_pdb(comp2_pdb.name)
+        
+        struct1 = parser.get_structure(comp1.full_name, comp1_pdb.name)
+        struct2 = parser.get_structure(comp2.full_name, comp2_pdb.name)
+        comp1_atom_list = []
+        comp2_atom_list = []
         for residue_pair in alignment_pairings:
             residues = residue_pair.split('_')
             if len(residues) != 2:
@@ -93,20 +102,28 @@ class SiteMotifClient:
             res1_name, res1_chain, res1_serial = res1.split('-')
             res2_name, res2_chain, res2_serial = res2.split('-')
             comp1_res = None
-            for rez in comp1.residues:
-                # Clean this up later
-                if rez.chain.name == res1_chain and rez.serial == int(res1_serial):
+            for rez in struct1.get_residues():
+                rez_chain_name = rez.get_parent().get_id()
+                rez_serial = rez.get_id()[1]
+                rez_name = rez.get_resname()
+                if rez_chain_name == res1_chain and rez_serial == int(res1_serial) and rez_name == res1_name:
                     comp1_res = rez
                     break
+
             comp2_res = None
-            for rez in comp2.residues:
-                if rez.chain.name == res2_chain and rez.serial == int(res2_serial):
+            for rez in struct2.get_residues():
+                rez_chain_name = rez.get_parent().get_id()
+                rez_serial = rez.get_id()[1]
+                rez_name = rez.get_resname()
+                if rez_chain_name == res2_chain and rez_serial == int(res2_serial) and rez_name == res2_name:
                     comp2_res = rez
                     break
+
             # Get alpha carbon positions for each paired residue
-            ca1_position = next(atom.position.unpack() for atom in comp1_res.atoms if atom.name == 'CA')
-            ca2_position = next(atom.position.unpack() for atom in comp2_res.atoms if atom.name == 'CA')
-            residue_pair_positions.append((ca1_position, ca2_position))
-        return residue_pair_positions
+            ca1 = next(atom for atom in comp1_res.get_atoms() if atom.name == 'CA')
+            ca2 = next(atom for atom in comp2_res.get_atoms() if atom.name == 'CA')
+            comp1_atom_list.append(ca1)
+            comp2_atom_list.append(ca2)
+        return comp1_atom_list, comp2_atom_list
   
                 

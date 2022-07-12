@@ -1,10 +1,7 @@
-import copy
 import nanome
 import os
-import sys
 import tempfile
 import time
-
 from Bio.PDB.Structure import Structure
 from Bio.PDB import Superimposer, PDBParser
 from Bio import pairwise2
@@ -12,8 +9,10 @@ from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
 from itertools import chain
 from scipy.spatial import KDTree
+from scipy.spatial.transform import Rotation as R
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex, Molecule, Chain
+from nanome.util import Vector3
 from nanome.util.enums import PluginListButtonType
 
 from . import __version__
@@ -36,7 +35,7 @@ def extract_binding_site(comp, binding_site_residues):
     new_comp.index = -1
 
     binding_site_residue_indices = [r.index for r in binding_site_residues]
-    Logs.debug(f'Binding site residues: {len(binding_site_residues)}')
+    # Logs.debug(f'Binding site residues: {len(binding_site_residues)}')
     for ch in comp.chains:
         reses_on_chain = [res for res in ch.residues if res.index in binding_site_residue_indices]
         if reses_on_chain:
@@ -44,7 +43,7 @@ def extract_binding_site(comp, binding_site_residues):
             new_ch.name = ch.name
             new_ch.residues = reses_on_chain
             new_mol.add_chain(new_ch)
-    Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
+    # Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
     return new_comp
 
 
@@ -237,6 +236,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         comps_to_update = []
         comp_count = len(moving_comp_list)
         for i, moving_comp in enumerate(moving_comp_list):
+            ComplexUtils.align_to(moving_comp, fixed_comp)
             print(f"Identifying binding sites for {moving_comp.full_name}")
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
@@ -250,25 +250,19 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             else:
                 comp1 = moving_comp
                 comp2 = fixed_comp
-            # Get nanome residues, and align alpha carbons with Kabsch algorithm
-            residue_positions = sitemotif_client.parse_residue_pairs(comp2, comp1, alignment)
-            from scipy.spatial.transform import Rotation as R
-            vec1 = [pair[0] for pair in residue_positions]
-            vec2 = [pair[1] for pair in residue_positions]
-            rotation, rmsd_val = R.align_vectors(vec1, vec2)
-            trans_mat = rotation.as_matrix()
             
-            Logs.message(f"RMSD: {rmsd_val}")
-            # apply transformation to moving_comp
-            m = Matrix(4, 4)
-            m[0][0:3] = trans_mat[0]
-            m[1][0:3] = trans_mat[1]
-            m[2][0:3] = trans_mat[2]
-            m[3][3] = 1
-            # transpose necessary because numpy and nanome matrices are opposite row/col
-            # m.transpose()
+            # Get nanome residues, and align alpha carbons with Kabsch algorithm
+            comp2_atoms, comp1_atoms = sitemotif_client.parse_residue_pairs(comp2, comp1, alignment)
+            superimposer = Superimposer()
+            superimposer.set_atoms(comp1_atoms, comp2_atoms)
+            rms = round(superimposer.rms, 2)
+            Logs.debug(f"RMSD: {rms}")
+            paired_atom_count = len(comp1_atoms)
+            paired_residue_count = 0            
+            transform_matrix = self.create_transform_matrix(superimposer)
             for comp_atom in moving_comp.atoms:
-                comp_atom.position = m * comp_atom.position
+                new_position = transform_matrix * comp_atom.position
+                comp_atom.position = new_position
             moving_comp.locked = True
             moving_comp.boxed = False
             moving_comp.set_surface_needs_redraw()
@@ -277,7 +271,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
         await self.update_structures_deep(comps_to_update)
         # Due to a bug in nanome-core, if a complex is unlocked, we need to
-        # make a separate call to remove box from around complexes.
+        # make a second call to remove box from around complexes.
         self.update_structures_shallow(comps_to_update)
         return {}
 
@@ -298,7 +292,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return m
 
     async def superimpose(self, fixed_struct: Structure, moving_struct: Structure, overlay_method):
-        """Align residues from each Structure, and calculate RMS"""
+        """Align residues from each Structure, and calculate RMS."""
         paired_res_id_mapping = self.align_structures(fixed_struct, moving_struct)
         fixed_atoms = []
         moving_atoms = []
