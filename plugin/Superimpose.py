@@ -233,8 +233,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
         fpocket_client = FPocketClient()
         sitemotif_client = SiteMotifClient()
-        comps_to_update = []
+
+        fixed_comp.locked = True
+        comps_to_update = [fixed_comp]
         comp_count = len(moving_comp_list)
+        rmsd_results = {}
         for i, moving_comp in enumerate(moving_comp_list):
             ComplexUtils.align_to(moving_comp, fixed_comp)
             print(f"Identifying binding sites for {moving_comp.full_name}")
@@ -261,7 +264,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             rms = round(superimposer.rms, 2)
             Logs.debug(f"RMSD: {rms}")
             paired_atom_count = len(comp1_atoms)
-            paired_residue_count = 0            
+            paired_residue_count = paired_atom_count
+            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)         
             transform_matrix = self.create_transform_matrix(superimposer)
             for comp_atom in moving_comp.atoms:
                 new_position = transform_matrix * comp_atom.position
@@ -276,7 +280,15 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         # Due to a bug in nanome-core, if a complex is unlocked, we need to
         # make a second call to remove box from around complexes.
         self.update_structures_shallow(comps_to_update)
-        return {}
+        # Update comps in stored complex list
+        for i in range(len(self.complexes)):
+            comp_index = self.complexes[i].index
+            updated_comp = next(
+                (updated_comp for updated_comp in comps_to_update
+                 if updated_comp.index == comp_index), None)
+            if updated_comp:
+                self.complexes[i] = updated_comp
+        return rmsd_results
 
     @staticmethod
     def create_transform_matrix(superimposer: Superimposer) -> Matrix:
