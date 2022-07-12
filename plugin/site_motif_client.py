@@ -38,9 +38,10 @@ class SiteMotifClient:
                 pass
             align_output = f'{output_dir}/align_output.txt'
             sites_dir.cleanup()
-            with open(align_output, "r") as f:
-                with open('align_output.txt', 'w') as w:
-                    w.write(f.read())
+            # Uncomment for debugging
+            # with open(align_output, "r") as f:
+            #     with open('align_output.txt', 'w') as w:
+            #         w.write(f.read())
             if not os.path.exists(align_output):
                 raise Exception('No align output found')
             with open(align_output, 'r') as f:
