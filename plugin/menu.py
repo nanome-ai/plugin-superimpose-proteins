@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import time
 from os import path
@@ -353,13 +354,10 @@ class MainMenu:
             for ln_btn in ln_btns:
                 ln_chain_list.add_child(ln_btn)
             list_items.append(ln)
-            # Set up ligand dropdown
-            dd_ligands = ln.find_node('dd_ligands').get_content()
-            dd_ligands.items = await self.create_ligand_dropdown_items(comp)
         comp_list.items = list_items
         self.plugin.update_node(self.ln_moving_comp_list)
 
-    def refresh_comp_list(self):
+    async def refresh_comp_list(self):
         comp_list = self.ln_moving_comp_list.get_content()
         for menu_item in comp_list.items:
             ln_chain_list = menu_item.find_node('ln_chain_list')
@@ -384,6 +382,11 @@ class MainMenu:
                 self.current_mode == AlignmentModeEnum.BINDING_SITE,
                 btn_fixed.selected
             ])
+            if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+                # Set up ligand dropdown
+                dd_ligands = menu_item.find_node('dd_ligands').get_content()
+                comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
+                dd_ligands.items = await self.create_ligand_dropdown_items(comp)
         
         self.plugin.update_content(comp_list)
 
@@ -489,9 +492,13 @@ class MainMenu:
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
-        # return []
+        Logs.debug("Creating ligand dropdown items")
         mol = next(mo for mo in comp.molecules)
-        ligands = await mol.get_ligands()
+        try:
+            ligands = await asyncio.wait_for(mol.get_ligands(), 3)
+        except asyncio.TimeoutError:
+            Logs.warning("get_ligands timeout error")
+            ligands = []
         dropdown_items = []
         for lig in ligands:
             dropdown_items.append(ui.DropdownItem(lig.name))
@@ -499,7 +506,10 @@ class MainMenu:
 
     def btn_moving_pressed(self, ln_chain_list, btn_moving):
         btns_to_update = [btn_moving]
-        chain_btns = [ln.get_content() for ln in ln_chain_list.get_children() if ln.get_content()]
+        chain_btns = [
+            ln.get_content() for ln in ln_chain_list.get_children()
+            if ln.get_content()
+        ]
         # If moving struct being selected, and no chains are already selected, select the first one
         if btn_moving.selected and chain_btns and not any(ch_btn.selected for ch_btn in chain_btns):
             first_chain_btn = chain_btns[0]
@@ -577,7 +587,8 @@ class MainMenu:
         elif mode_btn.name == 'btn_align_by_binding_site':
             Logs.message("Switched to binding site mode.")
             self.current_mode = AlignmentModeEnum.BINDING_SITE
-        self.refresh_comp_list()
+            # Set up ligand dropdown
+        await self.refresh_comp_list()
         self.plugin.update_menu(self._menu)
 
     def get_moving_comp_indices_and_chains(self):

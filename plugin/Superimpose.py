@@ -234,7 +234,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
         fpocket_client = FPocketClient()
         sitemotif_client = SiteMotifClient()
-        for moving_comp in moving_comp_list:
+        comps_to_update = []
+        comp_count = len(moving_comp_list)
+        for i, moving_comp in enumerate(moving_comp_list):
             print(f"Identifying binding sites for {moving_comp.full_name}")
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
@@ -253,8 +255,30 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             from scipy.spatial.transform import Rotation as R
             vec1 = [pair[0] for pair in residue_positions]
             vec2 = [pair[1] for pair in residue_positions]
-            rot_mat, rmsd_val = R.align_vectors(vec1, vec2)
+            rotation, rmsd_val = R.align_vectors(vec1, vec2)
+            trans_mat = rotation.as_matrix()
+            
             Logs.message(f"RMSD: {rmsd_val}")
+            # apply transformation to moving_comp
+            m = Matrix(4, 4)
+            m[0][0:3] = trans_mat[0]
+            m[1][0:3] = trans_mat[1]
+            m[2][0:3] = trans_mat[2]
+            m[3][3] = 1
+            # transpose necessary because numpy and nanome matrices are opposite row/col
+            # m.transpose()
+            for comp_atom in moving_comp.atoms:
+                comp_atom.position = m * comp_atom.position
+            moving_comp.locked = True
+            moving_comp.boxed = False
+            moving_comp.set_surface_needs_redraw()
+            comps_to_update.append(moving_comp)
+            self.update_loading_bar(i + 1, comp_count)
+
+        await self.update_structures_deep(comps_to_update)
+        # Due to a bug in nanome-core, if a complex is unlocked, we need to
+        # make a separate call to remove box from around complexes.
+        self.update_structures_shallow(comps_to_update)
         return {}
 
     @staticmethod
