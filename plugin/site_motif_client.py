@@ -65,7 +65,7 @@ class SiteMotifClient:
                     pdb_1 = line_split[0]
                     pdb_2 = line_split[1]
                     residue_alignment = aligned_residues
-
+            Logs.message("Longest fragment match: " + str(max_paired_res))
             # Replace pdb names with full paths
             for pdb_file in [binding_site_pdb, *pocket_pdbs]:
                 if pdb_1 in pdb_file:

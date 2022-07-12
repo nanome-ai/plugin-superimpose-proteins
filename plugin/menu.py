@@ -500,7 +500,7 @@ class MainMenu:
         Logs.debug("Creating ligand dropdown items")
         mol = next(mo for mo in comp.molecules)
         try:
-            ligands = await asyncio.wait_for(mol.get_ligands(), 3)
+            ligands = await asyncio.wait_for(mol.get_ligands(), 10)
         except asyncio.TimeoutError:
             Logs.warning("get_ligands timeout error")
             ligands = []
