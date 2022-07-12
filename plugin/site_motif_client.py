@@ -7,6 +7,7 @@ from nanome.util import Logs
 from nanome.api.structure import Complex
 from Bio.PDB import PDBParser
 
+
 class SiteMotifClient:
 
     @staticmethod
@@ -75,11 +76,11 @@ class SiteMotifClient:
                 if pdb_1 and pdb_2:
                     break
             return pdb_1, pdb_2, residue_alignment
-    
+
     @staticmethod
     def parse_residue_pairs(comp1: Complex, comp2: Complex, alignment: str):
         """Parses aligned residues from complexes.
-        
+
         alignment format ex. ARG-A-334 GLN-A-155_VAL-A-343 LYS-A-198_ILE-A-364 ALA-A-151
         where comp1 is the first residue and comp2 is the second residue
         """
@@ -89,7 +90,7 @@ class SiteMotifClient:
         comp2_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
         comp1.io.to_pdb(comp1_pdb.name)
         comp2.io.to_pdb(comp2_pdb.name)
-        
+
         struct1 = parser.get_structure(comp1.full_name, comp1_pdb.name)
         struct2 = parser.get_structure(comp2.full_name, comp2_pdb.name)
         comp1_atom_list = []
@@ -126,5 +127,3 @@ class SiteMotifClient:
             comp1_atom_list.append(ca1)
             comp2_atom_list.append(ca2)
         return comp1_atom_list, comp2_atom_list
-  
-                

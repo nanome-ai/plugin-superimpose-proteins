@@ -263,7 +263,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             Logs.debug(f"RMSD: {rms}")
             paired_atom_count = len(comp1_atoms)
             paired_residue_count = paired_atom_count
-            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)         
+            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)
             transform_matrix = self.create_transform_matrix(superimposer)
             for comp_atom in moving_comp.atoms:
                 new_position = transform_matrix * comp_atom.position
