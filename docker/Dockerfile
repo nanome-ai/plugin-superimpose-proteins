@@ -1,7 +1,6 @@
 FROM python:3.8
 ENV ARGS=''
 
-RUN pip install --upgrade pip
 WORKDIR /app
 RUN apt update && apt upgrade -y && apt install -y build-essential mpich
 
