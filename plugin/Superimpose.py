@@ -9,10 +9,8 @@ from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
 from itertools import chain
 from scipy.spatial import KDTree
-from scipy.spatial.transform import Rotation as R
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
 from nanome.api.structure import Complex, Molecule, Chain
-from nanome.util import Vector3
 from nanome.util.enums import PluginListButtonType
 
 from . import __version__
@@ -253,7 +251,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             else:
                 comp1 = moving_comp
                 comp2 = fixed_comp
-            
+
             # Get nanome residues, and align alpha carbons with Kabsch algorithm
             comp2_atoms, comp1_atoms = sitemotif_client.parse_residue_pairs(comp2, comp1, alignment)
             superimposer = Superimposer()

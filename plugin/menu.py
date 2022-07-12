@@ -1,23 +1,25 @@
 import asyncio
 import functools
 import time
-from os import path
+import os
 from nanome.api import ui
 from nanome.util import Logs, async_callback, Color
 from nanome.util.enums import NotificationTypes, ScalingOptions
 from .enums import AlignmentModeEnum, OverlayMethodEnum
 
-BASE_PATH = path.dirname(f'{path.realpath(__file__)}')
-MENU_PATH = path.join(BASE_PATH, 'menu_json', 'menu.json')
-COMP_LIST_ITEM_PATH = path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
-RMSD_MENU_PATH = path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
-RMSD_TABLE_ENTRY = path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+FEATURE_FLAG_BINDING_SITE = os.environ.get('FEATURE_FLAG_BINDING_SITE', "").lower() in ("yes", "true", "t", "1")
 
-GEAR_ICON_PATH = path.join(BASE_PATH, 'assets', 'gear.png')
-GOLD_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'gold_pin.png')
-GREY_PIN_ICON_PATH = path.join(BASE_PATH, 'assets', 'grey_pin.png')
-LOAD_ICON_PATH = path.join(BASE_PATH, 'assets', 'LoadIcon.png')
-EXPORT_ICON_PATH = path.join(BASE_PATH, 'assets', 'Export.png')
+BASE_PATH = os.path.dirname(f'{os.path.realpath(__file__)}')
+MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'menu.json')
+COMP_LIST_ITEM_PATH = os.path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
+RMSD_MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
+RMSD_TABLE_ENTRY = os.path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+
+GEAR_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'gear.png')
+GOLD_PIN_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'gold_pin.png')
+GREY_PIN_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'grey_pin.png')
+LOAD_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'LoadIcon.png')
+EXPORT_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'Export.png')
 
 
 DOCS_URL = 'https://docs.nanome.ai/plugins/superimpose.html'
@@ -56,8 +58,8 @@ class MainMenu:
         return self._menu.root.find_node('ln_submit').get_content()
 
     @property
-    def ln_btn_align_by_binding_site(self):
-        return self._menu.root.find_node('ln_btn_align_by_binding_site')
+    def ln_binding_site_mode(self):
+        return self._menu.root.find_node('ln_binding_site_mode')
 
     @property
     def ln_binding_site_mode(self):
@@ -117,6 +119,9 @@ class MainMenu:
 
     @async_callback
     async def render(self, force_enable=False):
+        
+        self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
+        self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
         await self.populate_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
