@@ -1,5 +1,5 @@
 nanome==0.38.2
 biopython==1.79
 scipy==1.8.0
-git+https://github.com/nanome-ai/site-motif/@main#egg=site-motif
+git+https://github.com/nanome-ai/site-motif/@data-refactor#egg=site-motif
 mpi4py==3.1.3
