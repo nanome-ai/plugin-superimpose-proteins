@@ -10,7 +10,9 @@
       "request": "launch",
       "program": "run.py",
       "console": "integratedTerminal",
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/.env.dev",
+      "python": "/home/mike/workspace/plugin-superimpose/venv/bin/python",
+      "justMyCode": false
     }
   ]
 }
