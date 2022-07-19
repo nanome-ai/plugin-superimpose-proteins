@@ -135,7 +135,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         expected_output = {self.complex_1mbo.full_name: {'rmsd': 1.91, 'paired_atoms': 378, 'paired_residues': 47, 'chain': 'A'}}
         self.assertEqual(result, expected_output)
 
-    @unittest.skip("Not ready yet")
+    @unittest.skip("Sitemotif not working from tests")
     @patch('nanome._internal._network.PluginNetwork._instance')
     @patch('nanome.api.structure.Molecule.get_ligands')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
