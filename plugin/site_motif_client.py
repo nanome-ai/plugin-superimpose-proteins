@@ -27,7 +27,7 @@ class SiteMotifClient:
                 subprocess.run(command.split(), timeout=60)
             except subprocess.TimeoutExpired:
                 Logs.warning("SiteMotif: Timeout. SiteMotif may not have finished.")
-                pass
+
             align_output = f'{output_dir}/align_output.txt'
             sites_dir.cleanup()
             # Uncomment for debugging
@@ -57,7 +57,7 @@ class SiteMotifClient:
                     pdb_1 = line_split[0]
                     pdb_2 = line_split[1]
                     residue_alignment = aligned_residues
-            Logs.message(f"Longest fragment match: {paired_residue_count}")
+            Logs.message(f"Longest fragment match: {max_paired_res}")
             # Replace pdb names with full paths
             for pdb_file in [binding_site_pdb, *pocket_pdbs]:
                 if pdb_1 in pdb_file:
