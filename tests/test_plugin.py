@@ -36,6 +36,9 @@ class PluginFunctionTestCase(unittest.TestCase):
         self.plugin_instance.start()
         self.plugin_instance._network = MagicMock()
 
+    def tearDown(self):
+        self.plugin_instance.on_stop()
+
     @patch('nanome._internal._network.PluginNetwork._instance')
     @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')

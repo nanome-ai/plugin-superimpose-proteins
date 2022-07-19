@@ -71,6 +71,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.complexes = []
 
+    def on_stop(self):
+        self.temp_dir.cleanup()
+
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
