@@ -50,7 +50,7 @@ class SiteMotifClient:
                 line_split = line.split('\t')
                 if line_split[0] == line_split[1]:
                     continue
-                aligned_residues = line_split[-2].strip()
+                aligned_residues = line_split[-1].strip()
                 paired_residue_count = len(aligned_residues.split(' '))
                 if paired_residue_count > max_paired_res:
                     max_paired_res = paired_residue_count
