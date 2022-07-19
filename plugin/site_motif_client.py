@@ -18,16 +18,7 @@ class SiteMotifClient:
             shutil.copy(binding_site_pdb, sites_dir.name)
             for pdb in pocket_pdbs:
                 shutil.copy(pdb, sites_dir.name)
-            pairs_filepath = site_motif.write_pairs(sites_dir.name, output_dir)
-            # Remove pairs not involving the fixed binding site
-            with open(pairs_filepath, "r") as f:
-                lines = f.readlines()
-
-            with open(pairs_filepath, "w") as f:
-                for line in lines:
-                    binding_site_filename = os.path.basename(binding_site_pdb)
-                    if binding_site_filename in line:
-                        f.write(line)
+            pairs_filepath = site_motif.write_pairs(sites_dir.name, output_dir, reference_pdb=binding_site_pdb)
             pdb_size_filepath = site_motif.write_pdb_size(sites_dir.name, output_dir)
             script_path = f'{os.path.dirname(site_motif.__file__)}/pocket_matrix_mpi7.py'
             command = f"mpiexec -n 4 python {script_path} {sites_dir.name} {pairs_filepath} {pdb_size_filepath} {output_dir}"
@@ -36,7 +27,7 @@ class SiteMotifClient:
                 subprocess.run(command.split(), timeout=60)
             except subprocess.TimeoutExpired:
                 Logs.warning("SiteMotif: Timeout. SiteMotif may not have finished.")
-                pass
+
             align_output = f'{output_dir}/align_output.txt'
             sites_dir.cleanup()
             # Uncomment for debugging
@@ -59,14 +50,14 @@ class SiteMotifClient:
                 line_split = line.split('\t')
                 if line_split[0] == line_split[1]:
                     continue
-                aligned_residues = line_split[-1]
+                aligned_residues = line_split[-1].strip()
                 paired_residue_count = len(aligned_residues.split(' '))
                 if paired_residue_count > max_paired_res:
                     max_paired_res = paired_residue_count
                     pdb_1 = line_split[0]
                     pdb_2 = line_split[1]
                     residue_alignment = aligned_residues
-            Logs.message("Longest fragment match: " + str(max_paired_res))
+            Logs.message(f"Longest fragment match: {max_paired_res}")
             # Replace pdb names with full paths
             for pdb_file in [binding_site_pdb, *pocket_pdbs]:
                 if pdb_1 in pdb_file:
@@ -120,7 +111,12 @@ class SiteMotifClient:
                 if rez_chain_name == res2_chain and rez_serial == int(res2_serial) and rez_name == res2_name:
                     comp2_res = rez
                     break
-
+            if not comp1_res:
+                Logs.warning(f"Could not find {res1_name} {res1_chain} {res1_serial} on {comp1.full_name}")
+                continue
+            if not comp2_res:
+                Logs.warning(f"Could not find {res2_name} {res2_chain} {res2_serial} on {comp2.full_name}")
+                continue
             # Get alpha carbon positions for each paired residue
             ca1 = next(atom for atom in comp1_res.get_atoms() if atom.name == 'CA')
             ca2 = next(atom for atom in comp2_res.get_atoms() if atom.name == 'CA')

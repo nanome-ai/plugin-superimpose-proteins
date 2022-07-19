@@ -71,6 +71,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.complexes = []
 
+    def on_stop(self):
+        self.temp_dir.cleanup()
+
     @async_callback
     async def on_run(self):
         self.menu.enabled = True
@@ -253,7 +256,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 comp2 = fixed_comp
 
             # Get nanome residues, and align alpha carbons with Kabsch algorithm
-            comp2_atoms, comp1_atoms = sitemotif_client.parse_residue_pairs(comp2, comp1, alignment)
+            comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment)
             superimposer = Superimposer()
             if comp1 == fixed_comp:
                 superimposer.set_atoms(comp1_atoms, comp2_atoms)
