@@ -227,18 +227,24 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             else:
                 superimposer.set_atoms(comp2_bp_atoms, comp1_bp_atoms)
             # Select all alpha carbons used in the superimpose
+            comp1_atoms_selected = 0
+            comp2_atoms_selected = 0
             for atom in comp1.atoms:
                 atom.selected = atom in comp1_atoms
                 if atom.selected:
+                    comp1_atoms_selected += 1
                     atom.atom_mode = enums.AtomRenderingMode.BallStick
                     atom.residue.ribboned = False
             for atom in comp2.atoms:
                 atom.selected = atom in comp2_atoms
                 if atom.selected:
+                    comp2_atoms_selected += 1
                     atom.atom_mode = enums.AtomRenderingMode.BallStick
                     atom.residue.ribboned = False
 
             rms = round(superimposer.rms, 2)
+            Logs.debug(f"Comp1 atoms selected: {comp1_atoms_selected}")
+            Logs.debug(f"Comp2 atoms selected: {comp2_atoms_selected}")
             Logs.debug(f"RMSD: {rms}")
             paired_atom_count = len(comp1_atoms)
             paired_residue_count = paired_atom_count

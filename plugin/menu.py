@@ -507,7 +507,6 @@ class MainMenu:
 
     async def create_ligand_dropdown_items(self, comp):
         # Get ligands for binding site dropdown
-        Logs.debug("Creating ligand dropdown items")
         mol = next(mo for mo in comp.molecules)
         try:
             ligands = await asyncio.wait_for(mol.get_ligands(), 10)
