@@ -1,5 +1,6 @@
 import nanome
 import os
+import sys
 import tempfile
 import time
 from Bio.PDB.Structure import Structure
@@ -49,7 +50,6 @@ def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
     """Add full residue data to pdb files."""
     Logs.debug(f"Cleaning {len(fpocket_pdbs)} fpocket pdbs")
     for i, pocket_pdb in enumerate(fpocket_pdbs):
-        Logs.debug(f"Cleaning Pocket {i + 1}")
         pocket_residues = set()
         with open(pocket_pdb) as f:
             for line in f:
@@ -254,14 +254,22 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             else:
                 comp1 = moving_comp
                 comp2 = fixed_comp
-
-            # Get nanome residues, and align alpha carbons with Kabsch algorithm
+            
+            # Get biopython representation of alpha carbon atoms, and pass to superimposer
             comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment)
+            comp1_bp_atoms = sitemotif_client.convert_atoms_to_biopython(comp1_atoms)
+            comp2_bp_atoms = sitemotif_client.convert_atoms_to_biopython(comp2_atoms)
             superimposer = Superimposer()
             if comp1 == fixed_comp:
-                superimposer.set_atoms(comp1_atoms, comp2_atoms)
+                superimposer.set_atoms(comp1_bp_atoms, comp2_bp_atoms)
             else:
-                superimposer.set_atoms(comp2_atoms, comp1_atoms)
+                superimposer.set_atoms(comp2_bp_atoms, comp1_bp_atoms)
+            # Select all alpha carbons used in the superimpose
+            for atom in comp1.atoms:
+                atom.selected = atom in comp1_atoms
+            for atom in comp2.atoms:
+                atom.selected = atom in comp2_atoms
+
             rms = round(superimposer.rms, 2)
             Logs.debug(f"RMSD: {rms}")
             paired_atom_count = len(comp1_atoms)
@@ -469,7 +477,12 @@ def main():
     description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
     plugin = nanome.Plugin(plugin_title, description, 'alignment', False)
     plugin.set_plugin_class(SuperimposePlugin)
-    plugin.run()
+    try:
+        print(sys.argv)
+        plugin.run()
+    except Exception as e:
+        Logs.error(e)
+        raise e
 
 
 if __name__ == '__main__':
