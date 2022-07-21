@@ -173,6 +173,7 @@ class MainMenu:
         start_time = time.time()
         rmsd_results = None
         moving_comp_count = 0
+        run_successful = False
         try:
             if current_mode == AlignmentModeEnum.ENTRY:
                 moving_comp_indices = self.get_moving_comp_indices()
@@ -197,6 +198,7 @@ class MainMenu:
                     Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
                         fixed_comp_index, ligand_name, moving_comp_indices)
+            run_successful = True
         except Exception as e:
             rmsd_results = {}
             Logs.error("Error calculating Superposition.")
@@ -220,9 +222,14 @@ class MainMenu:
             'moving_complexes': moving_comp_count,
             'elapsed_time': elapsed_time
         }
-        msg = f"Superimpose completed in {elapsed_time} seconds."
-        Logs.message(msg, extra=log_extra)
-        self.plugin.send_notification(NotificationTypes.success, msg)
+        if run_successful:
+            msg = f"Superimpose completed in {elapsed_time} seconds."
+            Logs.message(msg, extra=log_extra)
+            self.plugin.send_notification(NotificationTypes.success, msg)
+        else:
+            msg = f"Superimpose failed after {elapsed_time} seconds."
+            Logs.error(msg, extra=log_extra)
+            self.plugin.send_notification(NotificationTypes.error, msg)
 
     def render_rmsd_results(self, rmsd_results, fixed_comp_name):
         """Render rmsd results in a list."""

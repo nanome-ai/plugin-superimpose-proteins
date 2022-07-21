@@ -5,7 +5,6 @@ import subprocess
 import tempfile
 from nanome.util import Logs
 from nanome.api.structure import Complex
-from Bio.PDB import PDBParser
 
 
 class SiteMotifClient:
@@ -110,30 +109,17 @@ class SiteMotifClient:
             if not comp2_res:
                 Logs.warning(f"Could not find {res2_name} {res2_chain} {res2_serial} on {comp2.full_name}")
                 continue
-            # Find alpha carbons from residues and add to list
-            ca1 = next(atom for atom in comp1_res.atoms if atom.name == 'CA')
-            ca2 = next(atom for atom in comp2_res.atoms if atom.name == 'CA')
-            comp1_atom_list.append(ca1)
-            comp2_atom_list.append(ca2)
+            if comp1_res.name == comp2_res.name and len:
+                # If whole residues are the same, add all atoms
+                comp1_res_atoms = sorted(comp1_res.atoms, key=lambda x: x.name)
+                comp2_res_atoms = sorted(comp2_res.atoms, key=lambda x: x.name)
+                comp1_atom_list.extend(comp1_res_atoms)
+                comp2_atom_list.extend(comp2_res_atoms)
+            else:
+                # Find alpha carbons from residues and add to list
+                ca1 = next(atom for atom in comp1_res.atoms if atom.name == 'CA')
+                ca2 = next(atom for atom in comp2_res.atoms if atom.name == 'CA')
+                comp1_atom_list.append(ca1)
+                comp2_atom_list.append(ca2)
         return comp1_atom_list, comp2_atom_list
 
-    def convert_atoms_to_biopython(self, atom_list: list):
-        """Converts atoms to biopython format."""
-        parser = PDBParser(QUIET=True)
-        comp = atom_list[0].complex
-        comp_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
-        comp.io.to_pdb(comp_pdb.name)
-        struct1 = parser.get_structure(comp.full_name, comp_pdb.name)
-        # struct2 = parser.get_structure(comp2.full_name, comp2_pdb.name)
-        bp_atom_list = []
-        for atom in atom_list:
-            res_serial = atom.residue.serial
-            chain_name = atom.chain.name
-            atom_name = atom.name  # should always be CA
-            bp_atom = next(atm for atm in struct1.get_atoms() if all([
-                atm.name == atom_name,
-                atm.get_parent().id[1] == res_serial,
-                atm.get_parent().get_parent().id == chain_name
-            ]))
-            bp_atom_list.append(bp_atom)
-        return bp_atom_list
