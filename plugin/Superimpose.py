@@ -216,7 +216,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             else:
                 comp1 = moving_comp
                 comp2 = fixed_comp
-            
+
             # Get biopython representation of alpha carbon atoms, and pass to superimposer
             comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment)
             comp1_bp_atoms = utils.convert_atoms_to_biopython(comp1_atoms)

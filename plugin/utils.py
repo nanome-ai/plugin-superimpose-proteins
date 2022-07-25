@@ -68,4 +68,3 @@ def convert_atoms_to_biopython(atom_list: list):
         ]))
         bp_atom_list.append(bp_atom)
     return bp_atom_list
-
