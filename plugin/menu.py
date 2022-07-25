@@ -792,6 +792,7 @@ class MainMenu:
     def dd_ligands_item_clicked(self, dd, ddi):
         """Callback for when ligand is selected in binding site mode."""
         # Only one dropdown item can be selected at a time.
+        Logs.message("Ligand Selected")
         for item in dd.items:
             if item is ddi:
                 continue
