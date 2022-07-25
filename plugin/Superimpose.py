@@ -1,5 +1,6 @@
 import nanome
 import os
+import sys
 import tempfile
 import time
 from Bio.PDB.Structure import Structure
@@ -10,10 +11,11 @@ from Bio.PDB.Polypeptide import is_aa
 from itertools import chain
 from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, Matrix, ComplexUtils
-from nanome.api.structure import Complex, Molecule, Chain
-from nanome.util.enums import PluginListButtonType
+from nanome.api.structure import Complex
+from nanome.util import enums
 
 from . import __version__
+from . import utils
 from .enums import OverlayMethodEnum
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
@@ -22,46 +24,6 @@ from .site_motif_client import SiteMotifClient
 
 PDBOPTIONS = Complex.io.PDBSaveOptions()
 PDBOPTIONS.write_bonds = True
-
-
-def extract_binding_site(comp, binding_site_residues):
-    """Copy comp, and remove all residues that are not part of the binding site."""
-    new_comp = Complex()
-    new_mol = Molecule()
-    new_comp.add_molecule(new_mol)
-    new_comp.name = f'{comp.name} binding site'
-    new_comp.index = -1
-
-    binding_site_residue_indices = [r.index for r in binding_site_residues]
-    # Logs.debug(f'Binding site residues: {len(binding_site_residues)}')
-    for ch in comp.chains:
-        reses_on_chain = [res for res in ch.residues if res.index in binding_site_residue_indices]
-        if reses_on_chain:
-            new_ch = Chain()
-            new_ch.name = ch.name
-            new_ch.residues = reses_on_chain
-            new_mol.add_chain(new_ch)
-    # Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
-    return new_comp
-
-
-def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
-    """Add full residue data to pdb files."""
-    Logs.debug(f"Cleaning {len(fpocket_pdbs)} fpocket pdbs")
-    for i, pocket_pdb in enumerate(fpocket_pdbs):
-        Logs.debug(f"Cleaning Pocket {i + 1}")
-        pocket_residues = set()
-        with open(pocket_pdb) as f:
-            for line in f:
-                if line.startswith('ATOM'):
-                    chain_name = line[21]
-                    res_serial = int(line[22:26])
-                    chain = next(ch for ch in comp.chains if ch.name == chain_name)
-                    residue = next(rez for rez in chain.residues if rez.serial == res_serial)
-                    pocket_residues.add(residue)
-        pocket_comp = extract_binding_site(comp, pocket_residues)
-        pocket_comp.io.to_pdb(path=pocket_pdb, options=PDBOPTIONS)
-    return fpocket_pdbs
 
 
 class SuperimposePlugin(nanome.AsyncPluginInstance):
@@ -78,11 +40,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     async def on_run(self):
         self.menu.enabled = True
         if not self.complexes:
-            self.set_plugin_list_button(PluginListButtonType.run, text='Loading...', usable=False)
+            self.set_plugin_list_button(enums.PluginListButtonType.run, text='Loading...', usable=False)
             workspace = await self.request_workspace()
             self.complexes = workspace.complexes
         self.menu.render(force_enable=True)
-        self.set_plugin_list_button(PluginListButtonType.run, text='Run', usable=True)
+        self.set_plugin_list_button(enums.PluginListButtonType.run, text='Run', usable=True)
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
@@ -227,7 +189,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
         fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_name, site_size)
-        fixed_binding_site_comp = extract_binding_site(fixed_comp, fixed_binding_site_residues)
+        fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues)
 
         fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
@@ -244,7 +206,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             Logs.debug(f"Identifying binding sites for moving comp {i + 1}")
             fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
             pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
-            pocket_residue_pdbs = clean_fpocket_pdbs(pocket_pdbs, moving_comp)
+            pocket_residue_pdbs = utils.clean_fpocket_pdbs(pocket_pdbs, moving_comp)
 
             fixed_pdb = fixed_binding_site_pdb.name
             pdb1, pdb2, alignment = sitemotif_client.find_match(fixed_pdb, pocket_residue_pdbs)
@@ -255,14 +217,34 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 comp1 = moving_comp
                 comp2 = fixed_comp
 
-            # Get nanome residues, and align alpha carbons with Kabsch algorithm
+            # Get biopython representation of alpha carbon atoms, and pass to superimposer
             comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment)
+            comp1_bp_atoms = utils.convert_atoms_to_biopython(comp1_atoms)
+            comp2_bp_atoms = utils.convert_atoms_to_biopython(comp2_atoms)
             superimposer = Superimposer()
             if comp1 == fixed_comp:
-                superimposer.set_atoms(comp1_atoms, comp2_atoms)
+                superimposer.set_atoms(comp1_bp_atoms, comp2_bp_atoms)
             else:
-                superimposer.set_atoms(comp2_atoms, comp1_atoms)
+                superimposer.set_atoms(comp2_bp_atoms, comp1_bp_atoms)
+            # Select all alpha carbons used in the superimpose
+            comp1_atoms_selected = 0
+            comp2_atoms_selected = 0
+            for atom in comp1.atoms:
+                atom.selected = atom in comp1_atoms
+                if atom.selected:
+                    comp1_atoms_selected += 1
+                    atom.atom_mode = enums.AtomRenderingMode.BallStick
+                    atom.residue.ribboned = False
+            for atom in comp2.atoms:
+                atom.selected = atom in comp2_atoms
+                if atom.selected:
+                    comp2_atoms_selected += 1
+                    atom.atom_mode = enums.AtomRenderingMode.BallStick
+                    atom.residue.ribboned = False
+
             rms = round(superimposer.rms, 2)
+            Logs.debug(f"Comp1 atoms selected: {comp1_atoms_selected}")
+            Logs.debug(f"Comp2 atoms selected: {comp2_atoms_selected}")
             Logs.debug(f"RMSD: {rms}")
             paired_atom_count = len(comp1_atoms)
             paired_residue_count = paired_atom_count
