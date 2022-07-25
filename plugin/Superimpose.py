@@ -451,12 +451,7 @@ def main():
     description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
     plugin = nanome.Plugin(plugin_title, description, 'alignment', False)
     plugin.set_plugin_class(SuperimposePlugin)
-    try:
-        print(sys.argv)
-        plugin.run()
-    except Exception as e:
-        Logs.error(e)
-        raise e
+    plugin.run()
 
 
 if __name__ == '__main__':
