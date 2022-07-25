@@ -365,6 +365,9 @@ class MainMenu:
             ln_btns = self.create_chain_buttons(comp)
             for ln_btn in ln_btns:
                 ln_chain_list.add_child(ln_btn)
+            # Set up ligand dropdown.
+            dd_ligands = ln.find_node('dd_ligands').get_content()
+            dd_ligands.register_item_clicked_callback(self.dd_ligands_item_clicked)
             list_items.append(ln)
         comp_list.items = list_items
         self.plugin.update_node(self.ln_moving_comp_list)
@@ -401,6 +404,9 @@ class MainMenu:
                 dd_ligands = menu_item.find_node('dd_ligands').get_content()
                 comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
                 dd_ligands.items = await self.create_ligand_dropdown_items(comp)
+                if not dd_ligands.items:
+                    dd_ligands.permanent_title = True
+                    dd_ligands.permanent_title = 'No Ligands'
                 self.btn_align_by_binding_site.unusable = False
                 self.plugin.update_content(self.btn_align_by_binding_site)
         self.plugin.update_content(comp_list)
@@ -775,6 +781,15 @@ class MainMenu:
         if atoms_to_update:
             Logs.debug(f"Updating {len(atoms_to_update)} atom selections")
             self.plugin.update_structures_shallow(atoms_to_update)
+
+    def dd_ligands_item_clicked(self, dd, ddi):
+        """Callback for when ligand is selected in binding site mode."""
+        # Only one dropdown item can be selected at a time.
+        for item in dd.items:
+            if item is ddi:
+                continue
+            item.selected = False
+        self.plugin.update_content(dd)
 
     def overlay_method_selected(self, btn_group, selected_btn):
         """Callback for when an overlay method is selected."""
