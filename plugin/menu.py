@@ -313,12 +313,13 @@ class MainMenu:
             self.ln_moving_comp_list.enabled = True
             self.ln_empty_list.enabled = False
 
+        template_list_item = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
         for comp in complexes:
             # Skip any complexes that are only hetatoms.
             if not any(not atm.is_het for atm in comp.atoms):
                 continue
 
-            ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
+            ln = template_list_item.clone()
             comp_index = comp.index
             ln.comp_index = comp_index
             btn_fixed = ln.find_node('ln_btn_fixed').get_content()
