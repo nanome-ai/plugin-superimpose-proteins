@@ -94,7 +94,7 @@ class SiteMotifClient:
                 if rez_chain_name == res1_chain and rez_serial == int(res1_serial) and rez_name == res1_name:
                     comp1_res = rez
                     break
-            
+
             for rez in comp2.residues:
                 rez_chain_name = rez.chain.name
                 rez_serial = rez.serial
@@ -102,7 +102,7 @@ class SiteMotifClient:
                 if rez_chain_name == res2_chain and rez_serial == int(res2_serial) and rez_name == res2_name:
                     comp2_res = rez
                     break
-            
+
             if not comp1_res:
                 Logs.warning(f"Could not find {res1_name} {res1_chain} {res1_serial} on {comp1.full_name}")
                 continue
@@ -122,4 +122,3 @@ class SiteMotifClient:
                 comp1_atom_list.append(ca1)
                 comp2_atom_list.append(ca2)
         return comp1_atom_list, comp2_atom_list
-
