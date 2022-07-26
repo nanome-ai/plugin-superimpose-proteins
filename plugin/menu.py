@@ -458,6 +458,7 @@ class MainMenu:
     @async_callback
     async def btn_fixed_pressed(self, pressed_btn):
         """Handle selections for fixed button."""
+        Logs.message("Fixed protein selected")
         content_to_update = [pressed_btn]
         selected_comp_chain_btn = None
         deselected_comp_chain_btn = None
@@ -536,6 +537,7 @@ class MainMenu:
         return dropdown_items
 
     def btn_moving_pressed(self, ln_chain_list, btn_moving):
+        Logs.message("Moving protein selected")
         btns_to_update = [btn_moving]
         chain_btns = [
             ln.get_content() for ln in ln_chain_list.get_children()
