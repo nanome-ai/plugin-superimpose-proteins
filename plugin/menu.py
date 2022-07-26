@@ -123,6 +123,7 @@ class MainMenu:
         self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
         self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
         await self.populate_comp_list()
+        await self.refresh_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
         if len(comp_list.items) >= 2:
@@ -398,12 +399,15 @@ class MainMenu:
 
             ln_chain_selection = menu_item.find_node('chain_selection')
             ln_chain_selection.enabled = self.current_mode != AlignmentModeEnum.BINDING_SITE
-            btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
-            ln_ligand_selection = menu_item.find_node('ligand_selection')
-            ln_ligand_selection.enabled = all([
-                self.current_mode == AlignmentModeEnum.BINDING_SITE,
-                btn_fixed.selected
-            ])
+
+            # For some reason, running this causes the ligand dropdown callback to not work.
+            # Its very strange
+            # btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
+            # ln_ligand_selection = menu_item.find_node('ligand_selection')
+            # ln_ligand_selection.enabled = \
+            #     self.current_mode == AlignmentModeEnum.BINDING_SITE \
+            #     and btn_fixed.selected
+
             if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                 # Set up ligand dropdown
                 self.btn_align_by_binding_site.unusable = True
