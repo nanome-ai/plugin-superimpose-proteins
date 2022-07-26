@@ -349,7 +349,7 @@ class MainMenu:
             chain_label = ln.find_node('select chains').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_chain_list = ln.find_node('ln_chain_list')
-            
+
             if self.current_mode == AlignmentModeEnum.CHAIN:
                 chain_label.text_value = 'Select Chain'
             else:
