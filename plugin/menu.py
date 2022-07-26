@@ -123,7 +123,6 @@ class MainMenu:
         self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
         self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
         await self.populate_comp_list()
-        await self.refresh_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
         if len(comp_list.items) >= 2:
@@ -301,11 +300,13 @@ class MainMenu:
                 return selected_chain
 
     async def populate_comp_list(self):
+        """Create list items representing each protein complex in the workspace."""
         complexes = self.plugin.complexes
         comp_list = self.ln_moving_comp_list.get_content()
         comp_list.display_rows = 4
         list_items = []
 
+        # If less than 2 proteins available, show empty list message on menu instead of list.
         if len(complexes) < 2:
             self.ln_moving_comp_list.enabled = False
             self.ln_empty_list.enabled = True
@@ -314,114 +315,108 @@ class MainMenu:
             self.ln_moving_comp_list.enabled = True
             self.ln_empty_list.enabled = False
 
-        # Set up template to be cloned for each complex in list
-        template_list_item = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
-        # Fixed button
-        template_btn_fixed = template_list_item.find_node('ln_btn_fixed').get_content()
-        template_btn_fixed.selected = False
-        template_btn_fixed.toggle_on_press = True
-        template_btn_fixed.icon.value.set_each(
-            selected=GOLD_PIN_ICON_PATH,
-            highlighted=GREY_PIN_ICON_PATH,
-            idle=GREY_PIN_ICON_PATH,
-            selected_highlighted=GOLD_PIN_ICON_PATH)
-        template_btn_fixed.register_pressed_callback(self.btn_fixed_pressed)
-        template_btn_fixed.toggle_on_press = True
-        # Moving button
-        template_btn_moving = template_list_item.find_node('ln_btn_moving').get_content()
-        template_btn_moving.toggle_on_press = True
-        # Ligand dropdown
-        template_dd_ligands = template_list_item.find_node('dd_ligands').get_content()
-        template_dd_ligands.register_item_clicked_callback(self.dd_ligands_item_clicked)
-
+        template_list_item = self.create_template_list_item()
         # Create list items for each complex based on template
         for comp in complexes:
             # Skip any complexes that are only hetatoms.
             if not any(not atm.is_het for atm in comp.atoms):
                 continue
 
-            ln = template_list_item.clone()
+            menu_item = template_list_item.clone()
             comp_index = comp.index
-            ln.comp_index = comp_index
-
-            btn_fixed = ln.find_node('ln_btn_fixed').get_content()
-            btn_moving = ln.find_node('ln_btn_moving').get_content()
-            chain_label = ln.find_node('select chains').get_content()
-            lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
-            ln_chain_list = ln.find_node('ln_chain_list')
-
-            if self.current_mode == AlignmentModeEnum.CHAIN:
-                chain_label.text_value = 'Select Chain'
-            else:
-                chain_label.text_value = 'Chains'
-
-            btn_fixed.toggle_on_press = True
-            btn_moving.toggle_on_press = True
-            btn_moving.register_pressed_callback(functools.partial(self.btn_moving_pressed, ln_chain_list))
-
-            lbl_struct_name.text_value = comp.full_name
-            overflow_size = 25
-            for chain in comp.chains:
-                ln_chain = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
-                ln_chain.chain_index = chain.index
-
-            if len(lbl_struct_name.text_value) > overflow_size:
-                letters_to_keep = overflow_size - 3
-                lbl_struct_name.text_value = lbl_struct_name.text_value[:letters_to_keep] + '...'
-
-            # Set up chain buttons
-            ln_btns = None
-            comp = next(cmp for cmp in self.plugin.complexes if cmp.index == ln.comp_index)
-            ln_btns = self.create_chain_buttons(comp)
-            for ln_btn in ln_btns:
-                ln_chain_list.add_child(ln_btn)
-
-            list_items.append(ln)
+            menu_item.comp_index = comp_index
+            await self.configure_comp_list_item(menu_item)
+            list_items.append(menu_item)
         comp_list.items = list_items
         self.plugin.update_node(self.ln_moving_comp_list)
 
     async def refresh_comp_list(self):
         comp_list = self.ln_moving_comp_list.get_content()
+
+        if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+            self.btn_align_by_binding_site.unusable = True
+            self.plugin.update_content(self.btn_align_by_binding_site)
+
         for menu_item in comp_list.items:
-            ln_chain_list = menu_item.find_node('ln_chain_list')
-            chain_label = menu_item.find_node('select chains').get_content()
-            if self.current_mode == AlignmentModeEnum.CHAIN:
-                chain_label.text_value = 'Select Chain'
-            else:
-                chain_label.text_value = 'Chains'
-
-            chain_btns = [
-                ln_btn.get_content() for ln_btn in ln_chain_list.get_children()
-                if ln_btn.get_content()
-            ]
-            for btn in chain_btns:
-                btn.unusable = self.current_mode != AlignmentModeEnum.CHAIN
-
-            ln_chain_selection = menu_item.find_node('chain_selection')
-            ln_chain_selection.enabled = self.current_mode != AlignmentModeEnum.BINDING_SITE
-
-            # For some reason, running this causes the ligand dropdown callback to not work.
-            # Its very strange
-            # btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
-            # ln_ligand_selection = menu_item.find_node('ligand_selection')
-            # ln_ligand_selection.enabled = all([
-            #     self.current_mode == AlignmentModeEnum.BINDING_SITE \
-            #     and btn_fixed.selected
-            # ])
-
-            if self.current_mode == AlignmentModeEnum.BINDING_SITE:
-                # Set up ligand dropdown
-                self.btn_align_by_binding_site.unusable = True
-                self.plugin.update_content(self.btn_align_by_binding_site)
-                dd_ligands = menu_item.find_node('dd_ligands').get_content()
-                comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
-                dd_ligands.items = await self.create_ligand_dropdown_items(comp)
-                if not dd_ligands.items:
-                    dd_ligands.permanent_title = True
-                    dd_ligands.permanent_title = 'No Ligands'
-                self.btn_align_by_binding_site.unusable = False
-                self.plugin.update_content(self.btn_align_by_binding_site)
+            await self.configure_comp_list_item(menu_item)
+        
+        if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+            self.btn_align_by_binding_site.unusable = False
+            self.plugin.update_content(self.btn_align_by_binding_site)
         self.plugin.update_content(comp_list)
+
+    async def configure_comp_list_item(self, menu_item):
+        """Configure a list item for a complex based on current mode."""
+        btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
+        btn_moving = menu_item.find_node('ln_btn_moving').get_content()
+        ln_chain_list = menu_item.find_node('ln_chain_list')
+        chain_label = menu_item.find_node('select chains').get_content()
+        ln_chain_selection = menu_item.find_node('chain_selection')
+        ln_ligand_selection = menu_item.find_node('ligand_selection')
+        dd_ligands = ln_ligand_selection.find_node('dd_ligands').get_content()
+        lbl_struct_name = menu_item.find_node('lbl_struct_name').get_content()
+        comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
+
+        # Set up labels and text overflows.
+        chain_label.text_value = (
+            'Select Chain' if self.current_mode == AlignmentModeEnum.CHAIN
+            else 'Chains')
+        lbl_struct_name.text_value = comp.full_name
+        overflow_size = 25
+        if len(lbl_struct_name.text_value) > overflow_size:
+            letters_to_keep = overflow_size - 3
+            lbl_struct_name.text_value = lbl_struct_name.text_value[:letters_to_keep] + '...'
+
+        # Set up chain buttons
+        if not ln_chain_list.children:
+            ln_chain_list.children = self.create_chain_buttons(comp)
+        # Chain buttons should only be clickable if in Chain mode.
+        chain_btns = [ln_btn.get_content() for ln_btn in ln_chain_list.get_children() if ln_btn.get_content()]
+        for btn in chain_btns:
+            btn.unusable = self.current_mode != AlignmentModeEnum.CHAIN
+
+        # Show or hide chain section
+        ln_chain_selection.enabled = self.current_mode != AlignmentModeEnum.BINDING_SITE
+        # Show or hide ligand section
+        # For some reason, running this causes the ligand dropdown callback to not work.
+        # Its very strange
+        ln_ligand_selection.enabled = all([
+            self.current_mode == AlignmentModeEnum.BINDING_SITE
+            and btn_fixed.selected
+        ])
+
+        btn_fixed.toggle_on_press = True
+        btn_moving.toggle_on_press = True
+        btn_moving.register_pressed_callback(functools.partial(self.btn_moving_pressed, ln_chain_list))
+
+        if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+            # Set up ligand dropdown if we're in binding site mode
+            dd_ligands.items = await self.create_ligand_dropdown_items(comp)
+            if not dd_ligands.items:
+                dd_ligands.permanent_title = True
+                dd_ligands.permanent_title = 'No Ligands'
+
+    def create_template_list_item(self):
+        """Create a template list item for the complex list."""
+        list_item = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
+        # Fixed button
+        btn_fixed = list_item.find_node('ln_btn_fixed').get_content()
+        btn_fixed.selected = False
+        btn_fixed.toggle_on_press = True
+        btn_fixed.icon.value.set_each(
+            selected=GOLD_PIN_ICON_PATH,
+            highlighted=GREY_PIN_ICON_PATH,
+            idle=GREY_PIN_ICON_PATH,
+            selected_highlighted=GOLD_PIN_ICON_PATH)
+        btn_fixed.register_pressed_callback(self.btn_fixed_pressed)
+        btn_fixed.toggle_on_press = True
+        # Moving button
+        btn_moving = list_item.find_node('ln_btn_moving').get_content()
+        btn_moving.toggle_on_press = True
+        # Ligand dropdown
+        dd_ligands = list_item.find_node('dd_ligands').get_content()
+        dd_ligands.register_item_clicked_callback(self.dd_ligands_item_clicked)
+        return list_item
 
     def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
         # One item in button group selected at a time.
