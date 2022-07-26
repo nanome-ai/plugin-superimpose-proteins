@@ -404,9 +404,10 @@ class MainMenu:
             # Its very strange
             # btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
             # ln_ligand_selection = menu_item.find_node('ligand_selection')
-            # ln_ligand_selection.enabled = \
+            # ln_ligand_selection.enabled = all([
             #     self.current_mode == AlignmentModeEnum.BINDING_SITE \
             #     and btn_fixed.selected
+            # ])
 
             if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                 # Set up ligand dropdown
