@@ -306,15 +306,6 @@ class MainMenu:
         comp_list.display_rows = 4
         list_items = []
 
-        # If less than 2 proteins available, show empty list message on menu instead of list.
-        if len(complexes) < 2:
-            self.ln_moving_comp_list.enabled = False
-            self.ln_empty_list.enabled = True
-            return
-        else:
-            self.ln_moving_comp_list.enabled = True
-            self.ln_empty_list.enabled = False
-
         template_list_item = self.create_template_list_item()
         # Create list items for each complex based on template
         for comp in complexes:
@@ -327,6 +318,16 @@ class MainMenu:
             menu_item.comp_index = comp_index
             await self.configure_comp_list_item(menu_item)
             list_items.append(menu_item)
+
+        # If less than 2 proteins available, show empty list message on menu instead of list.
+        if len(list_items) < 2:
+            self.ln_moving_comp_list.enabled = False
+            self.ln_empty_list.enabled = True
+            return
+        else:
+            self.ln_moving_comp_list.enabled = True
+            self.ln_empty_list.enabled = False
+
         comp_list.items = list_items
         self.plugin.update_node(self.ln_moving_comp_list)
 
@@ -358,9 +359,10 @@ class MainMenu:
         comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
 
         # Set up labels and text overflows.
-        chain_label.text_value = (
-            'Select Chain' if self.current_mode == AlignmentModeEnum.CHAIN
-            else 'Chains')
+        if self.current_mode == AlignmentModeEnum.CHAIN:
+            chain_label.text_value = 'Select Chain'
+        else:
+            chain_label.text_value = 'Chains'
         lbl_struct_name.text_value = comp.full_name
         overflow_size = 25
         if len(lbl_struct_name.text_value) > overflow_size:
