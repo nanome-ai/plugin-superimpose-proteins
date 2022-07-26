@@ -123,6 +123,7 @@ class MainMenu:
         self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
         self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
         await self.populate_comp_list()
+        await self.refresh_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
         if len(comp_list.items) >= 2:
@@ -313,35 +314,49 @@ class MainMenu:
             self.ln_moving_comp_list.enabled = True
             self.ln_empty_list.enabled = False
 
+        # Set up template to be cloned for each complex in list
+        template_list_item = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
+        # Fixed button
+        template_btn_fixed = template_list_item.find_node('ln_btn_fixed').get_content()
+        template_btn_fixed.selected = False
+        template_btn_fixed.toggle_on_press = True
+        template_btn_fixed.icon.value.set_each(
+            selected=GOLD_PIN_ICON_PATH,
+            highlighted=GREY_PIN_ICON_PATH,
+            idle=GREY_PIN_ICON_PATH,
+            selected_highlighted=GOLD_PIN_ICON_PATH)
+        template_btn_fixed.register_pressed_callback(self.btn_fixed_pressed)
+        template_btn_fixed.toggle_on_press = True
+        # Moving button
+        template_btn_moving = template_list_item.find_node('ln_btn_moving').get_content()
+        template_btn_moving.toggle_on_press = True
+        # Ligand dropdown
+        template_dd_ligands = template_list_item.find_node('dd_ligands').get_content()
+        template_dd_ligands.register_item_clicked_callback(self.dd_ligands_item_clicked)
+
+        # Create list items for each complex based on template
         for comp in complexes:
             # Skip any complexes that are only hetatoms.
             if not any(not atm.is_het for atm in comp.atoms):
                 continue
 
-            ln = ui.LayoutNode.io.from_json(COMP_LIST_ITEM_PATH)
+            ln = template_list_item.clone()
             comp_index = comp.index
             ln.comp_index = comp_index
+
             btn_fixed = ln.find_node('ln_btn_fixed').get_content()
-            btn_fixed.selected = False
-            btn_fixed.toggle_on_press = True
-            btn_fixed.icon.value.set_each(
-                selected=GOLD_PIN_ICON_PATH,
-                highlighted=GREY_PIN_ICON_PATH,
-                idle=GREY_PIN_ICON_PATH,
-                selected_highlighted=GOLD_PIN_ICON_PATH)
             btn_moving = ln.find_node('ln_btn_moving').get_content()
-            btn_moving.toggle_on_press = True
+            chain_label = ln.find_node('select chains').get_content()
             lbl_struct_name = ln.find_node('lbl_struct_name').get_content()
             ln_chain_list = ln.find_node('ln_chain_list')
-            ln_chain_list.remove_content()
 
-            chain_label = ln.find_node('select chains').get_content()
             if self.current_mode == AlignmentModeEnum.CHAIN:
                 chain_label.text_value = 'Select Chain'
             else:
                 chain_label.text_value = 'Chains'
 
-            btn_fixed.register_pressed_callback(self.btn_fixed_pressed)
+            btn_fixed.toggle_on_press = True
+            btn_moving.toggle_on_press = True
             btn_moving.register_pressed_callback(functools.partial(self.btn_moving_pressed, ln_chain_list))
 
             lbl_struct_name.text_value = comp.full_name
@@ -354,20 +369,13 @@ class MainMenu:
                 letters_to_keep = overflow_size - 3
                 lbl_struct_name.text_value = lbl_struct_name.text_value[:letters_to_keep] + '...'
 
-            btn_fixed.toggle_on_press = True
-            btn_moving.toggle_on_press = True
-
             # Set up chain buttons
             ln_btns = None
-            comp = next(
-                cmp for cmp in self.plugin.complexes
-                if cmp.index == ln.comp_index)
+            comp = next(cmp for cmp in self.plugin.complexes if cmp.index == ln.comp_index)
             ln_btns = self.create_chain_buttons(comp)
             for ln_btn in ln_btns:
                 ln_chain_list.add_child(ln_btn)
-            # Set up ligand dropdown.
-            dd_ligands = ln.find_node('dd_ligands').get_content()
-            dd_ligands.register_item_clicked_callback(self.dd_ligands_item_clicked)
+
             list_items.append(ln)
         comp_list.items = list_items
         self.plugin.update_node(self.ln_moving_comp_list)
@@ -391,12 +399,16 @@ class MainMenu:
 
             ln_chain_selection = menu_item.find_node('chain_selection')
             ln_chain_selection.enabled = self.current_mode != AlignmentModeEnum.BINDING_SITE
-            btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
-            ln_ligand_selection = menu_item.find_node('ligand_selection')
-            ln_ligand_selection.enabled = all([
-                self.current_mode == AlignmentModeEnum.BINDING_SITE,
-                btn_fixed.selected
-            ])
+
+            # For some reason, running this causes the ligand dropdown callback to not work.
+            # Its very strange
+            # btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
+            # ln_ligand_selection = menu_item.find_node('ligand_selection')
+            # ln_ligand_selection.enabled = all([
+            #     self.current_mode == AlignmentModeEnum.BINDING_SITE \
+            #     and btn_fixed.selected
+            # ])
+
             if self.current_mode == AlignmentModeEnum.BINDING_SITE:
                 # Set up ligand dropdown
                 self.btn_align_by_binding_site.unusable = True
@@ -447,6 +459,7 @@ class MainMenu:
     @async_callback
     async def btn_fixed_pressed(self, pressed_btn):
         """Handle selections for fixed button."""
+        Logs.message("Fixed protein selected")
         content_to_update = [pressed_btn]
         selected_comp_chain_btn = None
         deselected_comp_chain_btn = None
@@ -525,6 +538,7 @@ class MainMenu:
         return dropdown_items
 
     def btn_moving_pressed(self, ln_chain_list, btn_moving):
+        Logs.message("Moving protein selected")
         btns_to_update = [btn_moving]
         chain_btns = [
             ln.get_content() for ln in ln_chain_list.get_children()
@@ -785,6 +799,7 @@ class MainMenu:
     def dd_ligands_item_clicked(self, dd, ddi):
         """Callback for when ligand is selected in binding site mode."""
         # Only one dropdown item can be selected at a time.
+        Logs.message("Ligand Selected")
         for item in dd.items:
             if item is ddi:
                 continue
