@@ -356,8 +356,10 @@ class MainMenu:
         ln_ligand_selection = menu_item.find_node('ligand_selection')
         dd_ligands = ln_ligand_selection.find_node('dd_ligands').get_content()
         lbl_struct_name = menu_item.find_node('lbl_struct_name').get_content()
-        comp = next(cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index)
-
+        comp = next((cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index), None)
+        if not comp:
+            Logs.warning(f"Could not find complex '{menu_item.comp_index}' in workspace.")
+            return
         # Set up labels and text overflows.
         if self.current_mode == AlignmentModeEnum.CHAIN:
             chain_label.text_value = 'Select Chain'
@@ -382,10 +384,10 @@ class MainMenu:
         # Show or hide ligand section
         # For some reason, running this causes the ligand dropdown callback to not work.
         # Its very strange
-        ln_ligand_selection.enabled = all([
-            self.current_mode == AlignmentModeEnum.BINDING_SITE
-            and btn_fixed.selected
-        ])
+        # ln_ligand_selection.enabled = all([
+        #     self.current_mode == AlignmentModeEnum.BINDING_SITE
+        #     and btn_fixed.selected
+        # ])
 
         btn_fixed.toggle_on_press = True
         btn_moving.toggle_on_press = True
