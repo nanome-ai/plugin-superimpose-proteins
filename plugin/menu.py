@@ -340,7 +340,7 @@ class MainMenu:
 
         for menu_item in comp_list.items:
             await self.configure_comp_list_item(menu_item)
-        
+
         if self.current_mode == AlignmentModeEnum.BINDING_SITE:
             self.btn_align_by_binding_site.unusable = False
             self.plugin.update_content(self.btn_align_by_binding_site)
