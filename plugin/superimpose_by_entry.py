@@ -7,6 +7,7 @@ from . import utils
 
 __all__ = ["superimpose_by_entry"]
 
+
 def superimpose_by_entry(fixed_comp: Complex, moving_comp: Complex, overlay_method):
     parser = PDBParser(QUIET=True)
     fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")

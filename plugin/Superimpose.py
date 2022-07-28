@@ -12,9 +12,8 @@ from . import __version__
 from . import utils
 from .superimpose_by_chain import superimpose_by_chain
 from .superimpose_by_entry import superimpose_by_entry
+from .superimpose_by_binding_site import superimpose_by_binding_site
 from .menu import MainMenu
-from .fpocket_client import FPocketClient
-from .site_motif_client import SiteMotifClient
 
 PDBOPTIONS = Complex.io.PDBSaveOptions()
 PDBOPTIONS.write_bonds = True
@@ -141,18 +140,15 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     async def superimpose_by_binding_site(
             self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=5):
-        # Select the binding site on the fixed_index.
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
+        # Select the binding site on the fixed complex.
         fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_name, site_size)
         fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues)
-
+        
         fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
-
-        fpocket_client = FPocketClient()
-        sitemotif_client = SiteMotifClient()
 
         fixed_comp.locked = True
         comps_to_update = [fixed_comp]
@@ -161,52 +157,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         for i, moving_comp in enumerate(moving_comp_list):
             ComplexUtils.align_to(moving_comp, fixed_comp)
             Logs.debug(f"Identifying binding sites for moving comp {i + 1}")
-            fpocket_results = fpocket_client.run(moving_comp, self.temp_dir.name)
-            pocket_pdbs = fpocket_client.get_pocket_pdb_files(fpocket_results)
-            pocket_residue_pdbs = utils.clean_fpocket_pdbs(pocket_pdbs, moving_comp)
-
-            fixed_pdb = fixed_binding_site_pdb.name
-            pdb1, pdb2, alignment = sitemotif_client.find_match(fixed_pdb, pocket_residue_pdbs)
-            if fixed_pdb == pdb1:
-                comp1 = fixed_comp
-                comp2 = moving_comp
-            else:
-                comp1 = moving_comp
-                comp2 = fixed_comp
-
-            # Get biopython representation of alpha carbon atoms, and pass to superimposer
-            comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment)
-            comp1_bp_atoms = utils.convert_atoms_to_biopython(comp1_atoms)
-            comp2_bp_atoms = utils.convert_atoms_to_biopython(comp2_atoms)
-            superimposer = Superimposer()
-            if comp1 == fixed_comp:
-                superimposer.set_atoms(comp1_bp_atoms, comp2_bp_atoms)
-            else:
-                superimposer.set_atoms(comp2_bp_atoms, comp1_bp_atoms)
-            # Select all alpha carbons used in the superimpose
-            comp1_atoms_selected = 0
-            comp2_atoms_selected = 0
-            for atom in comp1.atoms:
-                atom.selected = atom in comp1_atoms
-                if atom.selected:
-                    comp1_atoms_selected += 1
-                    atom.atom_mode = enums.AtomRenderingMode.BallStick
-                    atom.residue.ribboned = False
-            for atom in comp2.atoms:
-                atom.selected = atom in comp2_atoms
-                if atom.selected:
-                    comp2_atoms_selected += 1
-                    atom.atom_mode = enums.AtomRenderingMode.BallStick
-                    atom.residue.ribboned = False
-
-            rms = round(superimposer.rms, 2)
-            Logs.debug(f"Comp1 atoms selected: {comp1_atoms_selected}")
-            Logs.debug(f"Comp2 atoms selected: {comp2_atoms_selected}")
-            Logs.debug(f"RMSD: {rms}")
-            paired_atom_count = len(comp1_atoms)
-            paired_residue_count = paired_atom_count
-            rmsd_results[moving_comp.full_name] = self.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)
-            transform_matrix = self.create_transform_matrix(superimposer)
+            transform_matrix, rmsd_data = superimpose_by_binding_site(fixed_comp, moving_comp, fixed_binding_site_comp)
+            rmsd_results[moving_comp.full_name] = rmsd_data
             for comp_atom in moving_comp.atoms:
                 new_position = transform_matrix * comp_atom.position
                 comp_atom.position = new_position
