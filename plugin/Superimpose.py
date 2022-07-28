@@ -100,13 +100,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
-
         fixed_comp.locked = True
         fixed_comp.boxed = False
         comps_to_update = [fixed_comp]
-
         comp_count = len(moving_comps)
-        results = {}
+        rmsd_results = {}
         for i, moving_comp in enumerate(moving_comps):
             Logs.debug(f"Superimposing Moving Complex {i + 1}")
             moving_chain_name = moving_comp_chain_list[i][1]
@@ -114,7 +112,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
             transform_matrix, rmsd_data = superimpose_by_chain(
                 fixed_comp, fixed_chain_name, moving_comp, moving_chain_name, overlay_method)
-            results[moving_comp.full_name] = rmsd_data
+            rmsd_results[moving_comp.full_name] = rmsd_data
 
             # apply transformation to moving_comp
             for comp_atom in moving_comp.atoms:
@@ -139,7 +137,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                  if updated_comp.index == comp_index), None)
             if updated_comp:
                 self.complexes[i] = updated_comp
-        return results
+        return rmsd_results
 
     async def superimpose_by_binding_site(
             self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=5):

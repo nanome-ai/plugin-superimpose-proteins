@@ -17,7 +17,7 @@ def superimpose_by_entry(fixed_comp: Complex, moving_comp: Complex, overlay_meth
     moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
 
     try:
-        superimposer, paired_residue_count, paired_atom_count = utils.superimpose(
+        superimposer, paired_residue_count, paired_atom_count = utils.superimpose_structures(
             fixed_struct, moving_struct, overlay_method)
     except Exception:
         Logs.error(f"Superimposition failed for {moving_comp.full_name}")

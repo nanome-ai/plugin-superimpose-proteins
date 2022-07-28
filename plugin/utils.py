@@ -99,7 +99,7 @@ def align_structures(structA, structB):
     return mapping
 
 
-def superimpose(fixed_struct: Structure, moving_struct: Structure, overlay_method):
+def superimpose_structures(fixed_struct: Structure, moving_struct: Structure, overlay_method):
     """Align residues from each Structure, and calculate RMSD."""
     paired_res_id_mapping = align_structures(fixed_struct, moving_struct)
     fixed_atoms = []
