@@ -17,7 +17,9 @@ from nanome.util import Matrix, Logs
 PDBOPTIONS = Complex.io.PDBSaveOptions()
 PDBOPTIONS.write_bonds = True
 
-__all__ = ['extract_binding_site', 'align_structures', 'create_transform_matrix', 'format_superimposer_data', 'superimpose']
+__all__ = [
+    'extract_binding_site', 'align_structures', 'create_transform_matrix',
+    'format_superimposer_data', 'superimpose_structures']
 
 def format_superimposer_data(superimposer: Superimposer, paired_residue_count: int, paired_atom_count: int, chain_name=''):
     # Set up data to return to caller
