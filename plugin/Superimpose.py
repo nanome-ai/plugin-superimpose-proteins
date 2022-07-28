@@ -105,12 +105,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_comp.locked = True
         fixed_comp.boxed = False
         comps_to_update = [fixed_comp]
-        parser = PDBParser(QUIET=True)
 
-        fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
-        fixed_comp.io.to_pdb(fixed_pdb.name)
-        fixed_struct = parser.get_structure(fixed_comp.full_name, fixed_pdb.name)
-        fixed_chain = next(ch for ch in fixed_struct.get_chains() if ch.id == fixed_chain_name)
         comp_count = len(moving_comps)
         results = {}
         for i, moving_comp in enumerate(moving_comps):
@@ -118,30 +113,14 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_chain_name = moving_comp_chain_list[i][1]
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
-            moving_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
-            moving_comp.io.to_pdb(moving_pdb.name)
-            moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-
-            moving_chain = next(
-                ch for ch in moving_struct.get_chains()
-                if ch.id == moving_chain_name)
-
-            try:
-                superimposer, paired_residue_count, paired_atom_count = await self.superimpose(
-                    fixed_chain, moving_chain, overlay_method)
-            except Exception:
-                Logs.error(f"Superimposition failed for {moving_comp.full_name}")
-                continue
-
-            transform_matrix = self.create_transform_matrix(superimposer)
-
-            comp_data = self.format_superimposer_data(
-                superimposer, paired_residue_count, paired_atom_count, moving_chain_name)
-            results[moving_comp.full_name] = comp_data
+            transform_matrix, rmsd_data = algorithms.superimpose_by_chain(
+                fixed_comp, fixed_chain_name, moving_comp, moving_chain_name, overlay_method)
+            results[moving_comp.full_name] = rmsd_data
 
             # apply transformation to moving_comp
             for comp_atom in moving_comp.atoms:
                 comp_atom.position = transform_matrix * comp_atom.position
+
             moving_comp.locked = True
             moving_comp.boxed = False
             moving_comp.set_surface_needs_redraw()
