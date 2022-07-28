@@ -1,4 +1,4 @@
-from plugin import Superimpose
+from plugin import SuperimposePlugin
 
 if __name__ == '__main__':
-    Superimpose.main()
+    SuperimposePlugin.main()

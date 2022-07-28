@@ -6,7 +6,7 @@ from random import randint
 
 from unittest.mock import MagicMock
 from nanome.api.structure import Complex, Substructure
-from plugin.Superimpose import SuperimposePlugin
+from plugin.SuperimposePlugin import SuperimposePlugin
 from plugin.enums import OverlayMethodEnum
 
 fixtures_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
