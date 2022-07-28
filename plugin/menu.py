@@ -119,7 +119,6 @@ class MainMenu:
 
     @async_callback
     async def render(self, force_enable=False):
-
         self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
         self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
         await self.populate_comp_list()
