@@ -61,4 +61,5 @@ def superimpose_by_binding_site(fixed_comp, moving_comp, fixed_binding_site_comp
     paired_residue_count = paired_atom_count
     rmsd_results = utils.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)
     transform_matrix = utils.create_transform_matrix(superimposer)
+    temp_dir.cleanup()
     return transform_matrix, rmsd_results
