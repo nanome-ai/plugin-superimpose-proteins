@@ -1,6 +1,6 @@
 import os
 import shutil
-import site_motif
+# import site_motif
 import subprocess
 import tempfile
 from nanome.util import Logs

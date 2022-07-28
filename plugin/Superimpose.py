@@ -1,18 +1,17 @@
 import nanome
 import os
-import sys
 import tempfile
-import time
-from Bio.PDB import Superimposer, PDBParser
+from Bio.PDB import Superimposer
 from itertools import chain
 from scipy.spatial import KDTree
-from nanome.util import Logs, async_callback, Matrix, ComplexUtils
+from nanome.util import Logs, async_callback, ComplexUtils
 from nanome.api.structure import Complex
 from nanome.util import enums
 
 from . import __version__
-from . import algorithms
 from . import utils
+from .superimpose_by_chain import superimpose_by_chain
+from .superimpose_by_entry import superimpose_by_entry
 from .menu import MainMenu
 from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
@@ -70,7 +69,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         for i, moving_comp in enumerate(moving_comps):
             Logs.debug(f"Starting Structure {i + 1}")
             ComplexUtils.align_to(moving_comp, fixed_comp)
-            transform_matrix, rmsd_data = algorithms.superimpose_by_entry(fixed_comp, moving_comp, overlay_method)
+            transform_matrix, rmsd_data = superimpose_by_entry(fixed_comp, moving_comp, overlay_method)
             rmsd_results[moving_comp.full_name] = rmsd_data
             # Use matrix to transform moving atoms to new position
             for comp_atom in moving_comp.atoms:
@@ -113,7 +112,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_chain_name = moving_comp_chain_list[i][1]
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
-            transform_matrix, rmsd_data = algorithms.superimpose_by_chain(
+            transform_matrix, rmsd_data = superimpose_by_chain(
                 fixed_comp, fixed_chain_name, moving_comp, moving_chain_name, overlay_method)
             results[moving_comp.full_name] = rmsd_data
 

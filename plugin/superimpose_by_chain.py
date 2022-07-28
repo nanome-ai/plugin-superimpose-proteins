@@ -7,6 +7,7 @@ from nanome.api.structure import Complex
 
 from . import utils
 
+__all__ = ["superimpose_by_chain"]
 
 def superimpose_by_chain(fixed_comp: Complex, fixed_chain_name: str, moving_comp: Complex, moving_chain_name: str, overlay_method):
     parser = PDBParser(QUIET=True)
@@ -18,7 +19,6 @@ def superimpose_by_chain(fixed_comp: Complex, fixed_chain_name: str, moving_comp
     moving_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
     moving_comp.io.to_pdb(moving_pdb.name)
     moving_struct = parser.get_structure(moving_comp.full_name, moving_pdb.name)
-
     moving_chain = next(
         ch for ch in moving_struct.get_chains()
         if ch.id == moving_chain_name)
