@@ -394,6 +394,7 @@ class MainMenu:
         if self.current_mode == AlignmentModeEnum.BINDING_SITE:
             # Set up ligand dropdown if we're in binding site mode
             dd_ligands = ui.Dropdown()
+            dd_ligands.max_displayed_items = 5
             dd_ligands.items = await self.create_ligand_dropdown_items(comp)
             dd_ligands.permanent_title = True
             dd_ligands.permanent_title = 'Select Ligand' if dd_ligands.items else 'No Ligands'
@@ -420,7 +421,7 @@ class MainMenu:
 
     def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
         # One item in button group selected at a time.
-        Logs.message(f"Chain selected: {pressed_btn.text.value.idle}")
+        Logs.debug(f"Chain selected: {pressed_btn.text.value.idle}")
         comp = next(comp for comp in self.plugin.complexes if comp.index == comp_index)
         btns_to_update = [pressed_btn]
         for grp_btn in btn_group:

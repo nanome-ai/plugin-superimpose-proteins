@@ -2,7 +2,6 @@ import nanome
 import os
 import tempfile
 from itertools import chain
-from scipy.spatial import KDTree
 from nanome.util import Logs, async_callback, ComplexUtils
 from nanome.api.structure import Complex
 from nanome.util import enums
@@ -188,33 +187,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             if i == target_reference.current_frame)
         target_ligands = await mol.get_ligands()
         ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
-        # Use KDTree to find target atoms within site_size radius of ligand atoms
         ligand_atoms = chain(*[res.atoms for res in ligand.residues])
-        binding_site_atoms = self.calculate_binding_site_atoms(target_reference, ligand_atoms)
+        binding_site_atoms = utils.calculate_binding_site_atoms(target_reference, ligand_atoms)
         residue_set = set()
         for atom in binding_site_atoms:
             residue_set.add(atom.residue)
         return residue_set
-
-    def calculate_binding_site_atoms(self, target_reference: Complex, ligand_atoms: list, site_size=4.5):
-        """Use KDTree to find target atoms within site_size radius of ligand atoms."""
-        mol = next(
-            mol for i, mol in enumerate(target_reference.molecules)
-            if i == target_reference.current_frame)
-        ligand_positions = [atom.position.unpack() for atom in ligand_atoms]
-        target_atoms = chain(*[ch.atoms for ch in mol.chains if not ch.name.startswith("H")])
-        target_tree = KDTree([atom.position.unpack() for atom in target_atoms])
-        target_point_indices = target_tree.query_ball_point(ligand_positions, site_size)
-        near_point_set = set()
-        for point_indices in target_point_indices:
-            for point_index in point_indices:
-                near_point_set.add(tuple(target_tree.data[point_index]))
-        binding_site_atoms = []
-
-        for targ_atom in mol.atoms:
-            if targ_atom.position.unpack() in near_point_set:
-                binding_site_atoms.append(targ_atom)
-        return binding_site_atoms
 
     def update_loading_bar(self, current, total):
         self.menu.update_loading_bar(current, total)
