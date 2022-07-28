@@ -1,16 +1,15 @@
 import tempfile
-from Bio.PDB import PDBParser
-
-from nanome.api.structure import Complex, Molecule, Chain
-from nanome.util import Logs
-
 import time
+
 from Bio import pairwise2
-from Bio.PDB import Superimposer
+from Bio.PDB import PDBParser, Superimposer
 from Bio.PDB.Structure import Structure
 from Bio.Data.SCOPData import protein_letters_3to1 as aa3to1
 from Bio.PDB.Polypeptide import is_aa
+from itertools import chain
+from scipy.spatial import KDTree
 
+from nanome.api.structure import Complex, Molecule, Chain
 from nanome.util import Matrix, Logs
 
 
@@ -19,7 +18,7 @@ PDBOPTIONS.write_bonds = True
 
 __all__ = [
     'extract_binding_site', 'align_structures', 'create_transform_matrix',
-    'format_superimposer_data', 'superimpose_structures']
+    'format_superimposer_data', 'superimpose_structures', 'calculate_binding_site_atoms']
 
 def format_superimposer_data(superimposer: Superimposer, paired_residue_count: int, paired_atom_count: int, chain_name=''):
     # Set up data to return to caller
@@ -216,3 +215,24 @@ def convert_atoms_to_biopython(atom_list: list):
         ]))
         bp_atom_list.append(bp_atom)
     return bp_atom_list
+
+
+def calculate_binding_site_atoms(target_reference: Complex, ligand_atoms: list, site_size=4.5):
+    """Use KDTree to find target atoms within site_size radius of ligand atoms."""
+    mol = next(
+        mol for i, mol in enumerate(target_reference.molecules)
+        if i == target_reference.current_frame)
+    ligand_positions = [atom.position.unpack() for atom in ligand_atoms]
+    target_atoms = chain(*[ch.atoms for ch in mol.chains if not ch.name.startswith("H")])
+    target_tree = KDTree([atom.position.unpack() for atom in target_atoms])
+    target_point_indices = target_tree.query_ball_point(ligand_positions, site_size)
+    near_point_set = set()
+    for point_indices in target_point_indices:
+        for point_index in point_indices:
+            near_point_set.add(tuple(target_tree.data[point_index]))
+    binding_site_atoms = []
+
+    for targ_atom in mol.atoms:
+        if targ_atom.position.unpack() in near_point_set:
+            binding_site_atoms.append(targ_atom)
+    return binding_site_atoms
