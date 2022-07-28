@@ -20,6 +20,7 @@ __all__ = [
     'extract_binding_site', 'align_structures', 'create_transform_matrix',
     'format_superimposer_data', 'superimpose_structures', 'calculate_binding_site_atoms']
 
+
 def format_superimposer_data(superimposer: Superimposer, paired_residue_count: int, paired_atom_count: int, chain_name=''):
     # Set up data to return to caller
     rms = round(superimposer.rms, 2)

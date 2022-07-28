@@ -9,6 +9,7 @@ from . import utils
 
 __all__ = ["superimpose_by_chain"]
 
+
 def superimpose_by_chain(fixed_comp: Complex, fixed_chain_name: str, moving_comp: Complex, moving_chain_name: str, overlay_method):
     parser = PDBParser(QUIET=True)
     fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
