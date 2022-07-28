@@ -119,7 +119,6 @@ class MainMenu:
 
     @async_callback
     async def render(self, force_enable=False):
-
         self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
         self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
         await self.populate_comp_list()
@@ -354,7 +353,8 @@ class MainMenu:
         chain_label = menu_item.find_node('select chains').get_content()
         ln_chain_selection = menu_item.find_node('chain_selection')
         ln_ligand_selection = menu_item.find_node('ligand_selection')
-        dd_ligands = ln_ligand_selection.find_node('dd_ligands').get_content()
+        ln_dd_ligands = ln_ligand_selection.find_node('dd_ligands')
+
         lbl_struct_name = menu_item.find_node('lbl_struct_name').get_content()
         comp = next((cmp for cmp in self.plugin.complexes if cmp.index == menu_item.comp_index), None)
         if not comp:
@@ -381,13 +381,10 @@ class MainMenu:
 
         # Show or hide chain section
         ln_chain_selection.enabled = self.current_mode != AlignmentModeEnum.BINDING_SITE
-        # Show or hide ligand section
-        # For some reason, running this causes the ligand dropdown callback to not work.
-        # Its very strange
-        # ln_ligand_selection.enabled = all([
-        #     self.current_mode == AlignmentModeEnum.BINDING_SITE
-        #     and btn_fixed.selected
-        # ])
+        ln_ligand_selection.enabled = all([
+            self.current_mode == AlignmentModeEnum.BINDING_SITE
+            and btn_fixed.selected
+        ])
 
         btn_fixed.toggle_on_press = True
         btn_moving.toggle_on_press = True
@@ -395,10 +392,12 @@ class MainMenu:
 
         if self.current_mode == AlignmentModeEnum.BINDING_SITE:
             # Set up ligand dropdown if we're in binding site mode
+            dd_ligands = ui.Dropdown()
+            dd_ligands.max_displayed_items = 5
             dd_ligands.items = await self.create_ligand_dropdown_items(comp)
-            if not dd_ligands.items:
-                dd_ligands.permanent_title = True
-                dd_ligands.permanent_title = 'No Ligands'
+            dd_ligands.permanent_title = True
+            dd_ligands.permanent_title = 'Select Ligand' if dd_ligands.items else 'No Ligands'
+            ln_dd_ligands.set_content(dd_ligands)
 
     def create_template_list_item(self):
         """Create a template list item for the complex list."""
@@ -417,14 +416,11 @@ class MainMenu:
         # Moving button
         btn_moving = list_item.find_node('ln_btn_moving').get_content()
         btn_moving.toggle_on_press = True
-        # Ligand dropdown
-        dd_ligands = list_item.find_node('dd_ligands').get_content()
-        dd_ligands.register_item_clicked_callback(self.dd_ligands_item_clicked)
         return list_item
 
     def chain_selected_callback(self, comp_index, btn_group, pressed_btn):
         # One item in button group selected at a time.
-        Logs.message(f"Chain selected: {pressed_btn.text.value.idle}")
+        Logs.debug(f"Chain selected: {pressed_btn.text.value.idle}")
         comp = next(comp for comp in self.plugin.complexes if comp.index == comp_index)
         btns_to_update = [pressed_btn]
         for grp_btn in btn_group:
@@ -794,16 +790,6 @@ class MainMenu:
         if atoms_to_update:
             Logs.debug(f"Updating {len(atoms_to_update)} atom selections")
             self.plugin.update_structures_shallow(atoms_to_update)
-
-    def dd_ligands_item_clicked(self, dd, ddi):
-        """Callback for when ligand is selected in binding site mode."""
-        # Only one dropdown item can be selected at a time.
-        Logs.message("Ligand Selected")
-        for item in dd.items:
-            if item is ddi:
-                continue
-            item.selected = False
-        self.plugin.update_content(dd)
 
     def overlay_method_selected(self, btn_group, selected_btn):
         """Callback for when an overlay method is selected."""
