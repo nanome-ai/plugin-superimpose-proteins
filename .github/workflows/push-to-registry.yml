@@ -35,7 +35,7 @@ jobs:
         echo Default tag = $default_tag
         echo "::set-output name=default_tag::$default_tag"
     - name: Get short SHA
-      id: sha
+      id: sha7
       run: echo "::set-output name=sha7::$(echo ${GITHUB_SHA} | cut -c1-7)"
     - name: Get tag
       id: tag
@@ -59,4 +59,4 @@ jobs:
         context: .
         tags: |
           public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:${{ steps.tag.outputs.tag }}
-          public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:${{ steps.default_tag.outputs.default_tag }}
+          public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:${{ steps.sha.outputs.sha7 }}
