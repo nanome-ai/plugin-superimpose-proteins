@@ -30,9 +30,7 @@ class SiteMotifClient:
             align_output = f'{output_dir}/align_output.txt'
             sites_dir.cleanup()
             # Uncomment for debugging
-            # with open(align_output, "r") as f:
-            #     with open('align_output.txt', 'w') as w:
-            #         w.write(f.read())
+            # shutil.copy(align_output, './align_output.txt')
             if not os.path.exists(align_output):
                 raise Exception('No align output found')
             with open(align_output, 'r') as f:
@@ -109,7 +107,7 @@ class SiteMotifClient:
             if not comp2_res:
                 Logs.warning(f"Could not find {res2_name} {res2_chain} {res2_serial} on {comp2.full_name}")
                 continue
-            if comp1_res.name == comp2_res.name and len:
+            if comp1_res.name == comp2_res.name and len(comp1_res.atoms) == len(comp2_res.atoms):
                 # If whole residues are the same, add all atoms
                 comp1_res_atoms = sorted(comp1_res.atoms, key=lambda x: x.name)
                 comp2_res_atoms = sorted(comp2_res.atoms, key=lambda x: x.name)
