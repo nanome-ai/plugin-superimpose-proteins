@@ -59,4 +59,4 @@ jobs:
         context: .
         tags: |
           public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:${{ steps.tag.outputs.tag }}
-          public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:${{ steps.sha.outputs.sha7 }}
+          public.ecr.aws/h7r1e4h2/${{ steps.repoName.outputs.repo_name }}:${{ steps.sha7.outputs.sha7 }}
