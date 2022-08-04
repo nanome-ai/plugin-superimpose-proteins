@@ -107,7 +107,7 @@ class SiteMotifClient:
             if not comp2_res:
                 Logs.warning(f"Could not find {res2_name} {res2_chain} {res2_serial} on {comp2.full_name}")
                 continue
-            if comp1_res.name == comp2_res.name and len(comp1_res.atoms) == len(comp2_res.atoms):
+            if comp1_res.name == comp2_res.name and len(list(comp1_res.atoms)) == len(list(comp2_res.atoms)):
                 # If whole residues are the same, add all atoms
                 comp1_res_atoms = sorted(comp1_res.atoms, key=lambda x: x.name)
                 comp2_res_atoms = sorted(comp2_res.atoms, key=lambda x: x.name)
