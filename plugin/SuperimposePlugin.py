@@ -141,8 +141,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
-        # Select the binding site on the fixed complex.
         fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_name, site_size)
+        
+        # Select all atoms in the fixed binding site
+        for atom in chain(*[res.atoms for res in fixed_binding_site_residues]):
+            atom.selected = True
+
         fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues)
         fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)

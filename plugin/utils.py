@@ -167,7 +167,6 @@ def extract_binding_site(comp, binding_site_residues):
     new_comp.index = -1
 
     binding_site_residue_indices = [r.index for r in binding_site_residues]
-    # Logs.debug(f'Binding site residues: {len(binding_site_residues)}')
     for ch in comp.chains:
         reses_on_chain = [res for res in ch.residues if res.index in binding_site_residue_indices]
         if reses_on_chain:
