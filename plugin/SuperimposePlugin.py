@@ -1,7 +1,7 @@
 import nanome
 import os
 import tempfile
-from itertools import chain
+import itertools
 from nanome.util import Logs, async_callback, ComplexUtils
 from nanome.api.structure import Complex
 from nanome.util import enums
@@ -144,7 +144,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_name, site_size)
         
         # Select all atoms in the fixed binding site
-        for atom in chain(*[res.atoms for res in fixed_binding_site_residues]):
+        for atom in itertools.chain(*[res.atoms for res in fixed_binding_site_residues]):
             atom.selected = True
 
         fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues)
@@ -195,7 +195,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             if i == target_reference.current_frame)
         target_ligands = await mol.get_ligands()
         ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
-        ligand_atoms = chain(*[res.atoms for res in ligand.residues])
+        ligand_atoms = itertools.chain(*[res.atoms for res in ligand.residues])
         binding_site_atoms = utils.calculate_binding_site_atoms(target_reference, ligand_atoms)
         residue_set = set()
         for atom in binding_site_atoms:
