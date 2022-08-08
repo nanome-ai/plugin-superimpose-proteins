@@ -165,9 +165,10 @@ class MainMenu:
             overlay_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
         Logs.message("Submit button Pressed.")
 
-        self.ln_loading_bar.enabled = True
-        self.loading_bar.percentage = 0
-        self.plugin.update_node(self.ln_loading_bar)
+        if current_mode != AlignmentModeEnum.BINDING_SITE:
+            self.ln_loading_bar.enabled = True
+            self.loading_bar.percentage = 0
+            self.plugin.update_node(self.ln_loading_bar)
 
         start_time = time.time()
         rmsd_results = None
