@@ -206,7 +206,7 @@ def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
 def convert_atoms_to_biopython(atom_list: list):
     """Converts atoms to biopython format."""
     parser = PDBParser(QUIET=True)
-    comp = atom_list[0].complex
+    comp = next(iter(atom_list)).complex
     comp_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
     comp.io.to_pdb(comp_pdb.name)
     struct1 = parser.get_structure(comp.full_name, comp_pdb.name)
