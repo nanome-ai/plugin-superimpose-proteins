@@ -192,12 +192,13 @@ class MainMenu:
                 if not all([fixed_comp_index, ligand_name, moving_comp_indices]):
                     msg = "Please select all complexes and ligand."
                     Logs.warning(msg)
+                    run_successful = False
                     self.plugin.send_notification(NotificationTypes.error, msg)
                 else:
                     Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
                         fixed_comp_index, ligand_name, moving_comp_indices)
-            run_successful = True
+                    run_successful = True
         except Exception as e:
             rmsd_results = {}
             Logs.error("Error calculating Superposition.")

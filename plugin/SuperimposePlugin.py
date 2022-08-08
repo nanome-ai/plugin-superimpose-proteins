@@ -144,19 +144,23 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         # Select the binding site on the fixed complex.
         fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_name, site_size)
         fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues)
-
         fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
 
         fixed_comp.locked = True
+        fixed_comp.boxed = False
         comps_to_update = [fixed_comp]
-        comp_count = len(moving_comp_list)
         rmsd_results = {}
-        for i, moving_comp in enumerate(moving_comp_list):
+        for moving_comp in moving_comp_list:
             ComplexUtils.align_to(moving_comp, fixed_comp)
-            Logs.debug(f"Identifying binding sites for moving comp {i + 1}")
-            transform_matrix, rmsd_data = superimpose_by_binding_site(fixed_comp, moving_comp, fixed_binding_site_comp)
+
+        superimpose_data = superimpose_by_binding_site(fixed_comp, moving_comp_list, fixed_binding_site_comp)
+        fixed_binding_site_pdb.close()
+        for comp_index, data in superimpose_data.items():
+            moving_comp = next(comp for comp in moving_comp_list if comp.index == comp_index)
+            transform_matrix, rmsd_data = data
             rmsd_results[moving_comp.full_name] = rmsd_data
+            moving_comp = next(comp for comp in moving_comp_list if comp.index == comp_index)
             for comp_atom in moving_comp.atoms:
                 new_position = transform_matrix * comp_atom.position
                 comp_atom.position = new_position
@@ -164,8 +168,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.boxed = False
             moving_comp.set_surface_needs_redraw()
             comps_to_update.append(moving_comp)
-            self.update_loading_bar(i + 1, comp_count)
-
+        
         await self.update_structures_deep(comps_to_update)
         # Due to a bug in nanome-core, if a complex is unlocked, we need to
         # make a second call to remove box from around complexes.
