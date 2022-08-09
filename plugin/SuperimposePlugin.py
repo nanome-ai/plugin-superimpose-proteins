@@ -1,7 +1,7 @@
 import nanome
 import os
 import tempfile
-from itertools import chain
+import itertools
 from nanome.util import Logs, async_callback, ComplexUtils
 from nanome.api.structure import Complex
 from nanome.util import enums
@@ -137,26 +137,35 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return rmsd_results
 
     async def superimpose_by_binding_site(
-            self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=5):
+            self, fixed_index: int, ligand_index: int, moving_indices: list, site_size=5):
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
-        # Select the binding site on the fixed complex.
-        fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_name, site_size)
-        fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues)
+        fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_index, site_size)
 
+        # Select all atoms in the fixed binding site
+        for atom in itertools.chain(*[res.atoms for res in fixed_binding_site_residues]):
+            atom.selected = True
+
+        fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues)
         fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
 
         fixed_comp.locked = True
+        fixed_comp.boxed = False
         comps_to_update = [fixed_comp]
-        comp_count = len(moving_comp_list)
         rmsd_results = {}
-        for i, moving_comp in enumerate(moving_comp_list):
+        for moving_comp in moving_comp_list:
             ComplexUtils.align_to(moving_comp, fixed_comp)
-            Logs.debug(f"Identifying binding sites for moving comp {i + 1}")
-            transform_matrix, rmsd_data = superimpose_by_binding_site(fixed_comp, moving_comp, fixed_binding_site_comp)
+
+        superimpose_data = await superimpose_by_binding_site(fixed_comp, moving_comp_list, fixed_binding_site_comp, self)
+        fixed_binding_site_pdb.close()
+        self.update_submit_btn_text('Updating Workspace...')
+        for comp_index, data in superimpose_data.items():
+            moving_comp = next(comp for comp in moving_comp_list if comp.index == comp_index)
+            transform_matrix, rmsd_data = data
             rmsd_results[moving_comp.full_name] = rmsd_data
+            moving_comp = next(comp for comp in moving_comp_list if comp.index == comp_index)
             for comp_atom in moving_comp.atoms:
                 new_position = transform_matrix * comp_atom.position
                 comp_atom.position = new_position
@@ -164,9 +173,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.boxed = False
             moving_comp.set_surface_needs_redraw()
             comps_to_update.append(moving_comp)
-            self.update_loading_bar(i + 1, comp_count)
 
-        await self.update_structures_deep(comps_to_update)
+        self.update_structures_shallow(comps_to_update)
+        self.update_structures_shallow(itertools.chain(*[comp.atoms for comp in comps_to_update]))
         # Due to a bug in nanome-core, if a complex is unlocked, we need to
         # make a second call to remove box from around complexes.
         self.update_structures_shallow(comps_to_update)
@@ -180,15 +189,15 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 self.complexes[i] = updated_comp
         return rmsd_results
 
-    async def get_binding_site_residues(self, target_reference: Complex, ligand_name: str, site_size=4.5):
+    async def get_binding_site_residues(self, target_reference: Complex, ligand_index: int, site_size=5):
         """Identify atoms in the active site around a ligand."""
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
             if i == target_reference.current_frame)
         target_ligands = await mol.get_ligands()
-        ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
-        ligand_atoms = chain(*[res.atoms for res in ligand.residues])
-        binding_site_atoms = utils.calculate_binding_site_atoms(target_reference, ligand_atoms)
+        ligand = target_ligands[ligand_index]
+        ligand_atoms = itertools.chain(*[res.atoms for res in ligand.residues])
+        binding_site_atoms = utils.calculate_binding_site_atoms(target_reference, ligand_atoms, site_size)
         residue_set = set()
         for atom in binding_site_atoms:
             residue_set.add(atom.residue)
@@ -196,6 +205,10 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     def update_loading_bar(self, current, total):
         self.menu.update_loading_bar(current, total)
+
+    def update_submit_btn_text(self, new_text):
+        if getattr(self, 'menu', None):
+            self.menu.update_submit_btn_text(new_text)
 
 
 def main():

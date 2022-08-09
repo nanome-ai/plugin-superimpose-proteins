@@ -1,3 +1,4 @@
+import os
 import tempfile
 import time
 
@@ -166,7 +167,6 @@ def extract_binding_site(comp, binding_site_residues):
     new_comp.index = -1
 
     binding_site_residue_indices = [r.index for r in binding_site_residues]
-    # Logs.debug(f'Binding site residues: {len(binding_site_residues)}')
     for ch in comp.chains:
         reses_on_chain = [res for res in ch.residues if res.index in binding_site_residue_indices]
         if reses_on_chain:
@@ -174,15 +174,19 @@ def extract_binding_site(comp, binding_site_residues):
             new_ch.name = ch.name
             new_ch.residues = reses_on_chain
             new_mol.add_chain(new_ch)
-    # Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
     return new_comp
 
 
 def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
-    """Add full residue data to pdb files."""
+    """Add full residue data to pdb files, and add complex index to filename."""
     Logs.debug(f"Cleaning {len(fpocket_pdbs)} fpocket pdbs")
-    for i, pocket_pdb in enumerate(fpocket_pdbs):
+    for i in range(0, len(fpocket_pdbs)):
+        pocket_pdb = fpocket_pdbs[i]
+        new_filename = f'{comp.index}_{os.path.basename(pocket_pdb)}'
+        new_filepath = os.path.join(os.path.dirname(pocket_pdb), new_filename)
+
         pocket_residues = set()
+        # Add comp index to filename
         with open(pocket_pdb) as f:
             for line in f:
                 if line.startswith('ATOM'):
@@ -192,14 +196,16 @@ def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
                     residue = next(rez for rez in chain.residues if rez.serial == res_serial)
                     pocket_residues.add(residue)
         pocket_comp = extract_binding_site(comp, pocket_residues)
-        pocket_comp.io.to_pdb(path=pocket_pdb, options=PDBOPTIONS)
+        pocket_comp.io.to_pdb(path=new_filepath, options=PDBOPTIONS)
+        os.remove(pocket_pdb)
+        fpocket_pdbs[i] = new_filepath
     return fpocket_pdbs
 
 
 def convert_atoms_to_biopython(atom_list: list):
     """Converts atoms to biopython format."""
     parser = PDBParser(QUIET=True)
-    comp = atom_list[0].complex
+    comp = next(iter(atom_list)).complex
     comp_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
     comp.io.to_pdb(comp_pdb.name)
     struct1 = parser.get_structure(comp.full_name, comp_pdb.name)
