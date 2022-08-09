@@ -173,7 +173,6 @@ def extract_binding_site(comp, binding_site_residues):
             new_ch = Chain()
             new_ch.name = ch.name
             new_ch.residues = reses_on_chain
-
             new_mol.add_chain(new_ch)
     return new_comp
 

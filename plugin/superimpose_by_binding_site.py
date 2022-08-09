@@ -69,9 +69,9 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
         binding_site_comp = utils.extract_binding_site(moving_comp, binding_site_residues)
         binding_site_comp.position = moving_comp.position
         binding_site_comp.rotation = moving_comp.rotation
+        binding_site_comp.locked = True
         # Make sure the binding aligns with its original position.
         # ComplexUtils.align_to(binding_site_comp, moving_comp)
-
         binding_site_comps.append(binding_site_comp)
         
     temp_dir.cleanup()
@@ -84,5 +84,6 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
         for comp_atom in new_bsc.atoms:
             new_position = transform_matrix * comp_atom.position
             comp_atom.position = new_position
+            new_bsc.boxed = False
     await plugin_instance.update_structures_deep(created_binding_site_comps)
     return output_data
