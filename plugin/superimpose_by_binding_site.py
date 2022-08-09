@@ -1,14 +1,12 @@
+import itertools
 import os
 import tempfile
 from Bio.PDB import Superimposer
-from nanome.util import Logs, ComplexUtils
-from nanome.api.structure import Complex
-from nanome.api import structure
+from nanome.util import Logs
 
 from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
 from . import utils
-
 
 async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, plugin_instance):
     fpocket_client = FPocketClient()
@@ -70,8 +68,6 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
         binding_site_comp.position = moving_comp.position
         binding_site_comp.rotation = moving_comp.rotation
         binding_site_comp.locked = True
-        # Make sure the binding aligns with its original position.
-        # ComplexUtils.align_to(binding_site_comp, moving_comp)
         binding_site_comps.append(binding_site_comp)
         
     temp_dir.cleanup()
@@ -79,11 +75,11 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
     for old_bsc, new_bsc, moving_comp in zip(binding_site_comps, created_binding_site_comps, moving_comps):
         new_bsc.position = old_bsc.position
         new_bsc.rotation = old_bsc.rotation
-
         transform_matrix = output_data[moving_comp.index][0]
         for comp_atom in new_bsc.atoms:
             new_position = transform_matrix * comp_atom.position
             comp_atom.position = new_position
             new_bsc.boxed = False
-    await plugin_instance.update_structures_deep(created_binding_site_comps)
+    plugin_instance.update_structures_shallow(created_binding_site_comps)
+    plugin_instance.update_structures_shallow(itertools.chain(*[comp.atoms for comp in created_binding_site_comps]))
     return output_data
