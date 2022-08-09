@@ -174,7 +174,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.set_surface_needs_redraw()
             comps_to_update.append(moving_comp)
         
-        await self.update_structures_deep(comps_to_update)
+        self.update_structures_shallow(comps_to_update)
+        self.update_structures_shallow(itertools.chain(*[comp.atoms for comp in comps_to_update]))
         # Due to a bug in nanome-core, if a complex is unlocked, we need to
         # make a second call to remove box from around complexes.
         self.update_structures_shallow(comps_to_update)
