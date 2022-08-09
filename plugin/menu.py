@@ -198,13 +198,8 @@ class MainMenu:
                 else:
                     Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
-<<<<<<< Updated upstream
-                        fixed_comp_index, ligand_name, moving_comp_indices)
-                    run_successful = True
-=======
                         fixed_comp_index, ligand_index, moving_comp_indices)
-            run_successful = True
->>>>>>> Stashed changes
+                    run_successful = True
         except Exception as e:
             rmsd_results = {}
             Logs.error("Error calculating Superposition.")
