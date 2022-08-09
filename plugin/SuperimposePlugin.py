@@ -142,7 +142,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
         fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_index, site_size)
-        
+
         # Select all atoms in the fixed binding site
         for atom in itertools.chain(*[res.atoms for res in fixed_binding_site_residues]):
             atom.selected = True
@@ -173,7 +173,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             moving_comp.boxed = False
             moving_comp.set_surface_needs_redraw()
             comps_to_update.append(moving_comp)
-        
+
         self.update_structures_shallow(comps_to_update)
         self.update_structures_shallow(itertools.chain(*[comp.atoms for comp in comps_to_update]))
         # Due to a bug in nanome-core, if a complex is unlocked, we need to
@@ -209,6 +209,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     def update_submit_btn_text(self, new_text):
         if getattr(self, 'menu', None):
             self.menu.update_submit_btn_text(new_text)
+
 
 def main():
     plugin_title = 'Superimpose Proteins'

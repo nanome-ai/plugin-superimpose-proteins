@@ -8,6 +8,7 @@ from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
 from . import utils
 
+
 async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, plugin_instance):
     fpocket_client = FPocketClient()
     sitemotif_client = SiteMotifClient()
@@ -28,7 +29,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
     align_output_file = os.path.join(temp_dir.name, 'align_output.txt')
     plugin_instance.update_submit_btn_text('Aligning Pockets...')
     sitemotif_client.run(fixed_pdb, pocket_residue_pdbs, align_output_file)
-    
+
     fixed_binding_site_pdb.close()
     output_data = {}
     binding_site_comps = []
@@ -69,7 +70,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
         binding_site_comp.rotation = moving_comp.rotation
         binding_site_comp.locked = True
         binding_site_comps.append(binding_site_comp)
-        
+
     temp_dir.cleanup()
     created_binding_site_comps = await plugin_instance.add_to_workspace(binding_site_comps)
     for old_bsc, new_bsc, moving_comp in zip(binding_site_comps, created_binding_site_comps, moving_comps):

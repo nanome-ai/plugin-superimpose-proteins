@@ -184,7 +184,7 @@ def clean_fpocket_pdbs(fpocket_pdbs, comp: Complex):
         pocket_pdb = fpocket_pdbs[i]
         new_filename = f'{comp.index}_{os.path.basename(pocket_pdb)}'
         new_filepath = os.path.join(os.path.dirname(pocket_pdb), new_filename)
-        
+
         pocket_residues = set()
         # Add comp index to filename
         with open(pocket_pdb) as f:

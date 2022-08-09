@@ -809,10 +809,11 @@ class MainMenu:
                 btns_to_update.append(btn)
         if btns_to_update:
             self.plugin.update_content(*btns_to_update)
-    
+
     def update_submit_btn_text(self, new_text):
         self.btn_submit.text.value.unusable = new_text
         self.plugin.update_content(self.btn_submit)
+
 
 class RMSDMenu(ui.Menu):
 
