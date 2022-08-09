@@ -8,7 +8,7 @@ from .site_motif_client import SiteMotifClient
 from . import utils
 
 
-def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, plugin_instance):
+async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, plugin_instance):
     fpocket_client = FPocketClient()
     sitemotif_client = SiteMotifClient()
     temp_dir = tempfile.TemporaryDirectory()

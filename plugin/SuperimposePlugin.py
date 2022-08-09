@@ -158,7 +158,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         for moving_comp in moving_comp_list:
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
-        superimpose_data = superimpose_by_binding_site(fixed_comp, moving_comp_list, fixed_binding_site_comp, self)
+        superimpose_data = await superimpose_by_binding_site(fixed_comp, moving_comp_list, fixed_binding_site_comp, self)
         fixed_binding_site_pdb.close()
         self.update_submit_btn_text('Updating Workspace...')
         for comp_index, data in superimpose_data.items():
