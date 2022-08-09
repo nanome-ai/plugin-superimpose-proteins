@@ -1,7 +1,9 @@
 import os
 import tempfile
 from Bio.PDB import Superimposer
-from nanome.util import enums, Logs
+from nanome.util import Logs, ComplexUtils
+from nanome.api.structure import Complex
+from nanome.api import structure
 
 from .fpocket_client import FPocketClient
 from .site_motif_client import SiteMotifClient
@@ -28,7 +30,10 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
     align_output_file = os.path.join(temp_dir.name, 'align_output.txt')
     plugin_instance.update_submit_btn_text('Aligning Pockets...')
     sitemotif_client.run(fixed_pdb, pocket_residue_pdbs, align_output_file)
+    
+    fixed_binding_site_pdb.close()
     output_data = {}
+    # binding_site_comps = []
     for moving_comp in moving_comps:
         pdb1, _, alignment = sitemotif_client.find_match(moving_comp.index, align_output_file)
         if os.path.basename(fixed_pdb) == pdb1:
@@ -54,16 +59,23 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
         rmsd_results = utils.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)
         transform_matrix = utils.create_transform_matrix(superimposer)
         output_data[moving_comp.index] = (transform_matrix, rmsd_results)
-        
-        # Make all atoms not used in the superimpose invisible
-        if moving_comp == comp1:
-            comp_atoms = comp1_atoms
-        else:
-            comp_atoms = comp2_atoms
-        for atom in moving_comp.atoms:
-            visible = atom in comp_atoms
-            atom.set_visible(visible)
 
-    fixed_binding_site_pdb.close()
+        # Create a separate complex for the binding site.
+        # if moving_comp == comp1:
+        #     comp_atoms = comp1_atoms
+        # else:
+        #     comp_atoms = comp2_atoms
+        # binding_site_residues = set(atom.residue for atom in comp_atoms)
+        # binding_site_comp = utils.extract_binding_site(moving_comp, binding_site_residues)
+        # # Make sure the binding aligns with its original position.
+        # ComplexUtils.align_to(binding_site_comp, moving_comp)
+        # bs_to_global_mat = binding_site_comp.get_complex_to_workspace_matrix()
+        # global_to_mc_mat = moving_comp.get_workspace_to_complex_matrix()
+        # for atom in binding_site_comp.atoms:
+        #     global_pos = bs_to_global_mat * atom.position
+        #     atom.position = global_to_mc_mat * global_pos
+        # binding_site_comps.append(binding_site_comp)
+        
     temp_dir.cleanup()
+    # await plugin_instance.add_to_workspace(binding_site_comps)
     return output_data
