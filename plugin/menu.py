@@ -187,10 +187,10 @@ class MainMenu:
                 Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, overlay_method)
             elif current_mode == AlignmentModeEnum.BINDING_SITE:
-                ligand_name = self.get_binding_site_ligand()
+                ligand_index = self.get_binding_site_ligand()
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
-                if not all([fixed_comp_index, ligand_name, moving_comp_indices]):
+                if not all([fixed_comp_index, ligand_index is not None, moving_comp_indices]):
                     msg = "Please select all complexes and ligand."
                     Logs.warning(msg)
                     run_successful = False
@@ -198,8 +198,13 @@ class MainMenu:
                 else:
                     Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
+<<<<<<< Updated upstream
                         fixed_comp_index, ligand_name, moving_comp_indices)
                     run_successful = True
+=======
+                        fixed_comp_index, ligand_index, moving_comp_indices)
+            run_successful = True
+>>>>>>> Stashed changes
         except Exception as e:
             rmsd_results = {}
             Logs.error("Error calculating Superposition.")
@@ -279,10 +284,14 @@ class MainMenu:
             if not ln_btn_fixed:
                 continue
             btn_fixed = ln_btn_fixed.get_content()
+            ligand_index = None
             if btn_fixed.selected:
                 dd_ligands = item.find_node('dd_ligands').get_content()
-                selected_ddi = next((ddi for ddi in dd_ligands.items if ddi.selected), None)
-                return getattr(selected_ddi, 'name', '')
+                for i, ddi in enumerate(dd_ligands.items):
+                    if ddi.selected:
+                        ligand_index = i
+                        break
+                return ligand_index
 
     def get_fixed_chain(self):
         for item in self.ln_moving_comp_list.get_content().items:

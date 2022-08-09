@@ -137,7 +137,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return rmsd_results
 
     async def superimpose_by_binding_site(
-            self, fixed_index: int, ligand_name: str, moving_indices: list, site_size=5):
+            self, fixed_index: int, ligand_index: int, moving_indices: list, site_size=5):
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
@@ -188,13 +188,13 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
                 self.complexes[i] = updated_comp
         return rmsd_results
 
-    async def get_binding_site_residues(self, target_reference: Complex, ligand_name: str, site_size=4.5):
+    async def get_binding_site_residues(self, target_reference: Complex, ligand_index: int):
         """Identify atoms in the active site around a ligand."""
         mol = next(
             mol for i, mol in enumerate(target_reference.molecules)
             if i == target_reference.current_frame)
         target_ligands = await mol.get_ligands()
-        ligand = next(ligand for ligand in target_ligands if ligand.name == ligand_name)
+        ligand = target_ligands[ligand_index]
         ligand_atoms = itertools.chain(*[res.atoms for res in ligand.residues])
         binding_site_atoms = utils.calculate_binding_site_atoms(target_reference, ligand_atoms)
         residue_set = set()
