@@ -33,7 +33,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
     
     fixed_binding_site_pdb.close()
     output_data = {}
-    # binding_site_comps = []
+    binding_site_comps = []
     for moving_comp in moving_comps:
         pdb1, _, alignment = sitemotif_client.find_match(moving_comp.index, align_output_file)
         if os.path.basename(fixed_pdb) == pdb1:
@@ -61,21 +61,28 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
         output_data[moving_comp.index] = (transform_matrix, rmsd_results)
 
         # Create a separate complex for the binding site.
-        # if moving_comp == comp1:
-        #     comp_atoms = comp1_atoms
-        # else:
-        #     comp_atoms = comp2_atoms
-        # binding_site_residues = set(atom.residue for atom in comp_atoms)
-        # binding_site_comp = utils.extract_binding_site(moving_comp, binding_site_residues)
-        # # Make sure the binding aligns with its original position.
+        if moving_comp == comp1:
+            comp_atoms = comp1_atoms
+        else:
+            comp_atoms = comp2_atoms
+        binding_site_residues = set(atom.residue for atom in comp_atoms)
+        binding_site_comp = utils.extract_binding_site(moving_comp, binding_site_residues)
+        binding_site_comp.position = moving_comp.position
+        binding_site_comp.rotation = moving_comp.rotation
+        # Make sure the binding aligns with its original position.
         # ComplexUtils.align_to(binding_site_comp, moving_comp)
-        # bs_to_global_mat = binding_site_comp.get_complex_to_workspace_matrix()
-        # global_to_mc_mat = moving_comp.get_workspace_to_complex_matrix()
-        # for atom in binding_site_comp.atoms:
-        #     global_pos = bs_to_global_mat * atom.position
-        #     atom.position = global_to_mc_mat * global_pos
-        # binding_site_comps.append(binding_site_comp)
+
+        binding_site_comps.append(binding_site_comp)
         
     temp_dir.cleanup()
-    # await plugin_instance.add_to_workspace(binding_site_comps)
+    created_binding_site_comps = await plugin_instance.add_to_workspace(binding_site_comps)
+    for old_bsc, new_bsc, moving_comp in zip(binding_site_comps, created_binding_site_comps, moving_comps):
+        new_bsc.position = old_bsc.position
+        new_bsc.rotation = old_bsc.rotation
+
+        transform_matrix = output_data[moving_comp.index][0]
+        for comp_atom in new_bsc.atoms:
+            new_position = transform_matrix * comp_atom.position
+            comp_atom.position = new_position
+    await plugin_instance.update_structures_deep(created_binding_site_comps)
     return output_data

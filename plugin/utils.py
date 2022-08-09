@@ -168,11 +168,14 @@ def extract_binding_site(comp, binding_site_residues):
 
     binding_site_residue_indices = [r.index for r in binding_site_residues]
     for ch in comp.chains:
-        reses_on_chain = [res for res in ch.residues if res.index in binding_site_residue_indices]
+        reses_on_chain = [res._deep_copy() for res in ch.residues if res.index in binding_site_residue_indices]
         if reses_on_chain:
             new_ch = Chain()
             new_ch.name = ch.name
+            for res in reses_on_chain:
+                res.bonds = []
             new_ch.residues = reses_on_chain
+
             new_mol.add_chain(new_ch)
     # Logs.debug(f'New comp residues: {len(list(new_comp.residues))}')
     return new_comp
