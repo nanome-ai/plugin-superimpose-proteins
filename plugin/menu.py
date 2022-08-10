@@ -308,7 +308,7 @@ class MainMenu:
                     if chain_btn.selected), '')
                 return selected_chain
 
-    async def populate_comp_list(self, load_ligands=False):
+    async def populate_comp_list(self):
         """Create list items representing each protein complex in the workspace."""
         complexes = self.plugin.complexes
         comp_list = self.ln_moving_comp_list.get_content()
@@ -325,7 +325,7 @@ class MainMenu:
             menu_item = template_list_item.clone()
             comp_index = comp.index
             menu_item.comp_index = comp_index
-            await self.configure_comp_list_item(menu_item, load_ligands=load_ligands)
+            await self.configure_comp_list_item(menu_item)
             list_items.append(menu_item)
 
         # If less than 2 proteins available, show empty list message on menu instead of list.
