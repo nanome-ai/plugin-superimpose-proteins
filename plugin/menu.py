@@ -308,7 +308,7 @@ class MainMenu:
                     if chain_btn.selected), '')
                 return selected_chain
 
-    async def populate_comp_list(self):
+    async def populate_comp_list(self, load_ligands=False):
         """Create list items representing each protein complex in the workspace."""
         complexes = self.plugin.complexes
         comp_list = self.ln_moving_comp_list.get_content()
@@ -325,7 +325,7 @@ class MainMenu:
             menu_item = template_list_item.clone()
             comp_index = comp.index
             menu_item.comp_index = comp_index
-            await self.configure_comp_list_item(menu_item)
+            await self.configure_comp_list_item(menu_item, load_ligands=load_ligands)
             list_items.append(menu_item)
 
         # If less than 2 proteins available, show empty list message on menu instead of list.
@@ -348,14 +348,14 @@ class MainMenu:
             self.plugin.update_content(self.btn_align_by_binding_site)
 
         for menu_item in comp_list.items:
-            await self.configure_comp_list_item(menu_item)
+            await self.configure_comp_list_item(menu_item, load_ligands=True)
 
         if self.current_mode == AlignmentModeEnum.BINDING_SITE:
             self.btn_align_by_binding_site.unusable = False
             self.plugin.update_content(self.btn_align_by_binding_site)
         self.plugin.update_content(comp_list)
 
-    async def configure_comp_list_item(self, menu_item):
+    async def configure_comp_list_item(self, menu_item, load_ligands=False):
         """Configure a list item for a complex based on current mode."""
         btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
         btn_moving = menu_item.find_node('ln_btn_moving').get_content()
@@ -400,7 +400,7 @@ class MainMenu:
         btn_moving.toggle_on_press = True
         btn_moving.register_pressed_callback(functools.partial(self.btn_moving_pressed, ln_chain_list))
 
-        if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+        if self.current_mode == AlignmentModeEnum.BINDING_SITE and load_ligands:
             # Set up ligand dropdown if we're in binding site mode
             dd_ligands = ui.Dropdown()
             dd_ligands.max_displayed_items = 5
