@@ -180,12 +180,14 @@ class MainMenu:
                 moving_comp_count = len(moving_comp_indices)
                 Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, overlay_method)
+                run_successful = True
             elif current_mode == AlignmentModeEnum.CHAIN:
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
                 moving_comp_count = len(moving_comp_chain_list)
                 Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, overlay_method)
+                run_successful = True
             elif current_mode == AlignmentModeEnum.BINDING_SITE:
                 ligand_index = self.get_binding_site_ligand()
                 moving_comp_indices = self.get_moving_comp_indices()
