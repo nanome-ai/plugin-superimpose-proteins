@@ -64,7 +64,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
         rms = round(superimposer.rms, 2)
         Logs.debug(f"RMSD: {rms}")
         paired_atom_count = len(comp1_atoms)
-        paired_residue_count = paired_atom_count
+        paired_residue_count = len(set([atm.residue for atm in comp1_atoms]))
         rmsd_results = utils.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)
         transform_matrix = utils.create_transform_matrix(superimposer)
         output_data[moving_comp.index] = (transform_matrix, rmsd_results)
