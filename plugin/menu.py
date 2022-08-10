@@ -403,6 +403,7 @@ class MainMenu:
             dd_ligands.items = await self.create_ligand_dropdown_items(comp)
             dd_ligands.permanent_title = True
             dd_ligands.permanent_title = 'Select Ligand' if dd_ligands.items else 'No Ligands'
+            dd_ligands.register_item_clicked_callback(self.update_dropdown_content)
             ln_dd_ligands.set_content(dd_ligands)
 
     def create_template_list_item(self):
@@ -813,6 +814,9 @@ class MainMenu:
     def update_submit_btn_text(self, new_text):
         self.btn_submit.text.value.unusable = new_text
         self.plugin.update_content(self.btn_submit)
+
+    def update_dropdown_content(self, dd, ddi):
+        self.plugin.update_content(dd)
 
 
 class RMSDMenu(ui.Menu):
