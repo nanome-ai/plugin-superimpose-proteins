@@ -141,7 +141,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
-        fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_index, site_size)
+        # If -1 passed as ligand index, use the whole complex as the binding site
+        if ligand_index == -1:
+            fixed_binding_site_residues = list(fixed_comp.residues)
+        else:
+            fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_index, site_size)
 
         # Select all atoms in the fixed binding site
         for atom in itertools.chain(*[res.atoms for res in fixed_binding_site_residues]):

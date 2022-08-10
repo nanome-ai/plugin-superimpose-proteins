@@ -283,9 +283,13 @@ class MainMenu:
             if btn_fixed.selected:
                 dd_ligands = item.find_node('dd_ligands').get_content()
                 for i, ddi in enumerate(dd_ligands.items):
-                    if ddi.selected:
+                    if not ddi.selected:
+                        continue 
+                    if ddi.name.lower() != 'full structure':
                         ligand_index = i
-                        break
+                    else:
+                        ligand_index = -1
+                    break
                 return ligand_index
 
     def get_fixed_chain(self):
@@ -530,13 +534,18 @@ class MainMenu:
         # Get ligands for binding site dropdown
         mol = next(mo for mo in comp.molecules)
         try:
-            ligands = await asyncio.wait_for(mol.get_ligands(), 10)
+            ligands = await asyncio.wait_for(mol.get_ligands(), 5)
         except asyncio.TimeoutError:
             Logs.warning("get_ligands timeout error")
             ligands = []
         dropdown_items = []
         for lig in ligands:
             dropdown_items.append(ui.DropdownItem(lig.name))
+        
+        if not ligands:
+            dropdown_items.append(ui.DropdownItem("Full structure"))
+        if len(dropdown_items) == 1:
+            dropdown_items[0].selected = True
         return dropdown_items
 
     def btn_moving_pressed(self, ln_chain_list, btn_moving):
