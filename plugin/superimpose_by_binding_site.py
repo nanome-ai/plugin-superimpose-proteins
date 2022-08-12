@@ -70,7 +70,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
         output_data[moving_comp.index] = (transform_matrix, rmsd_results)
 
         # If we're using a pocket within a larger struct, Create a separate complex for the binding site.
-        whole_structure_alignment = getattr(moving_comp, 'whole_structure_alignment', False)
+        whole_structure_alignment = getattr(moving_comp, 'whole_structure_alignment', False) or 'binding site' in moving_comp.full_name
         if not whole_structure_alignment:
             if moving_comp == comp1:
                 comp_atoms = comp1_atoms
