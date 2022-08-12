@@ -23,6 +23,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         self.menu = MainMenu(self)
         self.temp_dir = tempfile.TemporaryDirectory()
         self.complexes = []
+        self.run_index = 0
 
     def on_stop(self):
         self.temp_dir.cleanup()
@@ -56,6 +57,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     async def superimpose_by_entry(self, fixed_comp_index, moving_comp_indices, overlay_method):
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
+        self.run_index += 1
         fixed_comp = updated_comps[0]
         moving_comps = updated_comps[1:]
         fixed_comp.locked = True
@@ -93,6 +95,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return rmsd_results
 
     async def superimpose_by_chain(self, fixed_comp_index, fixed_chain_name, moving_comp_chain_list, overlay_method):
+        self.run_index += 1
         moving_comp_indices = [item[0] for item in moving_comp_chain_list]
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
         fixed_comp = updated_comps[0]
@@ -138,6 +141,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     async def superimpose_by_binding_site(
             self, fixed_index: int, ligand_index: int, moving_indices: list, site_size=5):
+        self.run_index += 1
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]

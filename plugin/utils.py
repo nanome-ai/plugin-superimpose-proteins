@@ -158,12 +158,12 @@ def superimpose_structures(fixed_struct: Structure, moving_struct: Structure, ov
     return superimposer, paired_residue_count, paired_atom_count
 
 
-def extract_binding_site(comp, binding_site_residues):
+def extract_binding_site(comp, binding_site_residues, comp_name=None):
     """Copy comp, and remove all residues that are not part of the binding site."""
     new_comp = Complex()
     new_mol = Molecule()
     new_comp.add_molecule(new_mol)
-    new_comp.name = f'{comp.name} binding site'
+    new_comp.name = comp_name or f'{comp.name} binding site'
     new_comp.index = -1
 
     binding_site_residue_indices = [r.index for r in binding_site_residues]
