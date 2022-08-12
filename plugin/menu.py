@@ -286,7 +286,7 @@ class MainMenu:
                 dd_ligands = item.find_node('dd_ligands').get_content()
                 for i, ddi in enumerate(dd_ligands.items):
                     if not ddi.selected:
-                        continue 
+                        continue
                     if ddi.name.lower() != 'full structure':
                         ligand_index = i
                     else:
@@ -543,7 +543,7 @@ class MainMenu:
         dropdown_items = []
         for lig in ligands:
             dropdown_items.append(ui.DropdownItem(lig.name))
-        
+
         if not ligands:
             dropdown_items.append(ui.DropdownItem("Full structure"))
         if len(dropdown_items) == 1:
