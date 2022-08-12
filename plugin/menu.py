@@ -180,12 +180,14 @@ class MainMenu:
                 moving_comp_count = len(moving_comp_indices)
                 Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_entry(fixed_comp_index, moving_comp_indices, overlay_method)
+                run_successful = True
             elif current_mode == AlignmentModeEnum.CHAIN:
                 fixed_chain = self.get_fixed_chain()
                 moving_comp_chain_list = self.get_moving_comp_indices_and_chains()
                 moving_comp_count = len(moving_comp_chain_list)
                 Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                 rmsd_results = await self.plugin.superimpose_by_chain(fixed_comp_index, fixed_chain, moving_comp_chain_list, overlay_method)
+                run_successful = True
             elif current_mode == AlignmentModeEnum.BINDING_SITE:
                 ligand_index = self.get_binding_site_ligand()
                 moving_comp_indices = self.get_moving_comp_indices()
@@ -283,9 +285,13 @@ class MainMenu:
             if btn_fixed.selected:
                 dd_ligands = item.find_node('dd_ligands').get_content()
                 for i, ddi in enumerate(dd_ligands.items):
-                    if ddi.selected:
+                    if not ddi.selected:
+                        continue
+                    if ddi.name.lower() != 'full structure':
                         ligand_index = i
-                        break
+                    else:
+                        ligand_index = -1
+                    break
                 return ligand_index
 
     def get_fixed_chain(self):
@@ -344,14 +350,14 @@ class MainMenu:
             self.plugin.update_content(self.btn_align_by_binding_site)
 
         for menu_item in comp_list.items:
-            await self.configure_comp_list_item(menu_item)
+            await self.configure_comp_list_item(menu_item, load_ligands=True)
 
         if self.current_mode == AlignmentModeEnum.BINDING_SITE:
             self.btn_align_by_binding_site.unusable = False
             self.plugin.update_content(self.btn_align_by_binding_site)
         self.plugin.update_content(comp_list)
 
-    async def configure_comp_list_item(self, menu_item):
+    async def configure_comp_list_item(self, menu_item, load_ligands=False):
         """Configure a list item for a complex based on current mode."""
         btn_fixed = menu_item.find_node('ln_btn_fixed').get_content()
         btn_moving = menu_item.find_node('ln_btn_moving').get_content()
@@ -396,13 +402,14 @@ class MainMenu:
         btn_moving.toggle_on_press = True
         btn_moving.register_pressed_callback(functools.partial(self.btn_moving_pressed, ln_chain_list))
 
-        if self.current_mode == AlignmentModeEnum.BINDING_SITE:
+        if self.current_mode == AlignmentModeEnum.BINDING_SITE and load_ligands:
             # Set up ligand dropdown if we're in binding site mode
             dd_ligands = ui.Dropdown()
             dd_ligands.max_displayed_items = 5
             dd_ligands.items = await self.create_ligand_dropdown_items(comp)
             dd_ligands.permanent_title = True
             dd_ligands.permanent_title = 'Select Ligand' if dd_ligands.items else 'No Ligands'
+            dd_ligands.register_item_clicked_callback(self.update_dropdown_content)
             ln_dd_ligands.set_content(dd_ligands)
 
     def create_template_list_item(self):
@@ -529,13 +536,18 @@ class MainMenu:
         # Get ligands for binding site dropdown
         mol = next(mo for mo in comp.molecules)
         try:
-            ligands = await asyncio.wait_for(mol.get_ligands(), 10)
+            ligands = await asyncio.wait_for(mol.get_ligands(), 5)
         except asyncio.TimeoutError:
             Logs.warning("get_ligands timeout error")
             ligands = []
         dropdown_items = []
         for lig in ligands:
             dropdown_items.append(ui.DropdownItem(lig.name))
+
+        if not ligands:
+            dropdown_items.append(ui.DropdownItem("Full structure"))
+        if len(dropdown_items) == 1:
+            dropdown_items[0].selected = True
         return dropdown_items
 
     def btn_moving_pressed(self, ln_chain_list, btn_moving):
@@ -813,6 +825,9 @@ class MainMenu:
     def update_submit_btn_text(self, new_text):
         self.btn_submit.text.value.unusable = new_text
         self.plugin.update_content(self.btn_submit)
+
+    def update_dropdown_content(self, dd, ddi):
+        self.plugin.update_content(dd)
 
 
 class RMSDMenu(ui.Menu):
