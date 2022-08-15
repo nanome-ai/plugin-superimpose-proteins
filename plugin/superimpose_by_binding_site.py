@@ -101,6 +101,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
             new_position = transform_matrix * comp_atom.position
             comp_atom.position = new_position
             new_bsc.boxed = False
+        new_bsc.set_surface_needs_redraw()
     plugin_instance.update_structures_shallow(created_binding_site_comps)
     plugin_instance.update_structures_shallow(itertools.chain(*[comp.atoms for comp in created_binding_site_comps]))
     return output_data
