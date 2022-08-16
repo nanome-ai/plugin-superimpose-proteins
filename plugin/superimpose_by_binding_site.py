@@ -9,11 +9,12 @@ from .site_motif_client import SiteMotifClient
 from . import utils
 
 
-async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, plugin_instance):
+async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, plugin_instance, advanced_settings):
     fpocket_client = FPocketClient()
     sitemotif_client = SiteMotifClient()
     temp_dir = tempfile.TemporaryDirectory()
 
+    extract_binding_sites = advanced_settings.get("extract_binding_sites", False)
     fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=temp_dir.name, suffix='.pdb')
     fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
     fixed_pdb = fixed_binding_site_pdb.name
@@ -74,7 +75,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
             getattr(moving_comp, 'whole_structure_alignment', False),
             'binding site' in moving_comp.full_name.lower()
         ])
-        if not whole_structure_alignment:
+        if not whole_structure_alignment and extract_binding_sites:
             if moving_comp == comp1:
                 comp_atoms = comp1_atoms
             else:
