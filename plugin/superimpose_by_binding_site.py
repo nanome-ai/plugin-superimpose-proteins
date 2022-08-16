@@ -9,7 +9,7 @@ from .site_motif_client import SiteMotifClient
 from . import utils
 
 
-async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, plugin_instance, advanced_settings):
+async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, advanced_settings, overlay_method: str, plugin_instance):
     fpocket_client = FPocketClient()
     sitemotif_client = SiteMotifClient()
     temp_dir = tempfile.TemporaryDirectory()
@@ -53,7 +53,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
             comp1 = moving_comp
             comp2 = fixed_comp
 
-        comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment)
+        comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment, overlay_method)
         comp1_bp_atoms = utils.convert_atoms_to_biopython(comp1_atoms)
         comp2_bp_atoms = utils.convert_atoms_to_biopython(comp2_atoms)
         superimposer = Superimposer()

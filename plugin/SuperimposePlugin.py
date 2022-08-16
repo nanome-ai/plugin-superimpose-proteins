@@ -144,7 +144,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return rmsd_results
 
     async def superimpose_by_binding_site(
-            self, fixed_index: int, ligand_index: int, moving_indices: list, site_size=5):
+            self, fixed_index: int, ligand_index: int, moving_indices: list, overlay_method, site_size=5):
         self.run_index += 1
         advanced_settings = self.settings_menu.get_settings()
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
@@ -171,7 +171,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         for moving_comp in moving_comp_list:
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
-        superimpose_data = await superimpose_by_binding_site(fixed_comp, moving_comp_list, fixed_binding_site_comp, self, advanced_settings)
+        superimpose_data = await superimpose_by_binding_site(
+            fixed_comp, moving_comp_list, fixed_binding_site_comp,
+            advanced_settings, overlay_method.name, self)
         fixed_binding_site_pdb.close()
         self.update_submit_btn_text('Updating Workspace...')
         for comp_index, data in superimpose_data.items():

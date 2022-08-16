@@ -65,7 +65,7 @@ class SiteMotifClient:
         return pdb_1, pdb_2, residue_alignment
 
     @staticmethod
-    def parse_residue_pairs(comp1: Complex, comp2: Complex, alignment: str):
+    def parse_residue_pairs(comp1: Complex, comp2: Complex, alignment: str, overlay_method):
         """Parses aligned residues from complexes.
 
         alignment format ex. ARG-A-334 GLN-A-155_VAL-A-343 LYS-A-198_ILE-A-364 ALA-A-151
@@ -99,14 +99,16 @@ class SiteMotifClient:
                 if rez_chain_name == res2_chain and rez_serial == int(res2_serial) and rez_name == res2_name:
                     comp2_res = rez
                     break
-
+            
             if not comp1_res:
                 Logs.warning(f"Could not find {res1_name} {res1_chain} {res1_serial} on {comp1.full_name}")
                 continue
             if not comp2_res:
                 Logs.warning(f"Could not find {res2_name} {res2_chain} {res2_serial} on {comp2.full_name}")
                 continue
-            if comp1_res.name == comp2_res.name and len(list(comp1_res.atoms)) == len(list(comp2_res.atoms)):
+
+            all_heavy_atoms = overlay_method == 'HEAVY_ATOMS_ONLY'
+            if all_heavy_atoms and comp1_res.name == comp2_res.name and len(list(comp1_res.atoms)) == len(list(comp2_res.atoms)):
                 # If whole residues are the same, add all atoms
                 comp1_res_atoms = sorted(comp1_res.atoms, key=lambda x: x.name)
                 comp2_res_atoms = sorted(comp2_res.atoms, key=lambda x: x.name)
