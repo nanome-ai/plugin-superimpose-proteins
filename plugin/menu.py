@@ -14,6 +14,7 @@ MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'menu.json')
 COMP_LIST_ITEM_PATH = os.path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = os.path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+SETTINGS_MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'settings.json')
 
 GEAR_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'gear.png')
 GOLD_PIN_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'gold_pin.png')
@@ -200,7 +201,7 @@ class MainMenu:
                 else:
                     Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
-                        fixed_comp_index, ligand_index, moving_comp_indices)
+                        fixed_comp_index, ligand_index, moving_comp_indices, overlay_method)
                     run_successful = True
         except Exception as e:
             rmsd_results = {}
@@ -913,3 +914,33 @@ class RMSDMenu(ui.Menu):
 
     def export_as_csv(self, btn):
         Logs.message("Exporting RMSD results to CSV...")
+
+
+class SettingsMenu:
+
+    def __init__(self, plugin):
+        self.plugin = plugin
+        self._menu = ui.Menu.io.from_json(SETTINGS_MENU_PATH)
+        self._menu.index = 201
+        self.btn_extract_binding_sites.switch.active = True
+        self.btn_extract_binding_sites.toggle_on_press = True
+        self.btn_extract_binding_sites.register_pressed_callback(self.toggle_extract_binding_sites)
+
+    def render(self):
+        self._menu.enabled = True
+        self.plugin.update_menu(self._menu)
+
+    @property
+    def btn_extract_binding_sites(self):
+        return self._menu.root.find_node('btn_extract_binding_sites').get_content()
+
+    def get_settings(self):
+        extract_binding_sites = self.btn_extract_binding_sites.selected
+        return {
+            'extract_binding_sites': extract_binding_sites
+        }
+
+    def toggle_extract_binding_sites(self, btn):
+        Logs.message("Set Extract Binding Sites to: {}".format(btn.selected))
+        # If button is toggled off, clear the previous run from memory
+        self.plugin.update_content(btn)

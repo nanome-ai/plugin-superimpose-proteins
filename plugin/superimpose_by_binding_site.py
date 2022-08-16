@@ -9,11 +9,12 @@ from .site_motif_client import SiteMotifClient
 from . import utils
 
 
-async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, plugin_instance):
+async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, advanced_settings, overlay_method: str, plugin_instance):
     fpocket_client = FPocketClient()
     sitemotif_client = SiteMotifClient()
     temp_dir = tempfile.TemporaryDirectory()
 
+    extract_binding_sites = advanced_settings.get("extract_binding_sites", False)
     fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=temp_dir.name, suffix='.pdb')
     fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
     fixed_pdb = fixed_binding_site_pdb.name
@@ -52,7 +53,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
             comp1 = moving_comp
             comp2 = fixed_comp
 
-        comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment)
+        comp1_atoms, comp2_atoms = sitemotif_client.parse_residue_pairs(comp1, comp2, alignment, overlay_method)
         comp1_bp_atoms = utils.convert_atoms_to_biopython(comp1_atoms)
         comp2_bp_atoms = utils.convert_atoms_to_biopython(comp2_atoms)
         superimposer = Superimposer()
@@ -74,7 +75,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
             getattr(moving_comp, 'whole_structure_alignment', False),
             'binding site' in moving_comp.full_name.lower()
         ])
-        if not whole_structure_alignment:
+        if not whole_structure_alignment and extract_binding_sites:
             if moving_comp == comp1:
                 comp_atoms = comp1_atoms
             else:
@@ -101,6 +102,7 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
             new_position = transform_matrix * comp_atom.position
             comp_atom.position = new_position
             new_bsc.boxed = False
+        new_bsc.set_surface_needs_redraw()
     plugin_instance.update_structures_shallow(created_binding_site_comps)
     plugin_instance.update_structures_shallow(itertools.chain(*[comp.atoms for comp in created_binding_site_comps]))
     return output_data

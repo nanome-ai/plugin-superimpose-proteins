@@ -20,12 +20,6 @@ jobs:
       run: |
         git config --global user.name 'nanome-bot'
         git config --global user.email '45469149+nanome-bot@users.noreply.github.com'
-    - name: tag repo
-      run: |
-        git tag -f $TAG_NAME
-    - name: push tags
-      run:
-        git push -f origin --tags
   push-to-registry:
     needs: "tag-repo"
     uses: ./.github/workflows/push-to-registry.yml

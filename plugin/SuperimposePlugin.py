@@ -11,7 +11,7 @@ from . import utils
 from .superimpose_by_chain import superimpose_by_chain
 from .superimpose_by_entry import superimpose_by_entry
 from .superimpose_by_binding_site import superimpose_by_binding_site
-from .menu import MainMenu
+from .menu import MainMenu, SettingsMenu
 
 PDBOPTIONS = Complex.io.PDBSaveOptions()
 PDBOPTIONS.write_bonds = True
@@ -20,8 +20,9 @@ PDBOPTIONS.write_bonds = True
 class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     def start(self):
-        self.menu = MainMenu(self)
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.menu = MainMenu(self)
+        self.settings_menu = SettingsMenu(self)
         self.complexes = []
         self.run_index = 0
 
@@ -37,6 +38,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             self.complexes = workspace.complexes
         self.menu.render(force_enable=True)
         self.set_plugin_list_button(enums.PluginListButtonType.run, text='Run', usable=True)
+
+    def on_advanced_settings(self):
+        self.settings_menu.render()
 
     @async_callback
     async def on_complex_list_updated(self, complexes):
@@ -140,8 +144,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         return rmsd_results
 
     async def superimpose_by_binding_site(
-            self, fixed_index: int, ligand_index: int, moving_indices: list, site_size=5):
+            self, fixed_index: int, ligand_index: int, moving_indices: list, overlay_method, site_size=5):
         self.run_index += 1
+        advanced_settings = self.settings_menu.get_settings()
         updated_complexes = await self.request_complexes([fixed_index, *moving_indices])
         fixed_comp = updated_complexes[0]
         moving_comp_list = updated_complexes[1:]
@@ -166,7 +171,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         for moving_comp in moving_comp_list:
             ComplexUtils.align_to(moving_comp, fixed_comp)
 
-        superimpose_data = await superimpose_by_binding_site(fixed_comp, moving_comp_list, fixed_binding_site_comp, self)
+        superimpose_data = await superimpose_by_binding_site(
+            fixed_comp, moving_comp_list, fixed_binding_site_comp,
+            advanced_settings, overlay_method.name, self)
         fixed_binding_site_pdb.close()
         self.update_submit_btn_text('Updating Workspace...')
         for comp_index, data in superimpose_data.items():
@@ -223,7 +230,7 @@ def main():
     plugin_title = 'Superimpose Proteins'
     default_description = f'Overlay multiple proteins in 3D space for visual comparison and calculate Root Mean Square Deviation (RMSD) values for a range of similarity from identical (RMSD =0) to very different (RMSD>10).\n\nVersion {__version__}'
     description = os.environ.get("PLUGIN_DESCRIPTION", "") or default_description
-    plugin = nanome.Plugin(plugin_title, description, 'Alignment', False, version=__version__)
+    plugin = nanome.Plugin(plugin_title, description, 'Alignment', True, version=__version__)
     plugin.set_plugin_class(SuperimposePlugin)
     plugin.run()
 
