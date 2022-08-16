@@ -14,6 +14,7 @@ MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'menu.json')
 COMP_LIST_ITEM_PATH = os.path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
 RMSD_MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'rmsd_menu.json')
 RMSD_TABLE_ENTRY = os.path.join(BASE_PATH, 'menu_json', 'rmsd_list_entry.json')
+SETTINGS_MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'settings.json')
 
 GEAR_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'gear.png')
 GOLD_PIN_ICON_PATH = os.path.join(BASE_PATH, 'assets', 'gold_pin.png')
@@ -913,3 +914,38 @@ class RMSDMenu(ui.Menu):
 
     def export_as_csv(self, btn):
         Logs.message("Exporting RMSD results to CSV...")
+
+
+
+class SettingsMenu:
+
+    def __init__(self, plugin):
+        self.plugin = plugin
+        self._menu = ui.Menu.io.from_json(SETTINGS_MENU_PATH)
+        self._menu.index = 200
+        self.btn_recalculate_on_update.switch.active = True
+        # self.btn_recalculate_on_update.toggle_on_press = True
+        self.btn_recalculate_on_update.register_pressed_callback(self.toggle_recalculate_on_update)
+
+    def render(self):
+        self._menu.enabled = True
+        self.plugin.update_menu(self._menu)
+
+    @property
+    def btn_recalculate_on_update(self):
+        return self._menu.root.find_node('btn_recalculate_on_update').get_content()
+
+    def get_settings(self):
+        recalculate_on_update = self.btn_recalculate_on_update.selected
+        return {
+            'recalculate_on_update': recalculate_on_update
+        }
+
+    def toggle_recalculate_on_update(self, btn):
+        btn.selected = not btn.selected
+        Logs.message("Set Recalculate on Update to: {}".format(btn.selected))
+        # If button is toggled off, clear the previous run from memory
+        if not btn.selected and hasattr(self.plugin, 'previous_run'):
+            Logs.message("Clearing previous run from memory")
+            del self.plugin.previous_run
+        self.plugin.update_content(btn)
