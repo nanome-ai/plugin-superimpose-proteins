@@ -922,30 +922,26 @@ class SettingsMenu:
     def __init__(self, plugin):
         self.plugin = plugin
         self._menu = ui.Menu.io.from_json(SETTINGS_MENU_PATH)
-        self._menu.index = 200
-        self.btn_recalculate_on_update.switch.active = True
-        # self.btn_recalculate_on_update.toggle_on_press = True
-        self.btn_recalculate_on_update.register_pressed_callback(self.toggle_recalculate_on_update)
+        self._menu.index = 201
+        self.btn_extract_binding_sites.switch.active = True
+        self.btn_extract_binding_sites.toggle_on_press = True
+        self.btn_extract_binding_sites.register_pressed_callback(self.toggle_extract_binding_sites)
 
     def render(self):
         self._menu.enabled = True
         self.plugin.update_menu(self._menu)
 
     @property
-    def btn_recalculate_on_update(self):
-        return self._menu.root.find_node('btn_recalculate_on_update').get_content()
+    def btn_extract_binding_sites(self):
+        return self._menu.root.find_node('btn_extract_binding_sites').get_content()
 
     def get_settings(self):
-        recalculate_on_update = self.btn_recalculate_on_update.selected
+        extract_binding_sites = self.btn_extract_binding_sites.selected
         return {
-            'recalculate_on_update': recalculate_on_update
+            'extract_binding_sites': extract_binding_sites
         }
 
-    def toggle_recalculate_on_update(self, btn):
-        btn.selected = not btn.selected
-        Logs.message("Set Recalculate on Update to: {}".format(btn.selected))
+    def toggle_extract_binding_sites(self, btn):
+        Logs.message("Set Extract Binding Sites to: {}".format(btn.selected))
         # If button is toggled off, clear the previous run from memory
-        if not btn.selected and hasattr(self.plugin, 'previous_run'):
-            Logs.message("Clearing previous run from memory")
-            del self.plugin.previous_run
         self.plugin.update_content(btn)
