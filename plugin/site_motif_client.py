@@ -99,7 +99,7 @@ class SiteMotifClient:
                 if rez_chain_name == res2_chain and rez_serial == int(res2_serial) and rez_name == res2_name:
                     comp2_res = rez
                     break
-            
+
             if not comp1_res:
                 Logs.warning(f"Could not find {res1_name} {res1_chain} {res1_serial} on {comp1.full_name}")
                 continue

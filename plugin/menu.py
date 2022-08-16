@@ -916,7 +916,6 @@ class RMSDMenu(ui.Menu):
         Logs.message("Exporting RMSD results to CSV...")
 
 
-
 class SettingsMenu:
 
     def __init__(self, plugin):
