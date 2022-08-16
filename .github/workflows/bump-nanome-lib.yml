@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_number:
+        required: true
         type: string
         description: nanome-lib version (e.g `0.34.8`)
 
