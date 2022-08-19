@@ -537,7 +537,7 @@ class MainMenu:
         # Get ligands for binding site dropdown
         mol = next(mo for mo in comp.molecules)
         try:
-            ligands = await asyncio.wait_for(mol.get_ligands(), 5)
+            ligands = await asyncio.wait_for(mol.get_ligands(), 30)
         except asyncio.TimeoutError:
             Logs.warning("get_ligands timeout error")
             ligands = []
