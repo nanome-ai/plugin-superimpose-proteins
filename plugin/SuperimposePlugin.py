@@ -30,11 +30,12 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     @async_callback
     async def on_run(self):
-        self.menu.enabled = True
+        self.menu.open_menu()
         if not self.complexes:
             self.set_plugin_list_button(enums.PluginListButtonType.run, text='Loading...', usable=False)
             workspace = await self.request_workspace()
             self.complexes = workspace.complexes
+        self.menu._menu.title = 'Superimpose Proteins'
         self.menu.render(force_enable=True)
         self.set_plugin_list_button(enums.PluginListButtonType.run, text='Run', usable=True)
 

@@ -162,6 +162,7 @@ class MainMenu:
         self.check_if_ready_to_submit()
         if force_enable:
             self._menu.enabled = True
+        self._menu.title = 'Superimpose Proteins'
         self.plugin.update_menu(self._menu)
 
     @async_callback
@@ -853,6 +854,11 @@ class MainMenu:
 
     def update_dropdown_content(self, dd, ddi):
         self.plugin.update_content(dd)
+
+    def open_menu(self):
+        self._menu.enabled = True
+        self._menu.title = '[LOADING] Superimpose Proteins'
+        self.plugin.update_menu(self._menu)
 
 
 class RMSDMenu(ui.Menu):
