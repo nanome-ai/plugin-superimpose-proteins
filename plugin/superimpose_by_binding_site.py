@@ -9,12 +9,11 @@ from .site_motif_client import SiteMotifClient
 from . import utils
 
 
-async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, advanced_settings, overlay_method: str, plugin_instance):
+async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_site_comp, extract_binding_sites, overlay_method: str, plugin_instance):
     fpocket_client = FPocketClient()
     sitemotif_client = SiteMotifClient()
     temp_dir = tempfile.TemporaryDirectory()
 
-    extract_binding_sites = advanced_settings.get("extract_binding_sites", False)
     fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=temp_dir.name, suffix='.pdb')
     fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
     fixed_pdb = fixed_binding_site_pdb.name
