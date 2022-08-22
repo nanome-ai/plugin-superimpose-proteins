@@ -103,6 +103,14 @@ class MainMenu:
         return self._menu.root.find_node('ln_btn_heavy_atoms').get_content()
 
     @property
+    def ln_extract_binding_site(self):
+        return self._menu.root.find_node('ln_extract_binding_site')
+
+    @property
+    def btn_extract_binding_site(self):
+        return self._menu.root.find_node('ln_btn_extract_binding_site').get_content()
+
+    @property
     def ln_loading_bar(self):
         return self._menu.root.find_node('ln_loading_bar')
 
@@ -118,10 +126,24 @@ class MainMenu:
     def btn_deselect_all(self):
         return self._menu.root.find_node('ln_btn_deselect_all').get_content()
 
+    def extract_binding_site_callback(self, btn):
+        btn.selected = not btn.selected
+        self.plugin.update_content(btn)
+
+    def toggle_extract_binding_site_visibilty(self, visible):
+        for child in self.ln_extract_binding_site.get_children():
+            child.enabled = visible
+        self.plugin.update_node(self.ln_extract_binding_site)
+
     @async_callback
     async def render(self, force_enable=False):
         self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
-        self._menu.root.find_node('binding_site_spacer').enabled = not FEATURE_FLAG_BINDING_SITE
+        self.btn_extract_binding_site.toggle_on_press == True
+        self.btn_extract_binding_site.register_pressed_callback(self.extract_binding_site_callback)
+        self.plugin.update_content(self.btn_extract_binding_site)
+
+        show_binding_site_setting = self.current_mode == AlignmentModeEnum.BINDING_SITE
+        self.toggle_extract_binding_site_visibilty(show_binding_site_setting)
         await self.populate_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
@@ -140,6 +162,7 @@ class MainMenu:
         self.check_if_ready_to_submit()
         if force_enable:
             self._menu.enabled = True
+        self._menu.title = 'Superimpose Proteins'
         self.plugin.update_menu(self._menu)
 
     @async_callback
@@ -193,6 +216,7 @@ class MainMenu:
                 ligand_index = self.get_binding_site_ligand()
                 moving_comp_indices = self.get_moving_comp_indices()
                 moving_comp_count = len(moving_comp_indices)
+                extract_binding_site = self.btn_extract_binding_site.selected
                 if not all([fixed_comp_index, ligand_index is not None, moving_comp_indices]):
                     msg = "Please select all complexes and ligand."
                     Logs.warning(msg)
@@ -201,7 +225,7 @@ class MainMenu:
                 else:
                     Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
-                        fixed_comp_index, ligand_index, moving_comp_indices, overlay_method)
+                        fixed_comp_index, ligand_index, moving_comp_indices, overlay_method, extract_binding_site)
                     run_successful = True
         except Exception as e:
             rmsd_results = {}
@@ -345,7 +369,8 @@ class MainMenu:
 
     async def refresh_comp_list(self):
         comp_list = self.ln_moving_comp_list.get_content()
-
+        self.toggle_extract_binding_site_visibilty(
+            self.current_mode == AlignmentModeEnum.BINDING_SITE)
         if self.current_mode == AlignmentModeEnum.BINDING_SITE:
             self.btn_align_by_binding_site.unusable = True
             self.plugin.update_content(self.btn_align_by_binding_site)
@@ -830,6 +855,11 @@ class MainMenu:
     def update_dropdown_content(self, dd, ddi):
         self.plugin.update_content(dd)
 
+    def open_menu(self):
+        self._menu.enabled = True
+        self._menu.title = '[LOADING] Superimpose Proteins'
+        self.plugin.update_menu(self._menu)
+
 
 class RMSDMenu(ui.Menu):
 
@@ -914,33 +944,3 @@ class RMSDMenu(ui.Menu):
 
     def export_as_csv(self, btn):
         Logs.message("Exporting RMSD results to CSV...")
-
-
-class SettingsMenu:
-
-    def __init__(self, plugin):
-        self.plugin = plugin
-        self._menu = ui.Menu.io.from_json(SETTINGS_MENU_PATH)
-        self._menu.index = 201
-        self.btn_extract_binding_sites.switch.active = True
-        self.btn_extract_binding_sites.toggle_on_press = True
-        self.btn_extract_binding_sites.register_pressed_callback(self.toggle_extract_binding_sites)
-
-    def render(self):
-        self._menu.enabled = True
-        self.plugin.update_menu(self._menu)
-
-    @property
-    def btn_extract_binding_sites(self):
-        return self._menu.root.find_node('btn_extract_binding_sites').get_content()
-
-    def get_settings(self):
-        extract_binding_sites = self.btn_extract_binding_sites.selected
-        return {
-            'extract_binding_sites': extract_binding_sites
-        }
-
-    def toggle_extract_binding_sites(self, btn):
-        Logs.message("Set Extract Binding Sites to: {}".format(btn.selected))
-        # If button is toggled off, clear the previous run from memory
-        self.plugin.update_content(btn)
