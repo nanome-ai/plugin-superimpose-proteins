@@ -151,7 +151,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         if ligand_index == -1:
             fixed_binding_site_residues = list(fixed_comp.residues)
         else:
-            site_size = 5 # Number of angstroms around the ligand to consider as the binding site
+            site_size = 5  # Number of angstroms around the ligand to consider as the binding site
             fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_index, site_size)
 
         # Select all atoms in the fixed binding site
