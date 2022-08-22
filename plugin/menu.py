@@ -53,7 +53,6 @@ class MainMenu:
         self.btn_alpha_carbons.register_pressed_callback(overlay_method_selected_callback)
         self.btn_heavy_atoms.register_pressed_callback(overlay_method_selected_callback)
         self.btn_submit.register_pressed_callback(self.submit)
-        self.btn_align_by_binding_site.disable_on_press == True
 
     @property
     def btn_submit(self):
@@ -131,6 +130,11 @@ class MainMenu:
         btn.selected = not btn.selected
         self.plugin.update_content(btn)
 
+    def toggle_extract_binding_site_visibilty(self, visible):
+        for child in self.ln_extract_binding_site.get_children():
+            child.enabled = visible
+        self.plugin.update_node(self.ln_extract_binding_site)
+
     @async_callback
     async def render(self, force_enable=False):
         self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
@@ -138,7 +142,8 @@ class MainMenu:
         self.btn_extract_binding_site.register_pressed_callback(self.extract_binding_site_callback)
         self.plugin.update_content(self.btn_extract_binding_site)
 
-        self.ln_extract_binding_site.enabled = self.current_mode == AlignmentModeEnum.BINDING_SITE
+        show_binding_site_setting = self.current_mode == AlignmentModeEnum.BINDING_SITE
+        self.toggle_extract_binding_site_visibilty(show_binding_site_setting)
         await self.populate_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
@@ -363,8 +368,8 @@ class MainMenu:
 
     async def refresh_comp_list(self):
         comp_list = self.ln_moving_comp_list.get_content()
-        
-        self.ln_extract_binding_site.enabled = self.current_mode == AlignmentModeEnum.BINDING_SITE
+        self.toggle_extract_binding_site_visibilty(
+            self.current_mode == AlignmentModeEnum.BINDING_SITE)
         if self.current_mode == AlignmentModeEnum.BINDING_SITE:
             self.btn_align_by_binding_site.unusable = True
             self.plugin.update_content(self.btn_align_by_binding_site)
