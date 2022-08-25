@@ -154,11 +154,8 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             site_size = 5  # Number of angstroms around the ligand to consider as the binding site
             fixed_binding_site_residues = await self.get_binding_site_residues(fixed_comp, ligand_index, site_size)
 
-        # Select all atoms in the fixed binding site
-        for atom in itertools.chain(*[res.atoms for res in fixed_binding_site_residues]):
-            atom.selected = True
-
-        fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues)
+        fixed_bs_name = f'{fixed_comp.name} Run {self.run_index} binding site'
+        fixed_binding_site_comp = utils.extract_binding_site(fixed_comp, fixed_binding_site_residues, fixed_bs_name)
         fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=self.temp_dir.name, suffix='.pdb')
         fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
 
