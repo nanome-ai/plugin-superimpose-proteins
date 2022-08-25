@@ -16,6 +16,9 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
 
     fixed_binding_site_pdb = tempfile.NamedTemporaryFile(dir=temp_dir.name, suffix='.pdb')
     fixed_binding_site_comp.io.to_pdb(path=fixed_binding_site_pdb.name)
+    fixed_binding_site_comp.position = fixed_comp.position
+    fixed_binding_site_comp.rotation = fixed_comp.rotation
+    fixed_binding_site_comp.locked = True
     fixed_pdb = fixed_binding_site_pdb.name
 
     pocket_residue_pdbs = []
@@ -43,6 +46,9 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
     fixed_binding_site_pdb.close()
     output_data = {}
     binding_site_comps = []
+    if extract_binding_sites:
+        binding_site_comps.append(fixed_binding_site_comp)
+
     for moving_comp in moving_comps:
         pdb1, _, alignment = sitemotif_client.find_match(moving_comp.index, align_output_file)
         if os.path.basename(fixed_pdb) == pdb1:
@@ -93,10 +99,14 @@ async def superimpose_by_binding_site(fixed_comp, moving_comps, fixed_binding_si
     if binding_site_comps:
         created_binding_site_comps = await plugin_instance.add_to_workspace(binding_site_comps)
 
-    for old_bsc, new_bsc, moving_comp in zip(binding_site_comps, created_binding_site_comps, moving_comps):
+    original_comps = [fixed_comp] + moving_comps
+    for old_bsc, new_bsc, original_comp in zip(binding_site_comps, created_binding_site_comps, original_comps):
         new_bsc.position = old_bsc.position
         new_bsc.rotation = old_bsc.rotation
-        transform_matrix = output_data[moving_comp.index][0]
+        try:
+            transform_matrix = output_data[original_comp.index][0]
+        except KeyError:
+            continue
         for comp_atom in new_bsc.atoms:
             new_position = transform_matrix * comp_atom.position
             comp_atom.position = new_position
