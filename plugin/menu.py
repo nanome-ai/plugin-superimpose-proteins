@@ -54,6 +54,9 @@ class MainMenu:
         self.btn_heavy_atoms.register_pressed_callback(overlay_method_selected_callback)
         self.btn_submit.register_pressed_callback(self.submit)
 
+        self.btn_extract_binding_site.toggle_on_press == True
+        self.btn_extract_binding_site.register_pressed_callback(self.extract_binding_site_callback)
+
     @property
     def btn_submit(self):
         return self._menu.root.find_node('ln_submit').get_content()
@@ -135,13 +138,23 @@ class MainMenu:
             child.enabled = visible
         self.plugin.update_node(self.ln_extract_binding_site)
 
+    def prepare(self):
+        # Show/hide binding site mode based on feature flag
+        self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
+        spacer = self.ln_binding_site_mode.parent.find_node('binding_site_spacer')
+        spacer.enabled = not FEATURE_FLAG_BINDING_SITE
+        # Add loading item to list
+        loading_item = ui.LayoutNode()
+        loading_item.set_padding(left=0.03)
+        loading_item.set_content(ui.Label('Loading...'))
+        comp_list = self.ln_moving_comp_list.get_content()
+        comp_list.items = [loading_item]
+        # Update menu
+        self.plugin.update_node(self.ln_binding_site_mode.parent)
+        self.plugin.update_content(comp_list)
+
     @async_callback
     async def render(self, force_enable=False):
-        self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
-        self.btn_extract_binding_site.toggle_on_press == True
-        self.btn_extract_binding_site.register_pressed_callback(self.extract_binding_site_callback)
-        self.plugin.update_content(self.btn_extract_binding_site)
-
         show_binding_site_setting = self.current_mode == AlignmentModeEnum.BINDING_SITE
         self.toggle_extract_binding_site_visibilty(show_binding_site_setting)
         await self.populate_comp_list()
@@ -857,7 +870,6 @@ class MainMenu:
 
     def open_menu(self):
         self._menu.enabled = True
-        self._menu.title = '[LOADING] Superimpose Proteins'
         self.plugin.update_menu(self._menu)
 
 

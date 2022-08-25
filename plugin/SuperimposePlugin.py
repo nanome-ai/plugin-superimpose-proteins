@@ -30,6 +30,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     @async_callback
     async def on_run(self):
+        self.menu.prepare()
         self.menu.open_menu()
         if not self.complexes:
             self.set_plugin_list_button(enums.PluginListButtonType.run, text='Loading...', usable=False)
