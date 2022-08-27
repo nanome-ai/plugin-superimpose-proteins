@@ -138,25 +138,16 @@ class MainMenu:
             child.enabled = visible
         self.plugin.update_node(self.ln_extract_binding_site)
 
-    def prepare(self):
-        # Show/hide binding site mode based on feature flag
-        self.ln_binding_site_mode.enabled = FEATURE_FLAG_BINDING_SITE
-        spacer = self.ln_binding_site_mode.parent.find_node('binding_site_spacer')
-        spacer.enabled = not FEATURE_FLAG_BINDING_SITE
+    def add_loading_message_to_list(self):
         # Add loading item to list
         loading_item = ui.LayoutNode()
         loading_item.set_padding(left=0.03)
         loading_item.set_content(ui.Label('Loading...'))
         comp_list = self.ln_moving_comp_list.get_content()
         comp_list.items = [loading_item]
-        # Update menu
-        self.plugin.update_node(self.ln_binding_site_mode.parent)
-        self.plugin.update_content(comp_list)
 
     @async_callback
     async def render(self, force_enable=False):
-        show_binding_site_setting = self.current_mode == AlignmentModeEnum.BINDING_SITE
-        self.toggle_extract_binding_site_visibilty(show_binding_site_setting)
         await self.populate_comp_list()
         comp_list = self.ln_moving_comp_list.get_content()
 
@@ -176,6 +167,10 @@ class MainMenu:
         if force_enable:
             self._menu.enabled = True
         self._menu.title = 'Superimpose Proteins'
+
+        show_binding_site_setting = self.current_mode == AlignmentModeEnum.BINDING_SITE
+        self.toggle_extract_binding_site_visibilty(show_binding_site_setting)
+
         self.plugin.update_menu(self._menu)
 
     @async_callback
@@ -386,7 +381,7 @@ class MainMenu:
             self.current_mode == AlignmentModeEnum.BINDING_SITE)
         if self.current_mode == AlignmentModeEnum.BINDING_SITE:
             self.btn_align_by_binding_site.unusable = True
-            self.plugin.update_content(self.btn_align_by_binding_site)
+            self.plugin.update_content(self.btn_align_by_binding_site, comp_list)
 
         for menu_item in comp_list.items:
             await self.configure_comp_list_item(menu_item)
@@ -673,6 +668,10 @@ class MainMenu:
         elif mode_btn.name == 'btn_align_by_binding_site':
             Logs.message("Switched to binding site mode.")
             self.current_mode = AlignmentModeEnum.BINDING_SITE
+            # Default overlay method to heavy atoms
+            self.btn_heavy_atoms.selected = True
+            self.btn_alpha_carbons.selected = False
+            self.plugin.update_content(self.btn_heavy_atoms, self.btn_alpha_carbons)
         await self.refresh_comp_list()
         self.plugin.update_menu(self._menu)
 
@@ -870,6 +869,11 @@ class MainMenu:
 
     def open_menu(self):
         self._menu.enabled = True
+        if not FEATURE_FLAG_BINDING_SITE:
+            self.ln_binding_site_mode.enabled = False
+            spacer = self.ln_binding_site_mode.parent.find_node('binding_site_spacer')
+            spacer.enabled = True
+        self.add_loading_message_to_list()
         self.plugin.update_menu(self._menu)
 
 
