@@ -673,6 +673,10 @@ class MainMenu:
         elif mode_btn.name == 'btn_align_by_binding_site':
             Logs.message("Switched to binding site mode.")
             self.current_mode = AlignmentModeEnum.BINDING_SITE
+            # Default overlay method to heavy atoms
+            self.btn_heavy_atoms.selected = True
+            self.btn_alpha_carbons.selected = False
+            self.plugin.update_content(self.btn_heavy_atoms, self.btn_alpha_carbons)
         await self.refresh_comp_list()
         self.plugin.update_menu(self._menu)
 
