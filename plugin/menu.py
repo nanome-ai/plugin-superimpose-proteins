@@ -7,8 +7,6 @@ from nanome.util import Logs, async_callback, Color
 from nanome.util.enums import NotificationTypes, ScalingOptions
 from .enums import AlignmentModeEnum, OverlayMethodEnum
 
-FEATURE_FLAG_BINDING_SITE = os.environ.get('FEATURE_FLAG_BINDING_SITE', "").lower() in ("yes", "true", "t", "1")
-
 BASE_PATH = os.path.dirname(f'{os.path.realpath(__file__)}')
 MENU_PATH = os.path.join(BASE_PATH, 'menu_json', 'menu.json')
 COMP_LIST_ITEM_PATH = os.path.join(BASE_PATH, 'menu_json', 'comp_list_item.json')
@@ -352,6 +350,7 @@ class MainMenu:
 
         template_list_item = self.create_template_list_item()
         # Create list items for each complex based on template
+        comp_list.items = []
         for comp in complexes:
             # Skip any complexes that are only hetatoms.
             if not any(not atm.is_het for atm in comp.atoms):
@@ -869,10 +868,6 @@ class MainMenu:
 
     def open_menu(self):
         self._menu.enabled = True
-        if not FEATURE_FLAG_BINDING_SITE:
-            self.ln_binding_site_mode.enabled = False
-            spacer = self.ln_binding_site_mode.parent.find_node('binding_site_spacer')
-            spacer.enabled = True
         self.add_loading_message_to_list()
         self.plugin.update_menu(self._menu)
 
