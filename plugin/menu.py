@@ -171,13 +171,22 @@ class MainMenu:
 
         self.plugin.update_menu(self._menu)
 
+    def disable_btn_submit(self):
+        self.btn_submit.unusable = True
+        self.btn_submit.text.value.unusable = "Calculating..."
+        self.plugin.update_content(self.btn_submit)
+
+    def enable_btn_submit(self, unusable_text=None):
+        self.btn_submit.unusable = False
+        if unusable_text:
+            self.btn_submit.text.value.unusable = unusable_text
+        self.plugin.update_content(self.btn_submit)
+
     @async_callback
     async def submit(self, btn):
         current_mode = self.current_mode
-        self.btn_submit.unusable = True
         original_unusable_text = self.btn_submit.text.value.unusable
-        self.btn_submit.text.value.unusable = "Calculating..."
-        self.plugin.update_content(self.btn_submit)
+        self.disable_btn_submit()
         fixed_comp_index = self.get_fixed_comp_index() or 0
 
         # Get alignment method based on dropdown selection
@@ -226,8 +235,9 @@ class MainMenu:
                 if not all([fixed_comp_index, ligand_index is not None, moving_comp_indices]):
                     msg = "Please select all complexes and ligand."
                     Logs.warning(msg)
-                    run_successful = False
                     self.plugin.send_notification(NotificationTypes.error, msg)
+                    self.enable_btn_submit(original_unusable_text)
+                    return
                 else:
                     Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
@@ -242,11 +252,9 @@ class MainMenu:
             if current_mode == AlignmentModeEnum.CHAIN:
                 fixed_name = f'{fixed_name} Chain {fixed_chain}'
             self.render_rmsd_results(rmsd_results, fixed_name)
-        self.btn_submit.unusable = False
-        self.btn_submit.text.value.unusable = original_unusable_text
+        self.enable_btn_submit(original_unusable_text)
         self.ln_loading_bar.enabled = False
         self.plugin.update_node(self.ln_loading_bar)
-        self.plugin.update_content(self.btn_submit)
         end_time = time.time()
         # Log data about run
         elapsed_time = round(end_time - start_time, 2)
