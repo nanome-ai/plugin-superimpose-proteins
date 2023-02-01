@@ -77,7 +77,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
         self.plugin_instance.request_complexes = request_complexes_mock
-        
+
         update_structures_mock = MagicMock()
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
