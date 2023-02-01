@@ -11,7 +11,7 @@ from plugin.site_motif_client import SiteMotifClient
 fixtures_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
 
 
-@unittest.skip("Sitemotif not working from tests")
+# @unittest.skip("Sitemotif not working from tests")
 class SiteMotifClientTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -21,7 +21,11 @@ class SiteMotifClientTestCase(unittest.TestCase):
         self.comp2 = Complex.io.from_pdb(path=self.pdb2)
         self.client = SiteMotifClient()
 
-    def test_find_match(self):
+    @unittest.skip("Sitemotif not working from tests")
+    def test_sitemotif_run(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            pdb1, pdb2, alignment = self.client.find_match(self.pdb1, [self.pdb2])
-            self.assertTrue(len(alignment) > 1)
+            self.client.run(self.pdb1, [self.pdb2], tmpdir)
+            align_output_file = f'{tmpdir}/align_output.txt'
+            with open(align_output_file, 'r') as f:
+                lines = f.readlines()
+                self.assertTrue(len(lines) > 1)

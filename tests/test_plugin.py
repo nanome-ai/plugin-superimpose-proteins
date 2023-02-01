@@ -3,8 +3,9 @@ import os
 import unittest
 from unittest.mock import patch
 from random import randint
-
 from unittest.mock import MagicMock
+
+import nanome
 from nanome.api.structure import Complex, Substructure
 from plugin.SuperimposePlugin import SuperimposePlugin
 from plugin.enums import OverlayMethodEnum
@@ -35,25 +36,27 @@ class PluginFunctionTestCase(unittest.TestCase):
         self.plugin_instance = SuperimposePlugin()
         self.plugin_instance.start()
         self.plugin_instance._network = MagicMock()
+        nanome._internal.network.PluginNetwork._instance = MagicMock()
 
     def tearDown(self):
         self.plugin_instance.on_stop()
 
-    @patch('nanome._internal._network.PluginNetwork._instance')
-    @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
-    @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
-    def test_superimpose_by_chain(self, request_complexes_mock, update_structures_mock, *mocks):
+    def test_superimpose_by_chain(self):
         # Make sure clean_complex function returns valid pdb can be parsed into a Complex structure.
         chain_name_4hhb = 'A'
         chain_name_1mbo = 'A'
 
+        request_complexes_mock = MagicMock()
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
+        self.plugin_instance.request_complexes = request_complexes_mock
 
+        update_structures_mock = MagicMock()
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
+        self.plugin_instance.update_structures_deep = update_structures_mock
 
         alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
         moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
@@ -68,16 +71,19 @@ class PluginFunctionTestCase(unittest.TestCase):
         }
         self.assertEqual(result, expected_output)
 
-    @patch('nanome._internal._network.PluginNetwork._instance')
-    @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
-    @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
-    def test_superimpose_by_entry(self, request_complexes_mock, update_structures_mock, *mocks):
+    def test_superimpose_by_entry(self):
+        request_complexes_mock = MagicMock()
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
+        self.plugin_instance.request_complexes = request_complexes_mock
+
+        update_structures_mock = MagicMock()
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
+        self.plugin_instance.update_structures_deep = update_structures_mock
+
         alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
         result = run_awaitable(
             self.plugin_instance.superimpose_by_entry,
@@ -88,16 +94,19 @@ class PluginFunctionTestCase(unittest.TestCase):
         expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
         self.assertEqual(result, expected_result)
 
-    @patch('nanome._internal._network.PluginNetwork._instance')
-    @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
-    @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
-    def test_superimpose_by_entry_heavy_atoms(self, request_complexes_mock, update_structures_mock, *mocks):
+    def test_superimpose_by_entry_heavy_atoms(self):
+        request_complexes_mock = MagicMock()
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
+        self.plugin_instance.request_complexes = request_complexes_mock
+
+        update_structures_mock = MagicMock()
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
+        self.plugin_instance.update_structures_deep = update_structures_mock
+
         alignment_method = OverlayMethodEnum.HEAVY_ATOMS_ONLY
         result = run_awaitable(
             self.plugin_instance.superimpose_by_entry,
@@ -108,21 +117,22 @@ class PluginFunctionTestCase(unittest.TestCase):
         expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 366, 'paired_residues': 46, 'rmsd': 1.93}}
         self.assertEqual(result, expected_result)
 
-    @patch('nanome._internal._network.PluginNetwork._instance')
-    @patch('nanome.api.plugin_instance.PluginInstance.update_structures_deep')
-    @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
-    def test_superimpose_by_chain_heavy_atoms(self, request_complexes_mock, update_structures_mock, *mocks):
+    def test_superimpose_by_chain_heavy_atoms(self):
         # Make sure clean_complex function returns valid pdb can be parsed into a Complex structure.
         chain_name_4hhb = 'A'
         chain_name_1mbo = 'A'
 
+        request_complexes_mock = MagicMock()
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
         request_complexes_mock.return_value = fut
+        self.plugin_instance.request_complexes = request_complexes_mock
 
+        update_structures_mock = MagicMock()
         update_fut = asyncio.Future()
         update_fut.set_result([self.complex_1mbo])
         update_structures_mock.return_value = update_fut
+        self.plugin_instance.update_structures_deep = update_structures_mock
 
         alignment_method = OverlayMethodEnum.HEAVY_ATOMS_ONLY
         moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
@@ -136,7 +146,6 @@ class PluginFunctionTestCase(unittest.TestCase):
         self.assertEqual(result, expected_output)
 
     @unittest.skip("Sitemotif not working from tests")
-    @patch('nanome._internal._network.PluginNetwork._instance')
     @patch('nanome.api.structure.Molecule.get_ligands')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
     def test_superimpose_by_binding_site(self, request_complexes_mock, get_ligands_mock, *mocks):
@@ -155,11 +164,11 @@ class PluginFunctionTestCase(unittest.TestCase):
         fixed_comp_name = '2OIB'
         fixed_comp = next(comp for comp in complex_list if comp.full_name == fixed_comp_name)
         moving_comp_indices = [cmp.index for cmp in complex_list if cmp.index != fixed_comp.index]
-        ligand_name = 'GLN#341 : TPO#345'
 
         # Build mock substructure.
+        ligand_index = 0
         substruct = Substructure()
-        substruct._name = ligand_name
+        substruct._name = 'GLN#341 : TPO#345'
         substruct._residues = [
             res for res in next(fixed_comp.molecules).residues
             if res.serial >= 341 and res.serial <= 345
@@ -171,7 +180,9 @@ class PluginFunctionTestCase(unittest.TestCase):
         result = run_awaitable(
             self.plugin_instance.superimpose_by_binding_site,
             fixed_comp.index,
-            ligand_name,
+            ligand_index,
             moving_comp_indices,
+            OverlayMethodEnum.HEAVY_ATOMS_ONLY,
+            self.plugin_instance
         )
         self.assertEqual(result, {})

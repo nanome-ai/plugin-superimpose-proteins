@@ -245,7 +245,6 @@ class MainMenu:
                     run_successful = True
         except Exception as e:
             rmsd_results = {}
-            Logs.error("Error calculating Superposition.")
 
         if rmsd_results:
             fixed_name = next(comp.full_name for comp in self.plugin.complexes if comp.index == fixed_comp_index)
