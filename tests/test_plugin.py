@@ -164,11 +164,11 @@ class PluginFunctionTestCase(unittest.TestCase):
         fixed_comp_name = '2OIB'
         fixed_comp = next(comp for comp in complex_list if comp.full_name == fixed_comp_name)
         moving_comp_indices = [cmp.index for cmp in complex_list if cmp.index != fixed_comp.index]
-        ligand_name = 'GLN#341 : TPO#345'
 
         # Build mock substructure.
+        ligand_index = 0
         substruct = Substructure()
-        substruct._name = ligand_name
+        substruct._name = 'GLN#341 : TPO#345'
         substruct._residues = [
             res for res in next(fixed_comp.molecules).residues
             if res.serial >= 341 and res.serial <= 345
@@ -180,7 +180,9 @@ class PluginFunctionTestCase(unittest.TestCase):
         result = run_awaitable(
             self.plugin_instance.superimpose_by_binding_site,
             fixed_comp.index,
-            ligand_name,
+            ligand_index,
             moving_comp_indices,
+            OverlayMethodEnum.HEAVY_ATOMS_ONLY,
+            self.plugin_instance
         )
         self.assertEqual(result, {})
