@@ -21,7 +21,7 @@ def superimpose_by_entry(fixed_comp: Complex, moving_comp: Complex, overlay_meth
         superimposer, paired_residue_count, paired_atom_count = utils.superimpose_structures(
             fixed_struct, moving_struct, overlay_method)
     except Exception:
-        Logs.error(f"Superimposition failed for {moving_comp.full_name}")
+        Logs.warning("Failed to superimpose entries")
         return None, None
 
     rmsd_results = utils.format_superimposer_data(superimposer, paired_residue_count, paired_atom_count)

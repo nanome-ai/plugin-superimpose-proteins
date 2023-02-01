@@ -29,7 +29,7 @@ def superimpose_by_chain(fixed_comp: Complex, fixed_chain_name: str, moving_comp
         superimposer, paired_residue_count, paired_atom_count = utils.superimpose_structures(
             fixed_chain, moving_chain, overlay_method)
     except Exception:
-        Logs.error(f"Superimposition failed for {moving_comp.full_name}")
+        Logs.warning("Failed to superimpose chains")
         return None, None
 
     transform_matrix = utils.create_transform_matrix(superimposer)
