@@ -2,8 +2,8 @@ name: Unittests
 on:
   pull_request:
     branches: [ master ]
-  # push:
-  #   branches: [ master ]
+  push:
+    branches: [ master ]
 
 jobs:
   unittests:
@@ -11,4 +11,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: cd docker && ./build.sh
-    - run: docker run --rm superimpose-proteins:latest python run_tests.py
+    - run: docker run --rm superimpose-proteins:latest python -m discover tests
