@@ -1,4 +1,4 @@
-nanome==0.39.0
+nanome==0.39.3
 biopython==1.79
 scipy==1.8.0
 git+https://github.com/nanome-ai/site-motif/@main#egg=site-motif
