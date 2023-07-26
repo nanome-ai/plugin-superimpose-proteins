@@ -75,7 +75,7 @@ class PluginFunctionTestCase(unittest.IsolatedAsyncioTestCase):
         self.plugin_instance.update_structures_deep = update_structures_mock
 
         alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
-        result = await  self.plugin_instance.superimpose_by_entry(
+        result = await self.plugin_instance.superimpose_by_entry(
             self.complex_4hhb.index,
             [self.complex_1mbo.index],
             alignment_method
@@ -99,7 +99,7 @@ class PluginFunctionTestCase(unittest.IsolatedAsyncioTestCase):
         alignment_method = OverlayMethodEnum.HEAVY_ATOMS_ONLY
         result = await self.plugin_instance.superimpose_by_entry(
             self.complex_4hhb.index, [self.complex_1mbo.index], alignment_method)
-        
+
         expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 366, 'paired_residues': 46, 'rmsd': 1.93}}
         self.assertEqual(result, expected_result)
 
@@ -176,10 +176,10 @@ class PluginFunctionTestCase(unittest.IsolatedAsyncioTestCase):
         """With all atoms selected, this should return the same results as superimpose by entry."""
         for atom in self.complex_4hhb.atoms:
             atom.selected = True
-        
+
         for atom in self.complex_1mbo.atoms:
             atom.selected = True
-        
+
         request_complexes_mock = MagicMock()
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
@@ -194,22 +194,22 @@ class PluginFunctionTestCase(unittest.IsolatedAsyncioTestCase):
         self.plugin_instance.update_structures_deep = update_structures_mock
 
         alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
-        result = await  self.plugin_instance.superimpose_by_selection(
+        result = await self.plugin_instance.superimpose_by_selection(
             self.complex_4hhb.index,
             [self.complex_1mbo.index],
             alignment_method
         )
         expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
         self.assertEqual(result, expected_result)
-    
+
     async def test_superimpose_by_selection_no_atoms_selected(self):
         """With no atoms selected, this should return an error and send a notification."""
         for atom in self.complex_4hhb.atoms:
             atom.selected = False
-        
+
         for atom in self.complex_1mbo.atoms:
             atom.selected = False
-        
+
         request_complexes_mock = MagicMock()
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
@@ -232,4 +232,3 @@ class PluginFunctionTestCase(unittest.IsolatedAsyncioTestCase):
             )
         # Make sure notification was sent.
         self.plugin_instance.send_notification.assert_called_once()
-        

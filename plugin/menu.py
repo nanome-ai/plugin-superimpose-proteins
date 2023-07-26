@@ -654,7 +654,7 @@ class MainMenu:
     @property
     def btn_align_by_binding_site(self):
         return self._menu.root.find_node('ln_btn_align_by_binding_site').get_content()
-    
+
     @property
     def btn_align_by_selection(self):
         return self._menu.root.find_node('ln_btn_align_by_selection').get_content()
@@ -755,7 +755,6 @@ class MainMenu:
         elif self.current_mode == AlignmentModeEnum.SELECTION:
             moving_comp_indices = self.get_moving_comp_indices()
             ready_to_submit = all([fixed_comp_index, moving_comp_indices])
-
 
         self.btn_submit.unusable = not ready_to_submit
         self.plugin.update_content(self.btn_submit)
