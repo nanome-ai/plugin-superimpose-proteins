@@ -752,6 +752,10 @@ class MainMenu:
             moving_comps_selected = bool(self.get_moving_comp_indices())
             if fixed_comp_index and fixed_ligand and moving_comps_selected:
                 ready_to_submit = True
+        elif self.current_mode == AlignmentModeEnum.SELECTION:
+            moving_comp_indices = self.get_moving_comp_indices()
+            ready_to_submit = all([fixed_comp_index, moving_comp_indices])
+
 
         self.btn_submit.unusable = not ready_to_submit
         self.plugin.update_content(self.btn_submit)
