@@ -10,3 +10,7 @@ __pycache__
 *ipynb_checkpoints*
 .env
 site-motif
+
+docker
+!docker/build.sh
+!docker/deploy.sh
