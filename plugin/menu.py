@@ -60,16 +60,12 @@ class MainMenu:
         return self._menu.root.find_node('ln_submit').get_content()
 
     @property
-    def ln_binding_site_mode(self):
-        return self._menu.root.find_node('ln_binding_site_mode')
-
-    @property
-    def ln_binding_site_mode(self):
-        return self._menu.root.find_node('ln_binding_site_mode')
-
-    @property
     def btn_align_by_binding_site(self):
         return self.ln_btn_align_by_binding_site.get_content()
+
+    @property
+    def btn_align_by_selection(self):
+        return self.ln_btn_align_by_selection.get_content()
 
     @property
     def ln_run_history(self):
@@ -243,6 +239,12 @@ class MainMenu:
                     rmsd_results = await self.plugin.superimpose_by_binding_site(
                         fixed_comp_index, ligand_index, moving_comp_indices, overlay_method, extract_binding_site)
                     run_successful = True
+            elif current_mode == AlignmentModeEnum.SELECTION:
+                moving_comp_indices = self.get_moving_comp_indices()
+                moving_comp_count = len(moving_comp_indices)
+                Logs.message(f"Superimposing {moving_comp_count + 1} structures by {current_mode.name.lower()}, using {overlay_method.name.lower()}")
+                rmsd_results = await self.plugin.superimpose_by_selection(fixed_comp_index, moving_comp_indices, overlay_method)
+                run_successful = True
         except Exception as e:
             rmsd_results = {}
 
@@ -635,7 +637,11 @@ class MainMenu:
 
     @property
     def mode_selection_btn_group(self):
-        return [self.btn_entry_align, self.btn_align_by_chain, self.btn_align_by_binding_site]
+        return [
+            self.btn_entry_align,
+            self.btn_align_by_chain,
+            self.btn_align_by_binding_site,
+            self.btn_align_by_selection]
 
     @property
     def btn_entry_align(self):
@@ -648,6 +654,10 @@ class MainMenu:
     @property
     def btn_align_by_binding_site(self):
         return self._menu.root.find_node('ln_btn_align_by_binding_site').get_content()
+    
+    @property
+    def btn_align_by_selection(self):
+        return self._menu.root.find_node('ln_btn_align_by_selection').get_content()
 
     @property
     def btn_docs(self):
@@ -678,6 +688,9 @@ class MainMenu:
             self.btn_heavy_atoms.selected = True
             self.btn_alpha_carbons.selected = False
             self.plugin.update_content(self.btn_heavy_atoms, self.btn_alpha_carbons)
+        if mode_btn.name == 'btn_align_by_selection':
+            Logs.message("Switched to selection mode")
+            self.current_mode = AlignmentModeEnum.SELECTION
         await self.refresh_comp_list()
         self.plugin.update_menu(self._menu)
 
