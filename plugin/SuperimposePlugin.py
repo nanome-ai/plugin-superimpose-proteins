@@ -188,7 +188,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
             if updated_comp:
                 self.complexes[i] = updated_comp
         return rmsd_results
-    
+
     async def get_binding_site_residues(self, target_reference: Complex, ligand_index: int, site_size=5):
         """Identify atoms in the active site around a ligand."""
         mol = next(
