@@ -9,18 +9,18 @@ __all__ = ["superimpose_by_selection"]
 
 
 def superimpose_by_selection(fixed_comp: Complex, moving_comp: Complex, overlay_method):
-    parser = PDBParser(QUIET=True)
-    fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
-    moving_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
-    fixed_comp.io.to_pdb(fixed_pdb.name)
-    moving_comp.io.to_pdb(moving_pdb.name)
 
     # Reduce structures to only selected atoms
     fixed_selected_residues = [res for res in fixed_comp.residues if any([atom.selected for atom in res.atoms])]
     moving_selected_residues = [res for res in moving_comp.residues if any([atom.selected for atom in res.atoms])]
     fixed_selected_comp = utils.extract_binding_site(fixed_comp, fixed_selected_residues, comp_name=fixed_comp.name)
     moving_selected_comp = utils.extract_binding_site(moving_comp, moving_selected_residues, comp_name=moving_comp.name)
+    fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
+    moving_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
+    fixed_selected_comp.io.to_pdb(path=fixed_pdb.name)
+    moving_selected_comp.io.to_pdb(path=moving_pdb.name)
 
+    parser = PDBParser(QUIET=True)
     fixed_struct = parser.get_structure(fixed_selected_comp.full_name, fixed_pdb.name)
     moving_struct = parser.get_structure(moving_selected_comp.full_name, moving_pdb.name)
 

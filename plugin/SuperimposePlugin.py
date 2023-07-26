@@ -251,6 +251,11 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
 
     async def superimpose_by_selection(self, fixed_comp_index, moving_comp_indices, overlay_method):
         updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
+        # Validate that each complex has at least one selected atom
+        for comp in updated_comps:
+            if not any([atom.selected for atom in comp.atoms]):
+                self.send_notification(enums.NotificationTypes.error, f"Structure {comp.full_name} has no selected atoms")
+                raise ValueError(f"Make sure all structures have selected atoms.")
         self.run_index += 1
         fixed_comp, *moving_comps = updated_comps
         fixed_comp.locked = True
