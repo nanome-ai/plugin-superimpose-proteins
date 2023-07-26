@@ -254,7 +254,9 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         # Validate that each complex has at least one selected atom
         for comp in updated_comps:
             if not any([atom.selected for atom in comp.atoms]):
-                self.send_notification(enums.NotificationTypes.error, f"Structure {comp.full_name} has no selected atoms")
+                msg = f"Structure {comp.full_name} has no selected atoms"
+                self.send_notification(enums.NotificationTypes.error, msg)
+                Logs.error(msg)
                 raise ValueError(f"Make sure all structures have selected atoms.")
         self.run_index += 1
         fixed_comp, *moving_comps = updated_comps
