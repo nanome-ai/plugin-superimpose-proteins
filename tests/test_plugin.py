@@ -232,3 +232,33 @@ class PluginFunctionTestCase(unittest.IsolatedAsyncioTestCase):
             )
         # Make sure notification was sent.
         self.plugin_instance.send_notification.assert_called_once()
+
+    async def test_superimpose_by_selection_no_moving_atoms_selected(self):
+        """With no moving atoms selected, function should still run."""
+        for atom in self.complex_4hhb.atoms:
+            atom.selected = True
+
+        # for atom in self.complex_1mbo.atoms:
+        #     atom.selected = True
+
+        request_complexes_mock = MagicMock()
+        fut = asyncio.Future()
+        fut.set_result([self.complex_4hhb, self.complex_1mbo])
+
+        request_complexes_mock.return_value = fut
+        self.plugin_instance.request_complexes = request_complexes_mock
+
+        update_structures_mock = MagicMock()
+        update_fut = asyncio.Future()
+        update_fut.set_result([self.complex_1mbo])
+        update_structures_mock.return_value = update_fut
+        self.plugin_instance.update_structures_deep = update_structures_mock
+
+        alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
+        result = await self.plugin_instance.superimpose_by_selection(
+            self.complex_4hhb.index,
+            [self.complex_1mbo.index],
+            alignment_method
+        )
+        expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
+        self.assertEqual(result, expected_result)

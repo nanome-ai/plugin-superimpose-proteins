@@ -9,10 +9,12 @@ __all__ = ["superimpose_by_selection"]
 
 
 def superimpose_by_selection(fixed_comp: Complex, moving_comp: Complex, overlay_method):
-
     # Reduce structures to only selected atoms
     fixed_selected_residues = [res for res in fixed_comp.residues if any([atom.selected for atom in res.atoms])]
     moving_selected_residues = [res for res in moving_comp.residues if any([atom.selected for atom in res.atoms])]
+    if not moving_selected_residues:
+        # If no moving residues are selected, use the whole structure
+        moving_selected_residues = list(moving_comp.residues)
     fixed_selected_comp = utils.extract_binding_site(fixed_comp, fixed_selected_residues, comp_name=fixed_comp.name)
     moving_selected_comp = utils.extract_binding_site(moving_comp, moving_selected_residues, comp_name=moving_comp.name)
     fixed_pdb = tempfile.NamedTemporaryFile(suffix=".pdb")
