@@ -13,16 +13,7 @@ from plugin.enums import OverlayMethodEnum
 fixtures_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
 
 
-def run_awaitable(awaitable, *args, **kwargs):
-    loop = asyncio.get_event_loop()
-    if loop.is_running:
-        loop = asyncio.new_event_loop()
-    result = loop.run_until_complete(awaitable(*args, **kwargs))
-    loop.close()
-    return result
-
-
-class PluginFunctionTestCase(unittest.TestCase):
+class PluginFunctionTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         file_4hhb = f'{fixtures_dir}/4hhb.pdb'
@@ -41,7 +32,7 @@ class PluginFunctionTestCase(unittest.TestCase):
     def tearDown(self):
         self.plugin_instance.on_stop()
 
-    def test_superimpose_by_chain(self):
+    async def test_superimpose_by_chain(self):
         # Make sure clean_complex function returns valid pdb can be parsed into a Complex structure.
         chain_name_4hhb = 'A'
         chain_name_1mbo = 'A'
@@ -60,8 +51,7 @@ class PluginFunctionTestCase(unittest.TestCase):
 
         alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
         moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
-        result = run_awaitable(
-            self.plugin_instance.superimpose_by_chain,
+        result = await self.plugin_instance.superimpose_by_chain(
             self.complex_4hhb.index, chain_name_4hhb,
             moving_comp_chain_list,
             alignment_method
@@ -71,7 +61,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         }
         self.assertEqual(result, expected_output)
 
-    def test_superimpose_by_entry(self):
+    async def test_superimpose_by_entry(self):
         request_complexes_mock = MagicMock()
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
@@ -85,8 +75,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         self.plugin_instance.update_structures_deep = update_structures_mock
 
         alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
-        result = run_awaitable(
-            self.plugin_instance.superimpose_by_entry,
+        result = await self.plugin_instance.superimpose_by_entry(
             self.complex_4hhb.index,
             [self.complex_1mbo.index],
             alignment_method
@@ -94,7 +83,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
         self.assertEqual(result, expected_result)
 
-    def test_superimpose_by_entry_heavy_atoms(self):
+    async def test_superimpose_by_entry_heavy_atoms(self):
         request_complexes_mock = MagicMock()
         fut = asyncio.Future()
         fut.set_result([self.complex_4hhb, self.complex_1mbo])
@@ -108,16 +97,13 @@ class PluginFunctionTestCase(unittest.TestCase):
         self.plugin_instance.update_structures_deep = update_structures_mock
 
         alignment_method = OverlayMethodEnum.HEAVY_ATOMS_ONLY
-        result = run_awaitable(
-            self.plugin_instance.superimpose_by_entry,
-            self.complex_4hhb.index,
-            [self.complex_1mbo.index],
-            alignment_method
-        )
+        result = await self.plugin_instance.superimpose_by_entry(
+            self.complex_4hhb.index, [self.complex_1mbo.index], alignment_method)
+
         expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 366, 'paired_residues': 46, 'rmsd': 1.93}}
         self.assertEqual(result, expected_result)
 
-    def test_superimpose_by_chain_heavy_atoms(self):
+    async def test_superimpose_by_chain_heavy_atoms(self):
         # Make sure clean_complex function returns valid pdb can be parsed into a Complex structure.
         chain_name_4hhb = 'A'
         chain_name_1mbo = 'A'
@@ -136,9 +122,9 @@ class PluginFunctionTestCase(unittest.TestCase):
 
         alignment_method = OverlayMethodEnum.HEAVY_ATOMS_ONLY
         moving_comp_chain_list = [(self.complex_1mbo.index, chain_name_1mbo)]
-        result = run_awaitable(
-            self.plugin_instance.superimpose_by_chain,
-            self.complex_4hhb.index, chain_name_4hhb,
+        result = await self.plugin_instance.superimpose_by_chain(
+            self.complex_4hhb.index,
+            chain_name_4hhb,
             moving_comp_chain_list,
             alignment_method
         )
@@ -148,7 +134,7 @@ class PluginFunctionTestCase(unittest.TestCase):
     @unittest.skip("Sitemotif not working from tests")
     @patch('nanome.api.structure.Molecule.get_ligands')
     @patch('nanome.api.plugin_instance.PluginInstance.request_complexes')
-    def test_superimpose_by_binding_site(self, request_complexes_mock, get_ligands_mock, *mocks):
+    async def test_superimpose_by_binding_site(self, request_complexes_mock, get_ligands_mock, *mocks):
         # Load kinases
         kinase_folder = os.path.join(fixtures_dir, 'kinases')
         complex_list = []
@@ -177,8 +163,7 @@ class PluginFunctionTestCase(unittest.TestCase):
         fut.set_result([substruct])
         get_ligands_mock.return_value = fut
 
-        result = run_awaitable(
-            self.plugin_instance.superimpose_by_binding_site,
+        result = await self.plugin_instance.superimpose_by_binding_site(
             fixed_comp.index,
             ligand_index,
             moving_comp_indices,
@@ -186,3 +171,94 @@ class PluginFunctionTestCase(unittest.TestCase):
             self.plugin_instance
         )
         self.assertEqual(result, {})
+
+    async def test_superimpose_by_selection_atoms_selected(self):
+        """With all atoms selected, this should return the same results as superimpose by entry."""
+        for atom in self.complex_4hhb.atoms:
+            atom.selected = True
+
+        for atom in self.complex_1mbo.atoms:
+            atom.selected = True
+
+        request_complexes_mock = MagicMock()
+        fut = asyncio.Future()
+        fut.set_result([self.complex_4hhb, self.complex_1mbo])
+
+        request_complexes_mock.return_value = fut
+        self.plugin_instance.request_complexes = request_complexes_mock
+
+        update_structures_mock = MagicMock()
+        update_fut = asyncio.Future()
+        update_fut.set_result([self.complex_1mbo])
+        update_structures_mock.return_value = update_fut
+        self.plugin_instance.update_structures_deep = update_structures_mock
+
+        alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
+        result = await self.plugin_instance.superimpose_by_selection(
+            self.complex_4hhb.index,
+            [self.complex_1mbo.index],
+            alignment_method
+        )
+        expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
+        self.assertEqual(result, expected_result)
+
+    async def test_superimpose_by_selection_no_atoms_selected(self):
+        """With no atoms selected, this should return an error and send a notification."""
+        for atom in self.complex_4hhb.atoms:
+            atom.selected = False
+
+        for atom in self.complex_1mbo.atoms:
+            atom.selected = False
+
+        request_complexes_mock = MagicMock()
+        fut = asyncio.Future()
+        fut.set_result([self.complex_4hhb, self.complex_1mbo])
+
+        request_complexes_mock.return_value = fut
+        self.plugin_instance.request_complexes = request_complexes_mock
+
+        update_structures_mock = MagicMock()
+        update_fut = asyncio.Future()
+        update_fut.set_result([self.complex_1mbo])
+        update_structures_mock.return_value = update_fut
+        self.plugin_instance.update_structures_deep = update_structures_mock
+        self.plugin_instance.send_notification = MagicMock()
+        alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
+        with self.assertRaises(ValueError):
+            await self.plugin_instance.superimpose_by_selection(
+                self.complex_4hhb.index,
+                [self.complex_1mbo.index],
+                alignment_method
+            )
+        # Make sure notification was sent.
+        self.plugin_instance.send_notification.assert_called_once()
+
+    async def test_superimpose_by_selection_no_moving_atoms_selected(self):
+        """With no moving atoms selected, function should still run."""
+        for atom in self.complex_4hhb.atoms:
+            atom.selected = True
+
+        # for atom in self.complex_1mbo.atoms:
+        #     atom.selected = True
+
+        request_complexes_mock = MagicMock()
+        fut = asyncio.Future()
+        fut.set_result([self.complex_4hhb, self.complex_1mbo])
+
+        request_complexes_mock.return_value = fut
+        self.plugin_instance.request_complexes = request_complexes_mock
+
+        update_structures_mock = MagicMock()
+        update_fut = asyncio.Future()
+        update_fut.set_result([self.complex_1mbo])
+        update_structures_mock.return_value = update_fut
+        self.plugin_instance.update_structures_deep = update_structures_mock
+
+        alignment_method = OverlayMethodEnum.ALPHA_CARBONS_ONLY
+        result = await self.plugin_instance.superimpose_by_selection(
+            self.complex_4hhb.index,
+            [self.complex_1mbo.index],
+            alignment_method
+        )
+        expected_result = {self.complex_1mbo.full_name: {'paired_atoms': 141, 'paired_residues': 141, 'rmsd': 1.78}}
+        self.assertEqual(result, expected_result)

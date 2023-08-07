@@ -11,6 +11,7 @@ from . import utils
 from .superimpose_by_chain import superimpose_by_chain
 from .superimpose_by_entry import superimpose_by_entry
 from .superimpose_by_binding_site import superimpose_by_binding_site
+from .superimpose_by_selection import superimpose_by_selection
 from .menu import MainMenu
 
 PDBOPTIONS = Complex.io.PDBSaveOptions()
@@ -208,6 +209,50 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
     def update_submit_btn_text(self, new_text):
         if getattr(self, 'menu', None):
             self.menu.update_submit_btn_text(new_text)
+
+    async def superimpose_by_selection(self, fixed_comp_index, moving_comp_indices, overlay_method):
+        updated_comps = await self.request_complexes([fixed_comp_index, *moving_comp_indices])
+        # Validate that each complex has at least one selected atom
+        fixed_comp, *moving_comps = updated_comps
+        if not any([atom.selected for atom in fixed_comp.atoms]):
+            msg = f"Fixed Structure {fixed_comp.full_name} has no selected atoms"
+            self.send_notification(enums.NotificationTypes.error, msg)
+            Logs.error(msg)
+            raise ValueError(f"Make sure all structures have selected atoms.")
+        self.run_index += 1
+        fixed_comp.locked = True
+        fixed_comp.boxed = False
+        comps_to_update = [fixed_comp]
+        rmsd_results = {}
+        comp_count = len(moving_comps)
+        for i, moving_comp in enumerate(moving_comps):
+            Logs.debug(f"Starting Structure {i + 1}")
+            ComplexUtils.align_to(moving_comp, fixed_comp)
+            transform_matrix, rmsd_data = superimpose_by_selection(fixed_comp, moving_comp, overlay_method)
+            rmsd_results[moving_comp.full_name] = rmsd_data
+            # Use matrix to transform moving atoms to new position
+            for comp_atom in moving_comp.atoms:
+                comp_atom.position = transform_matrix * comp_atom.position
+            moving_comp.set_surface_needs_redraw()
+            moving_comp.locked = True
+            moving_comp.boxed = False
+            comps_to_update.append(moving_comp)
+            self.update_loading_bar(i + 1, comp_count)
+
+        await self.update_structures_deep(comps_to_update)
+        # Due to a bug in nanome-core, if a complex is unlocked, we need to
+        # make a separate call to remove box from around complexes.
+        self.update_structures_shallow(comps_to_update)
+
+        # Update comps in stored complex list
+        for i in range(len(self.complexes)):
+            comp_index = self.complexes[i].index
+            updated_comp = next(
+                (updated_comp for updated_comp in comps_to_update
+                 if updated_comp.index == comp_index), None)
+            if updated_comp:
+                self.complexes[i] = updated_comp
+        return rmsd_results
 
 
 def main():

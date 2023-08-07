@@ -10,3 +10,4 @@ class AlignmentModeEnum(enum.Enum):
     ENTRY = 'entry'
     CHAIN = 'chain'
     BINDING_SITE = 'binding_site'
+    SELECTION = 'selection'
