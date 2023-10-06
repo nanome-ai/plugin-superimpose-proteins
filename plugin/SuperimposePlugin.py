@@ -217,7 +217,7 @@ class SuperimposePlugin(nanome.AsyncPluginInstance):
         if not any([atom.selected for atom in fixed_comp.atoms]):
             msg = f"Fixed Structure {fixed_comp.full_name} has no selected atoms"
             self.send_notification(enums.NotificationTypes.error, msg)
-            Logs.error(msg)
+            Logs.warning(msg)
             raise ValueError(f"Make sure all structures have selected atoms.")
         self.run_index += 1
         fixed_comp.locked = True
